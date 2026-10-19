@@ -1,0 +1,4 @@
+.claude/
+*.local.json
+Thumbs.db
+.DS_Store

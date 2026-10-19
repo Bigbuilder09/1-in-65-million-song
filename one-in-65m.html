@@ -1,0 +1,2108 @@
+<title>1 ใน 65 ล้าน</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+/* layout: จอเกมพิกเซลซ้าย + แผงตัดสินใจขวา (PC) / ซ้อนบนล่าง (มือถือ) · โลกเดียว: กลางคืนแบบตู้เกม ทองวัดไทยเป็นสีเน้น */
+:root{
+  --bg:#0b1026; --bg2:#121a3a; --panel:#151f45; --line:#2b3a72; --ink:#f3ecd9; --dim:#a9b0cf; --faint:#6e78a3;
+  --gold:#e8b04a; --gold2:#ffd77a; --teal:#3fd1c4; --good:#38e07b; --bad:#ff4d6d; --karma:#b58cff; --warn:#ffcf4d;
+  --f-disp:"Chakra Petch", "IBM Plex Sans Thai", system-ui, sans-serif; --f-body:"IBM Plex Sans Thai", "Chakra Petch", system-ui, sans-serif; --f-px:"Silkscreen", "Chakra Petch", monospace;
+  color-scheme: dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0;
+  background-image:radial-gradient(circle at 20% -10%, #1d2b5a 0, transparent 50%), radial-gradient(circle at 110% 120%, #2a1840 0, transparent 45%);}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+#app{max-width:1180px;margin:0 auto;padding-block:12px 28px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:12px;min-height:100%}
+/* HUD */
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;background:var(--bg2);border:2px solid var(--line);padding:8px 12px;box-shadow:0 4px 0 #050817}
+.who{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 220px}
+.who b{font-family:var(--f-disp);font-size:18px;letter-spacing:.02em;white-space:nowrap}
+.who .age{font-family:var(--f-px);font-size:12px;color:var(--gold2);white-space:nowrap}
+.who .where{color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.stat{display:flex;align-items:center;gap:5px;font-family:var(--f-px);font-size:12px;font-variant-numeric:tabular-nums;transition:transform .2s}
+.stat img{width:14px;height:14px;image-rendering:pixelated}
+.stat .bar{width:42px;height:6px;background:#0a0f24;border:1px solid var(--line);position:relative}
+.stat .bar i{position:absolute;inset:0 auto 0 0;background:currentColor}
+.stat.flash{transform:scale(1.15)}
+.stat.H{color:#ff6b81}.stat.J{color:var(--warn)}.stat.S{color:#6cc6ff}.stat.C{color:var(--teal)}.stat.M{color:var(--gold2)}.stat.D{color:var(--bad)}
+.stat .v{color:var(--ink);min-width:2ch}
+/* main */
+.main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:880px){ .main{grid-template-columns:minmax(0,1fr)} }
+.screen{position:relative;border:3px solid #050817;outline:2px solid var(--line);background:#000;box-shadow:0 6px 0 #050817}
+.screen canvas{display:block;width:100%;aspect-ratio:16/9;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%}
+.scan{pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);mix-blend-mode:multiply}
+.chips{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+.chip{font-family:var(--f-px);font-size:12px;padding:2px 6px;background:rgba(5,8,23,.85);border:1px solid var(--line);animation:rise 2.2s ease-out forwards}
+.chip.up{color:var(--good)}.chip.down{color:var(--bad)}
+@keyframes rise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+.timeline{margin-top:10px;position:relative;height:22px}
+.timeline .track{position:absolute;left:0;right:0;top:9px;height:4px;background:#0a0f24;border:1px solid var(--line)}
+.timeline .fill{position:absolute;left:0;top:9px;height:4px;background:var(--gold)}
+.timeline .now{position:absolute;top:3px;width:10px;height:16px;margin-left:-5px;background:var(--gold2);box-shadow:0 0 0 2px #050817}
+.timeline .tick{position:absolute;top:0;font-family:var(--f-px);font-size:9px;color:var(--faint);transform:translateX(-50%)}
+.timeline .ev{position:absolute;top:8px;width:4px;height:6px;margin-left:-2px;background:var(--teal);opacity:.8}
+.under{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.linkbtn{background:none;border:1px solid var(--line);color:var(--dim);padding:4px 10px;font-size:12.5px;cursor:pointer}
+.ubtns{display:flex;gap:6px}
+.linkbtn.snd b{color:var(--gold);font-weight:700}
+.linkbtn.snd.off b{color:var(--faint);text-decoration:line-through}
+.linkbtn.snd.off{color:var(--faint)}
+.linkbtn:hover{color:var(--ink);border-color:var(--gold)}
+.simnote{font-size:12px;color:var(--faint)}
+/* panel */
+.panel{background:var(--panel);border:2px solid var(--line);box-shadow:0 6px 0 #050817;padding:16px 16px 18px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-family:var(--f-px);font-size:11px;letter-spacing:.08em;color:var(--gold);text-transform:uppercase;display:flex;gap:8px;flex-wrap:wrap}
+.eyebrow span{color:var(--faint)}
+.panel h2{font-family:var(--f-disp);font-weight:700;font-size:22px;line-height:1.3;margin:0;text-wrap:balance}
+.panel .txt{white-space:pre-line;color:var(--dim);margin:0;max-width:62ch}
+.head{border-left:4px solid var(--warn);background:rgba(255,207,77,.07);padding:8px 10px}
+.head b{font-family:var(--f-disp);display:block;color:var(--warn)}
+.head p{margin:2px 0 0;color:var(--dim);white-space:pre-line}
+.pend{display:flex;flex-direction:column;gap:4px;border:1px dashed var(--line);padding:8px 10px;background:rgba(0,0,0,.18)}
+.pend div{font-size:13.5px;color:var(--ink)}
+.pend div::before{content:"▸ ";color:var(--gold)}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.ch{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 10px;align-items:center;text-align:left;background:#1b2757;border:2px solid #31438a;padding:9px 11px;cursor:pointer;box-shadow:0 3px 0 #0a0f24;transition:transform .08s, border-color .12s}
+.ch:hover:not(:disabled),.ch:focus-visible{border-color:var(--gold);outline:none;transform:translateY(-1px)}
+.ch:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #0a0f24}
+.ch .k{font-family:var(--f-px);font-size:11px;color:var(--faint);grid-row:1/3}
+.ch .l{font-family:var(--f-disp);font-weight:600;font-size:15.5px;min-width:0}
+.ch .s{grid-column:2;font-size:12.5px;color:var(--dim);min-width:0}
+.ch .price{grid-row:1/3;grid-column:3;font-family:var(--f-px);font-size:11.5px;color:var(--gold2);text-align:right;white-space:nowrap}
+.ch .price small{display:block;font-family:var(--f-body);font-size:10px;color:var(--faint);letter-spacing:0}
+.ch .loan{grid-column:2;font-size:12px;color:var(--warn)}
+.ch:disabled{opacity:.5;cursor:not-allowed;filter:saturate(.4)}
+.ch .lock{grid-column:2;font-size:12px;color:var(--bad)}
+.ch.on{border-color:var(--teal);background:#183a52}
+.ch .box{grid-row:1/3;width:14px;height:14px;border:2px solid var(--faint)}
+.ch.on .box{background:var(--teal);border-color:var(--teal)}
+.go{align-self:flex-start;font-family:var(--f-disp);font-weight:700;font-size:16px;background:var(--gold);color:#1a1205;border:0;padding:10px 22px;cursor:pointer;box-shadow:0 4px 0 #8a5d12}
+.go:hover,.go:focus-visible{background:var(--gold2);outline:none}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #8a5d12}
+.go.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+/* timeskip chart */
+.chart{display:flex;align-items:center;gap:2px;height:96px;border-bottom:1px solid var(--line);border-top:1px solid var(--line);position:relative;overflow:hidden}
+.chart .b{flex:1 1 0;min-width:2px;max-width:22px;position:relative;height:100%}
+.chart .b i{position:absolute;left:0;right:0;background:var(--good)}
+.chart .b.neg i{background:var(--bad)}
+.chart .b.rec i{background:#8b93b8}
+.chart .zero{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--faint)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--faint)}
+.legend i{display:inline-block;width:9px;height:9px;margin-right:4px;vertical-align:-1px}
+.omen{color:var(--karma);font-style:italic}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-size:13.5px}
+.kv dt{color:var(--faint)} .kv dd{margin:0;font-variant-numeric:tabular-nums}
+/* title */
+.title-art{font-family:var(--f-disp);font-weight:700;font-size:clamp(34px,6vw,56px);line-height:1;margin:4px 0 0;color:var(--gold2);text-shadow:3px 3px 0 #7a3a22, 6px 6px 0 #050817;letter-spacing:.01em}
+.title-art small{display:block;font-family:var(--f-px);font-size:12px;color:var(--teal);text-shadow:none;letter-spacing:.12em;margin-top:10px}
+/* karma */
+.ledger{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;padding-right:4px}
+.led{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:2px 8px;padding:6px 8px;border-left:4px solid var(--karma);background:rgba(181,140,255,.08);animation:pop .4s both}
+.led.good{border-color:var(--gold);background:rgba(232,176,74,.08)}
+.led .a{font-family:var(--f-px);font-size:10px;color:var(--faint)}
+.led .t{font-size:13.5px}
+.led .st{font-family:var(--f-px);font-size:10px;text-align:right}
+.led .st.y{color:var(--warn)} .led .st.n{color:var(--faint)}
+.led .e{grid-column:2/4;font-size:12.5px;color:var(--dim)}
+@keyframes pop{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.bigK{font-family:var(--f-px);font-size:26px}
+.score{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.score .n{font-family:var(--f-disp);font-weight:700;font-size:44px;color:var(--gold2);line-height:1}
+.score .p{font-family:var(--f-disp);font-size:18px}
+.parts{display:flex;flex-direction:column;gap:5px}
+.part{display:grid;grid-template-columns:96px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:12.5px}
+.part .bar{height:8px;background:#0a0f24;border:1px solid var(--line);position:relative}
+.part .bar i{position:absolute;inset:0 auto 0 0;background:var(--teal)}
+.part span:last-child{font-family:var(--f-px);font-size:11px;text-align:right}
+.card{max-width:100%;width:300px;image-rendering:pixelated;border:2px solid var(--line);display:block}
+.cardwrap{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.cardwrap > div{min-width:0;flex:1 1 200px}
+/* drawer */
+.drawer{position:fixed;inset:0;background:rgba(5,8,23,.7);display:flex;justify-content:flex-end;z-index:20}
+.drawer .in{width:min(420px,100%);height:100%;background:var(--bg2);border-left:2px solid var(--line);padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-right:max(16px, env(safe-area-inset-right,0px));overflow:auto}
+.drawer h3{font-family:var(--f-disp);margin:0 0 8px}
+.drawer ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.drawer li{display:grid;grid-template-columns:44px 1fr;font-size:13.5px}
+.drawer li b{font-family:var(--f-px);font-size:11px;color:var(--gold)}
+.tree{display:flex;flex-direction:column;gap:8px}
+.gen{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:8px 10px;border:2px solid var(--line);background:#121a3a}
+.gen .g{font-family:var(--f-px);font-size:11px;color:var(--gold)}
+.gen .d{font-size:12.5px;color:var(--dim)}
+.gen .sc{font-family:var(--f-disp);font-weight:700;font-size:18px;color:var(--gold2)}
+.help{font-size:12px;color:var(--faint)}
+/* สัญลักษณ์แทนตัวอักษร */
+.ic{width:13px;height:13px;image-rendering:pixelated;vertical-align:-2px;margin:0 2px 0 0}
+.ic.big{width:18px;height:18px;vertical-align:-4px}
+.ic.huge{width:34px;height:34px}
+.fx{white-space:nowrap;font-family:var(--f-px);font-size:11.5px;margin-right:4px}
+.fx.up{color:var(--good)} .fx.dn{color:var(--bad)}
+.chip{display:flex;align-items:center;gap:2px}
+.chip .arw{font-size:9px;margin-left:3px}
+.lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.lines li{color:var(--dim);padding-left:16px;position:relative}
+.lines li::before{content:"";position:absolute;left:2px;top:.6em;width:6px;height:6px;background:var(--gold)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.tile{background:#101836;border:2px solid var(--line);padding:8px 10px;display:grid;grid-template-columns:auto 1fr;gap:0 8px;align-items:center;min-width:0}
+.tile .ic{grid-row:1/4}
+.tile .lab{font-size:11.5px;color:var(--faint)}
+.tile b{font-family:var(--f-disp);font-size:17px;line-height:1.25;min-width:0;overflow-wrap:anywhere}
+.tile b.neg{color:var(--bad)} .tile b.pos{color:var(--good)}
+.tile .note{font-size:11.5px;color:var(--gold2);grid-column:2}
+.tile .meter{grid-column:1/3;height:4px;background:#0a0f24;margin-top:5px;position:relative}
+.tile .meter i{position:absolute;inset:0 auto 0 0;background:var(--gold)}
+.ladder{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end;padding:10px 6px 4px;border:2px solid var(--line);background:#0e1532}
+.rung{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;opacity:.55}
+.rung.me{opacity:1}
+.rung .pc{font-family:var(--f-px);font-size:10px;color:var(--dim)}
+.rung .col{width:100%;max-width:34px;height:70px;position:relative;background:#0a0f24}
+.rung .col i{position:absolute;left:0;right:0;bottom:0;background:#4b5a99}
+.rung.me .col i{background:var(--gold);box-shadow:0 0 0 2px var(--gold2)}
+.rung .cn{display:flex;flex-wrap:wrap;justify-content:center;max-width:42px;min-height:13px}
+.rung .cn .ic{width:9px;height:9px;margin:0}
+.rung .nm{font-size:10.5px;color:var(--faint);text-align:center;line-height:1.2}
+.rung.me .nm{color:var(--gold2);font-weight:600}
+.rung .you{position:absolute;top:-12px;font-family:var(--f-px);font-size:9px;background:var(--gold);color:#1a1205;padding:0 4px}
+.money{display:flex;align-items:center;gap:12px;padding:8px 12px;border:2px solid #6b4f16;background:linear-gradient(90deg,#2a2210,#151f45)}
+.money b{font-family:var(--f-disp);font-size:26px;color:var(--gold2);display:block;line-height:1.1}
+.money span{font-size:12px;color:var(--dim)}
+.statrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.sb{display:flex;align-items:center;gap:5px;min-width:0}
+.sb .bar{flex:1;height:6px;background:#0a0f24;border:1px solid var(--line);position:relative;min-width:20px}
+.sb .bar i{position:absolute;inset:0 auto 0 0;background:var(--teal)}
+.sb b{font-family:var(--f-px);font-size:11px}
+.outcome{align-self:flex-start;font-family:var(--f-disp);font-weight:700;font-size:20px;padding:4px 14px;border:2px solid;display:flex;gap:8px;align-items:center}
+.outcome.good{color:var(--good);background:rgba(56,224,123,.1)} .outcome.mid{color:var(--warn);background:rgba(255,207,77,.08)} .outcome.bad{color:var(--bad);background:rgba(255,77,109,.1)}
+.legendgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 12px}
+.legendgrid div{display:grid;grid-template-columns:auto 1fr;gap:0 6px;align-items:center}
+.legendgrid .ic{grid-row:1/3}
+.legendgrid b{font-family:var(--f-disp);font-size:14px}
+.legendgrid span{font-size:11.5px;color:var(--faint)}
+@media (prefers-reduced-motion: reduce){ .chip,.led{animation:none} .ch,.stat{transition:none} }
+</style>
+<div id="app">
+  <header class="hud" id="hud" hidden>
+    <div class="who"><b id="hName">—</b><span class="age" id="hAge"></span><span class="where" id="hWhere"></span></div>
+    <div class="stats" id="hStats"></div>
+  </header>
+  <div class="main">
+    <section>
+      <div class="screen"><canvas id="cv" width="192" height="108" aria-label="ฉากในเกม"></canvas><div class="scan"></div><div class="chips" id="chips"></div></div>
+      <div class="timeline" id="tl" hidden></div>
+      <div class="under"><span class="simnote" id="simnote"></span><span class="ubtns"><button class="linkbtn snd" id="sndBtn" aria-pressed="true" title="เปิด/ปิดเพลง (M)"><b>♪</b> <span id="sndTxt">เพลง</span></button><button class="linkbtn" id="logBtn" hidden>บันทึกชีวิต</button></span></div>
+    </section>
+    <section class="panel" id="panel" aria-live="polite"></section>
+  </div>
+</div>
+<div class="drawer" id="drawer" hidden><div class="in" id="drawerIn"></div></div>
+<script>
+// ===== DATA (จากเอกสารออกแบบ "1 ใน 65 ล้าน") =====
+const POP_TOTAL = 65852335;
+const TIERS = [
+  null,
+  { id:1, name:'กทม.และปริมณฑล', H:75, J:55, C:30, skip:.08, q:[8.0,12.0,18.3,25.3,32.8,3.6], far:'city',
+    prov:[['กรุงเทพมหานคร',8.25],['สมุทรปราการ',2.10],['นนทบุรี',2.01],['ปทุมธานี',1.89]] },
+  { id:2, name:'เมืองอุตสาหกรรมและท่องเที่ยว', H:72, J:58, C:25, skip:.12, q:[10.0,15.0,20.2,25.2,27.8,1.8], far:'industry',
+    prov:[['ชลบุรี',2.49],['พระนครศรีอยุธยา',1.25],['ระยอง',1.20],['ฉะเชิงเทรา',1.11],['สมุทรสาคร',0.89],['ปราจีนบุรี',0.76],['ภูเก็ต',0.66]] },
+  { id:3, name:'หัวเมืองภูมิภาค', H:72, J:62, C:22, skip:.15, q:[15.0,17.9,20.2,22.0,24.0,0.9], far:'town',
+    prov:[['นครราชสีมา',3.97],['อุบลราชธานี',2.83],['เชียงใหม่',2.73],['ขอนแก่น',2.68],['อุดรธานี',2.35],['สงขลา',2.17],['สุราษฎร์ธานี',1.63],['นครปฐม',1.41],['พิษณุโลก',1.27],['สระบุรี',0.97]] },
+  { id:4, name:'ภาคกลาง ตะวันออก และใต้', H:68, J:64, C:18, skip:.18, q:[17.9,20.9,21.2,20.9,18.7,0.4], far:'rice',
+    prov:[['นครศรีธรรมราช',2.33],['กาญจนบุรี',1.36],['ราชบุรี',1.31],['สุพรรณบุรี',1.24],['ลพบุรี',1.10],['ตรัง',0.96],['สระแก้ว',0.85],['ประจวบคีรีขันธ์',0.84],['จันทบุรี',0.81],['พัทลุง',0.79],['ชุมพร',0.77],['กระบี่',0.74],['เพชรบุรี',0.73],['สตูล',0.49],['ชัยนาท',0.47],['อ่างทอง',0.41],['พังงา',0.40],['นครนายก',0.39],['ตราด',0.34],['สิงห์บุรี',0.30],['ระนอง',0.29],['สมุทรสงคราม',0.28]] },
+  { id:5, name:'เหนือและอีสาน', H:64, J:66, C:15, skip:.30, q:[29.8,24.8,20.1,15.7,9.4,0.2], far:'mountain',
+    prov:[['บุรีรัมย์',2.37],['ศรีสะเกษ',2.18],['สุรินทร์',2.06],['เชียงราย',1.97],['ร้อยเอ็ด',1.93],['สกลนคร',1.72],['ชัยภูมิ',1.67],['นครสวรรค์',1.53],['กาฬสินธุ์',1.46],['เพชรบูรณ์',1.45],['มหาสารคาม',1.41],['นครพนม',1.08],['ตาก',1.07],['ลำปาง',1.06],['กำแพงเพชร',1.06],['เลย',0.96],['สุโขทัย',0.87],['ยโสธร',0.80],['หนองคาย',0.78],['พิจิตร',0.78],['หนองบัวลำภู',0.76],['น่าน',0.71],['พะเยา',0.69],['อุตรดิตถ์',0.66],['แพร่',0.64],['บึงกาฬ',0.63],['ลำพูน',0.60],['อำนาจเจริญ',0.56],['มุกดาหาร',0.53],['อุทัยธานี',0.49],['แม่ฮ่องสอน',0.44]] },
+  { id:6, name:'ชายแดนใต้', H:62, J:55, C:15, skip:.15, q:[37.8,25.8,18.1,11.5,6.7,0.1], far:'south',
+    prov:[['นราธิวาส',1.26],['ปัตตานี',1.13],['ยะลา',0.84]] },
+];
+TIERS.slice(1).forEach(t => t.pct = t.prov.reduce((s,x)=>s+x[1],0));
+
+const QS = [
+  { code:'Q1', name:'ยากจน',       inc:10400,  save:.03, start:30000,    fdebt:80000 },
+  { code:'Q2', name:'ค่อนข้างจน',  inc:17300,  save:.08, start:150000,   fdebt:120000 },
+  { code:'Q3', name:'ปานกลาง',     inc:24700,  save:.12, start:320000,   fdebt:150000 },
+  { code:'Q4', name:'กลางบน',      inc:35500,  save:.18, start:700000,   fdebt:200000 },
+  { code:'Q5', name:'มีอันจะกิน',  inc:60000,  save:.25, start:1600000,  fdebt:300000 },
+  { code:'TOP', name:'มหาเศรษฐี',  inc:500000, save:.35, start:20000000, fdebt:0 },
+];
+// แบ่งควินไทล์จากรายได้ครัวเรือนต่อเดือน (จุดกึ่งกลางระหว่างค่าเฉลี่ยแต่ละขั้น)
+function incomeToQ(m){ if(m<13850)return 0; if(m<21000)return 1; if(m<30100)return 2; if(m<47750)return 3; if(m<200000)return 4; return 5; }
+const INHERIT = [20000,100000,300000,1000000,3000000,30000000];
+
+const NAMES_M = ['ต้น','บอส','เจ','ภูมิ','กล้า','ปอนด์','อาร์ม','ไผ่','โอ๊ต','เต้','ฟลุ๊ค','นนท์','ซัน','บาส','ตั้ม','เอก','ก้อง','ธีร์','ปั้น','ฟิวส์'];
+const NAMES_F = ['ฝน','มิ้นท์','แพร','น้ำ','ปลา','เฟิร์น','ใบเตย','ขิม','ฟ้า','จูน','ปราง','แก้ม','มายด์','ข้าวหอม','พลอย','เนย','อิง','ดาว','น้ำหวาน','ปุยฝ้าย'];
+const NAMES_MU_M = ['อาลี','ฮาซัน','อิบรอเฮง','ซูไฮมี','อาดัม','ฟาริด','รอซาลี'];
+const NAMES_MU_F = ['ฟาตีมะห์','นูรีซัน','ซารีนา','อามีเนาะ','ไลลา','มารีแย','ซูไรดา'];
+
+// ===== อาชีพ (Stage 3) =====
+const CAREERS = {
+  farm:   { name:'เกษตรกร', cost:100000, start:8000,  caps:{good:15000,mid:11500,bad:11500}, grow:.03, sig:.25, sens:.5, fx:{H:5,J:3}, odds:[20,50,30], ret:'allow', bg:'farm',
+            outText:{good:'ปีนี้ฟ้าฝนเป็นใจ ผลผลิตดีจนขยายสวนได้', mid:'รายได้พอกินพอใช้ ขึ้นลงตามราคาพืช', bad:'ขาดทุนแทบทุก 1 ใน 3 ปี'} },
+  factory:{ name:'แรงงานโรงงาน', cost:0, start:11000, caps:{good:22000,mid:16000,bad:16000}, grow:.03, sig:.10, sens:.8, fx:{H:-5}, odds:[15,65,20], ret:'sso', bg:'factory',
+            outText:{good:'ได้เป็นหัวหน้าไลน์', mid:'ทำงานไลน์ผลิตไปเรื่อย ๆ รายได้ขึ้นตาม OT', bad:'โรงงานลดคน ตกงาน 2 ปี'} },
+  gov:    { name:'ข้าราชการ', cost:20000, start:18000, caps:{good:60000,mid:42000,bad:28000}, grow:.04, sig:.03, sens:0, fx:{J:5,C:10}, odds:[25,60,15], ret:'gov', bg:'gov', needDegree:true,
+            outText:{good:'ไต่ถึงซี 8', mid:'เลื่อนขั้นตามปกติ', bad:'ติดอยู่ระดับต้นนานกว่าคนอื่น'} },
+  office: { name:'พนักงานออฟฟิศ', cost:0, start:20000, caps:{good:120000,mid:60000,bad:60000}, grow:.05, sig:.08, sens:.5, fx:{H:-5,J:-3}, odds:[25,55,20], ret:'sso', bg:'office', needDegree:true,
+            outText:{good:'ขึ้นเป็นผู้บริหาร', mid:'เป็นหัวหน้าทีมระดับกลาง', bad:'จะถูกเลิกจ้างตอนอายุ 45'} },
+  biz:    { name:'ธุรกิจส่วนตัว', cost:500000, start:20000, caps:{good:200000,mid:35000,bad:0}, grow:.25, sig:.35, sens:1.0, fx:{J:5}, odds:[20,40,40], ret:'allow', bg:'shop',
+            outText:{good:'กิจการโตจนเปิดหลายสาขา', mid:'ร้านอยู่ได้ รายได้ราวเดือนละ 35,000', bad:'ธุรกิจเจ๊ง เสียทุนทั้งหมด'} },
+  abroad: { name:'ทำงานต่างประเทศ', cost:150000, start:40000, caps:{good:40000,mid:40000,bad:24000}, grow:0, sig:.10, sens:.3, fx:{J:-10,C:-5}, odds:[30,50,20], ret:'allow', bg:'abroad', maxAge:40,
+            outText:{good:'เก็บเงินได้ก้อนใหญ่ 1.5 ล้าน', mid:'ทำงานครบสัญญา 5 ปี', bad:'นายจ้างโกง รายได้หายไป 40%'} },
+  influ:  { name:'อินฟลูเอนเซอร์', cost:100000, start:30000, caps:{good:500000,mid:25000,bad:0}, grow:.4, sig:.60, sens:1.0, fx:{J:5}, odds:[5,35,60], ret:'allow', bg:'stream',
+            outText:{good:'ดังระดับประเทศ', mid:'มีแฟนคลับกลุ่มเล็ก รายได้ราว 25,000', bad:'3 ปีไม่มีคนดู ต้องเปลี่ยนอาชีพ'} },
+};
+const HOUSE_LOAN = { farm:[800000,.4,.06], factory:[1200000,.6,.06], gov:[3000000,.95,.04], office:[3500000,.8,.06], biz:[5000000,.5,.07], abroad:[1500000,.3,.06], influ:[4000000,.25,.07] };
+const CAR_PRICE  = { farm:600000, factory:450000, gov:800000, office:1000000, biz:1500000, abroad:600000, influ:2000000 };
+const CRYPTO_AMT = { farm:30000, factory:50000, gov:100000, office:200000, biz:500000, abroad:100000, influ:1000000 };
+
+// ราคาโรงเรียน 12 ปี
+const SCHOOLS = [
+  { id:'rural', name:'ร.ร.ประจำตำบล', cost:0,       kv:0 },
+  { id:'elite', name:'ร.ร.รัฐชื่อดังในเมือง', cost:150000,  kv:5 },
+  { id:'priv',  name:'โรงเรียนเอกชน', cost:600000,  kv:8 },
+  { id:'inter', name:'โรงเรียนอินเตอร์', cost:3000000, kv:10 },
+];
+
+// ความดีที่มีต้นทุน (กองความดี)
+const DEEDS = [
+  { id:'wallet', label:'คืนกระเป๋าเงินที่เก็บได้ ข้างในมีเงิน 20,000 บาท', min:8, max:99, K:5, tag:'honest',
+    run:(p,ctx)=>{ ctx.note = 'คุณตามหาเจ้าของจนเจอ'; if(chance(.3)){ fx(p,{C:3}); ctx.note+=' เขาขอบคุณและแนะนำคุณกับคนรู้จัก'; } } ,
+    costText:'ไม่ได้เงิน 20,000 ในกระเป๋า' },
+  { id:'lunch', label:'แบ่งข้าวกลางวันให้เพื่อนที่ไม่มีกินทั้งเทอม', min:6, max:18, K:3, tag:'community', fx:{H:-2}, costText:'H−2 (กินน้อยลง)' },
+  { id:'tutor', label:'ติวหนังสือให้เพื่อนและรุ่นน้องฟรี', min:12, max:22, K:4, tag:'edu', fx:{J:-2,C:2}, costText:'J−2 · เวลาอ่านหนังสือหายไป' },
+  { id:'camp', label:'ไปค่ายอาสาพัฒนาชนบท', min:18, max:25, K:5, tag:'community', cost:5000, fx:{H:-2,J:2}, costText:'5,000 · H−2' },
+  { id:'blood', label:'บริจาคเลือดสม่ำเสมอ', min:17, max:70, K:3, tag:'life', cost:1000, fx:{H:-1}, costText:'1,000 · H−1 ต่อช่วง' },
+  { id:'scholar', label:'ให้ทุนการศึกษาเด็กในบ้านเกิด ปีละ 20,000 บาท', min:23, max:75, K:10, tag:'edu', cost:100000, needIncome:true, costText:'20,000/ปี × 5 ปี' },
+  { id:'bribe_no', label:'มีคนเสนอสินบน 500,000 บาทให้คุณเซ็นผ่านงาน', min:25, max:59, K:10, tag:'honest', careers:['gov','office','biz'],
+    run:(p,ctx)=>{ ctx.note='คุณปฏิเสธ'; if(chance(.1)){ fx(p,{J:-5,C:-5}); ctx.note+=' แล้วถูกกลั่นแกล้งย้ายตำแหน่ง'; } }, costText:'ไม่ได้เงิน 500,000 · เสี่ยงถูกกลั่นแกล้ง', yes:'ปฏิเสธสินบน', no:'รับไว้' },
+  { id:'rescue', label:'สมัครเป็นอาสาสมัครกู้ภัย', min:18, max:60, K:8, tag:'life', fx:{H:-2,J:2}, incomeCut:.04, costText:'รายได้ −4% · H−2 · 5% บาดเจ็บ', risk:.05 },
+  { id:'fairpay', label:'จ่ายลูกจ้างเป็นธรรมพร้อมประกันสังคม', min:23, max:59, K:8, tag:'honest', careers:['biz','farm'], incomeCut:.05, costText:'รายได้ −5% ตลอดช่วงทำงาน' },
+  { id:'elder', label:'รับดูแลญาติผู้สูงอายุที่ไม่มีใครดูแล', min:30, max:75, K:8, tag:'family', cost:180000, fx:{J:-2}, costText:'3,000/เดือน × 5 ปี · J−2' },
+  { id:'sala', label:'บริจาคสร้างศาลาประจำหมู่บ้าน 100,000 บาท', min:40, max:90, K:10, tag:'community', cost:100000, fx:{C:2}, costText:'100,000' },
+  { id:'templevol', label:'เป็นจิตอาสาที่วัดและชุมชน', min:60, max:99, K:5, tag:'community', cost:60000, fx:{H:-2,J:2}, costText:'H−2 · 1,000/เดือน' },
+];
+
+const GOODTAG = { edu:'ช่วยการศึกษา', life:'ช่วยชีวิต', family:'ดูแลครอบครัว', community:'ช่วยชุมชน', honest:'ซื่อสัตย์' };
+const BADTAG  = { corrupt:'ทุจริต', harm:'ทำร้ายคนอื่น', selfillegal:'ผิดกฎหมายต่อตัวเอง', debtflee:'หนีหนี้', abandon:'ละทิ้งครอบครัว' };
+const GOODFRUIT = {
+  edu:      { score:4, text:'มีทุนการศึกษาในชื่อคุณ เด็กที่เคยได้ทุนโตขึ้นแล้วกลับมาไหว้' },
+  life:     { score:4, text:'มีคนยังมีชีวิตอยู่วันนี้เพราะคุณ' },
+  family:   { score:3, text:'ลูกหลานทำบุญครบรอบวันตายให้คุณทุกปี' },
+  community:{ score:3, text:'ชื่อคุณถูกจารึกที่ศาลาของชุมชน' },
+  honest:   { score:3, text:'ลูกหลานได้รับความไว้วางใจเพราะชื่อเสียงของคุณ' },
+};
+const OMENS = ['คืนนี้คุณฝันร้ายอีกแล้ว','เงาในกระจกดูเหมือนจ้องคุณนานกว่าปกติ','คุณสะดุ้งตื่นกลางดึก ใจเต้นแรงโดยไม่รู้สาเหตุ','หมาข้างบ้านเห่าใส่คุณทุกครั้งที่เดินผ่าน','คุณได้ยินเสียงใครเรียกชื่อตอนอยู่คนเดียว'];
+// ===== ENGINE CORE =====
+let RNG = Math.random;
+const rnd = () => RNG();
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const chance = pr => rnd() < pr;
+const randi = (a,b) => a + Math.floor(rnd()*(b-a+1));
+const pickOne = a => a[Math.floor(rnd()*a.length)];
+function wpick(items, wf){ const ws = items.map(it => Math.max(0, wf(it))); const tot = ws.reduce((s,w)=>s+w,0); if(tot<=0) return items[0]; let r = rnd()*tot; for(let i=0;i<items.length;i++){ r -= ws[i]; if(r<=0) return items[i]; } return items[items.length-1]; }
+function gauss(){ let u=0,v=0; while(!u)u=rnd(); while(!v)v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+const baht = n => (n<0?'−':'') + Math.round(Math.abs(n)).toLocaleString('en-US');
+const bahtS = n => { const a=Math.abs(n); const s = n<0?'−':''; if(a>=1e6) return s+(a/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,'')+' ล้าน'; if(a>=1e3) return s+Math.round(a/1e3)+'k'; return s+Math.round(a); };
+
+class Death { constructor(cause){ this.cause = cause; } }
+
+function newPlayer(o = {}){
+  let tier, prov;
+  if(o.tier){ tier = TIERS[o.tier]; prov = o.prov; }
+  else { tier = wpick(TIERS.slice(1), t => t.pct); prov = wpick(tier.prov, x => x[1])[0]; }
+  const sex = o.sex || (chance(.487) ? 'M' : 'F');
+  let qi = o.q !== undefined ? o.q : 0; if(o.q === undefined){ const r = rnd()*tier.q.reduce((s,v)=>s+v,0); let acc=0; qi=0; for(let i=0;i<6;i++){ acc+=tier.q[i]; if(r<=acc){ qi=i; break; } } }
+  const religion = o.religion || (tier.id===6 ? (chance(.8)?'อิสลาม':'พุทธ') : (chance(tier.id===4?.06:.02)?'อิสลาม':'พุทธ'));
+  const mu = religion==='อิสลาม';
+  const name = o.name || pickOne(sex==='M' ? (mu?NAMES_MU_M:NAMES_M) : (mu?NAMES_MU_F:NAMES_F));
+  const Q = QS[qi];
+  const J0 = clamp(tier.J + (o.Jbonus||0), 0, 100);
+  const p = {
+    name, sex, tier: tier.id, prov, q: qi, qBirth: qi, religion,
+    skipGen: o.skipGen !== undefined ? o.skipGen : chance(tier.skip),
+    age: 0, H: tier.H, J: J0, Jbase: J0, S: clamp(30 + (o.Sbonus||0),0,100), C: clamp(tier.C + (o.Cbonus||0),0,100), K: 0,
+    money: o.money !== undefined ? o.money : Q.start, start: o.money !== undefined ? o.money : Q.start,
+    famDebt: o.famDebt !== undefined ? o.famDebt : Q.fdebt,
+    debt: { f:0, k:0, i:0 }, gen: o.gen || 1, family: o.family || null,
+    stage: 0, school: null, schoolPaid: 0, rd: false, degree: null, dropout: false,
+    career: null, cOut: null, cYears: 0, cStartAge: 22, incomeBoost: 1, incomeCut: 0, lastSalary: 0, unemployed: 0,
+    spouse: null, kids: [], status: {}, tagsBad: [], tagsGood: [], log: [], samples: { J:[], H:[] },
+    flags: {}, lifestyle: 1, house: null, car: false, lottery: false, annual: [], pend: [], deeds: {},
+    lifespan: null, kidMoney: 0, guestsMult: 1, ancestors: o.ancestors || [], parentDeath: o.parentDeath || null,
+    insurance: false, pension: 0, retireIncome: 0, dead: false, cause: null, bars: [],
+  };
+  if(o.extra) Object.assign(p, o.extra);
+  return p;
+}
+
+const STATNAME = { H:'สุขภาพ', J:'ความสุข', S:'ทักษะ', C:'เส้นสาย' };
+function fx(p, d){
+  const shown = [];
+  for(const k of ['H','J','S','C']){ if(d[k]){ const before = p[k]; p[k] = clamp(p[k] + d[k], 0, 100); const real = p[k]-before; if(real) shown.push([k, real]); } }
+  if(d.K){ p.K = clamp(p.K + d.K, -100, 100); }
+  if(d.m){ addMoney(p, d.m); shown.push(['฿', d.m]); }
+  if(p.io && shown.length) p.io.chips(shown);
+  return shown;
+}
+function fxText(d, hideK = true){
+  const out = [];
+  for(const k of ['H','J','S','C']) if(d[k]) out.push(k + (d[k]>0?'+':'−') + Math.abs(d[k]));
+  if(d.K && !hideK) out.push('K' + (d.K>0?'+':'−') + Math.abs(d.K));
+  if(d.m) out.push('฿' + (d.m>0?'+':'−') + baht(Math.abs(d.m)));
+  return out.join(' ');
+}
+function totalDebt(p){ return p.debt.f + p.debt.k + p.debt.i; }
+function formalLimit(p){ return p.q <= 1 ? 200000 : 50000000; }
+function addMoney(p, amt){
+  p.money += amt;
+  if(p.money < 0){
+    const short = -p.money; p.money = 0;
+    const room = Math.max(0, formalLimit(p) - p.debt.f);
+    const f = Math.min(room, short); p.debt.f += f; p.debt.i += short - f;
+  }
+}
+function canLoan(p, cost){ return p.debt.f + Math.max(0, cost - p.money) <= formalLimit(p); }
+function hhIncome(p){ // รายได้ครัวเรือนต่อเดือน
+  if(p.age < 22 && !p.career) return QS[p.q].inc;
+  let m = p.career ? curIncome(p) : 0;
+  if(p.spouse && !p.spouse.separated) m += p.spouse.income;
+  if(p.age >= 60) m = p.retireIncome + (p.spouse && !p.spouse.separated ? p.spouse.income*0.3 : 0);
+  return Math.max(m, 1);
+}
+function monthsOf(p, cost){ return Math.round(cost / Math.max(hhIncome(p), 1)); }
+function note(p, text, d){ p.pend.push({ text, d }); log(p, text); }
+function log(p, text){ p.log.push({ age: p.age, text }); }
+function tagBad(p, type, label, amount = 0){ p.tagsBad.push({ type, label, amount, age: p.age }); }
+function tagGood(p, type, label){ p.tagsGood.push({ type, label, age: p.age }); }
+function stOn(p, s){ p.status[s] = true; } function stOff(p, s){ delete p.status[s]; }
+
+function M(p){ return 0.3*(p.S-50) + 0.2*(p.C-50) + 0.05*p.K; }
+function roll3(p, [g, m, b], adj = {}){
+  const mm = M(p);
+  let G = clamp(g + mm + (adj.g||0), 5, 85), B = clamp(b - 0.5*mm + (adj.b||0), 5, 85);
+  let Mi = clamp(100 - G - B, 5, 85); const s = G + B + Mi; const r = rnd()*s;
+  return r < G ? 'good' : r < G + Mi ? 'mid' : 'bad';
+}
+const OUT_TH = { good:'ดี', mid:'กลาง', bad:'แย่' };
+
+// ===== ตัวช่วยการตัดสินใจ =====
+// choice: { label, sub, cost, cond, condText, loan('bank'|'kys'|false), run }
+function prepChoices(p, list){
+  return list.map(c => {
+    const cost = c.cost || 0; const r = { ...c, cost, disabled: false, lock: null, loanNote: null };
+    if(c.cond === false){ r.disabled = true; r.lock = c.condText || 'ไม่ผ่านเงื่อนไข'; return r; }
+    if(cost > p.money){
+      const short = cost - p.money;
+      if(c.loan === 'kys'){ r.loanNote = `กู้ กยศ. ${baht(short)} (1%/ปี)`; }
+      else if(c.loan !== false && canLoan(p, cost)){ r.loanNote = `กู้ ${baht(short)} (7%/ปี)`; }
+      else { r.disabled = true; r.lock = `= ${monthsOf(p,cost).toLocaleString()} เดือนของรายได้บ้านคุณ`; }
+    }
+    return r;
+  });
+}
+function spend(p, cost, kind){
+  if(cost <= 0) return;
+  if(cost > p.money && kind === 'kys'){ const short = cost - p.money; p.debt.k += short; p.money += short; }
+  addMoney(p, -cost);
+}
+async function choose(p, io, opt){
+  const choices = prepChoices(p, opt.choices);
+  if(!choices.some(c => !c.disabled)) choices[choices.length-1].disabled = false; // กันเกมค้าง
+  const head = p.evHead; p.evHead = null;
+  const idx = await io.ask({ ...opt, choices, pend: p.pend.splice(0), head });
+  const c = choices[idx];
+  if(!c.defer) spend(p, c.cost, c.loan);
+  if(c.run) await c.run();
+  return c;
+}
+async function yesno(p, io, opt){ // opt: {title, text, cost, sub, yes, no, cond, condText, loan}
+  const c = await choose(p, io, { ...opt, kind: opt.kind || 'minor', choices: [
+    { label: opt.yes || 'ทำ', sub: opt.sub, cost: opt.cost || 0, cond: opt.cond, condText: opt.condText, loan: opt.loan === undefined ? false : opt.loan, yes: true },
+    { label: opt.no || 'ไม่ทำ', sub: opt.noSub || '', cost: 0, yes: false },
+  ]});
+  return c.yes;
+}
+async function say(p, io, opt){ await io.say({ ...opt, pend: p.pend.splice(0) }); }
+
+// ===== กระโดดเวลา =====
+function curIncome(p){ // รายได้ส่วนตัวต่อเดือนก่อนตัวคูณ
+  if(!p.career || p.unemployed > 0) return 0;
+  const C = CAREERS[p.career];
+  const cap = p.cOut ? C.caps[p.cOut] : C.caps.mid;
+  let base = C.start * Math.pow(1 + C.grow, p.cYears);
+  if(p.career === 'biz' && p.cOut === 'mid') base = 35000;
+  if(p.career === 'influ' && p.cOut === 'mid') base = 25000;
+  return Math.min(base, cap) * p.incomeBoost * (p.eduBoost || 1) * (1 - p.incomeCut);
+}
+function skillMult(p){ return clamp(1 + 0.01*(p.S - 50), 0.7, 1.4); }
+function saveRate(p){
+  let s = p.age >= 22 ? .15 : QS[p.q].save;
+  if(!p.spouse || p.spouse.separated) s += .05;
+  s -= .05 * p.kids.filter(k => !k.left).length;
+  if(p.house && p.house.years < 25) s -= .10;
+  if(p.flags.noKids) s += .10;
+  if(p.flags.spousePays) s += .15;
+  s += [ .10, 0, -.15 ][p.lifestyle];
+  return clamp(s, -.3, .6);
+}
+async function years(p, io, n, opts = {}){
+  const bars = []; const startAge = p.age; const notes = [];
+  for(let y = 0; y < n; y++){
+    p.age++;
+    // สุขภาพตามวัย
+    if(p.age > 70) p.H -= 2; else if(p.age > 50) p.H -= 1; else if(p.age > 40 && p.age % 2) p.H -= 1;
+    if(p.status.chronic){ p.H -= 1; addMoney(p, -6000); }
+    if(p.status.bullied && p.age <= 18) p.J -= 3;
+    if(p.status.depressed){ p.J -= 3; }
+    if(p.status.dementia){ p.J -= 3; }
+    if(p.status.grief){ p.J -= 2; p.status.grief--; if(p.status.grief <= 0) delete p.status.grief; }
+    if(p.status.druggedKid){ p.J -= 5; addMoney(p, -30000); }
+    if(p.status.prison > 0){ p.status.prison--; if(p.status.prison <= 0) stOff(p,'prison'); }
+    p.H = clamp(p.H, 0, 100); p.J = clamp(p.J, 0, 100);
+    let income = 0, net = 0, rec = false;
+    if(p.age <= 18){ // วัยเรียน เงินครอบครัว
+      if(p.q === 0) net += 4000;
+      if(p.school === 'rural') net -= 2500;
+      addMoney(p, net);
+    } else if(p.age <= 22 && !p.career){
+      net = p.flags.uniIncome || 0; addMoney(p, net);
+    } else if(p.age < 60){
+      rec = chance(.10);
+      if(p.status.prison) { income = 0; }
+      else if(p.career){
+        const C = CAREERS[p.career];
+        let m = curIncome(p) * skillMult(p) * Math.max(0, 1 + C.sig*gauss()) * (rec ? 1 - .3*C.sens : 1);
+        if(p.career === 'farm' && p.cOut === 'bad' && chance(1/3)) m = -0.2*C.start;
+        if(p.career === 'farm' && p.flags.rentLand) m *= .8;
+        income = m * 12;
+        if(p.unemployed > 0){ p.unemployed--; income = 0; }
+        p.cYears++;
+        if(income > 0) p.lastSalary = income/12;
+      }
+      const spouse = (p.spouse && !p.spouse.separated) ? p.spouse.income * 12 * (rec ? .9 : 1) : 0;
+      if(p.spouse && !p.spouse.separated) p.spouse.income *= 1.02;
+      const hh = income + spouse;
+      net = hh * saveRate(p);
+      if(hh > 0 && hh/12 < 10000) net += 4000; // บัตรสวัสดิการแห่งรัฐ
+    } else { // เกษียณ
+      const costM = 9000 * (p.flags.homeTown ? .8 : 1) + (p.flags.residenceCost || 0);
+      const inc = p.retireIncome + (p.flags.shopIncome || 0) + p.kidMoney;
+      income = inc * 12; net = (inc - costM) * 12;
+    }
+    // ค่าใช้จ่ายประจำ
+    for(const a of p.annual){ if(p.age > a.from && p.age <= a.to) net -= a.amt; }
+    if(p.lottery && p.age < 60) net -= 1920;
+    if(p.age > 18){
+      // ดอกเบี้ย
+      const interest = p.debt.f*.07*(p.flags.restructured?3/7:1) + p.debt.k*.01 + p.debt.i*.20;
+      p.debt.f *= 1 + (p.flags.restructured ? .03 : .07); p.debt.k *= 1.01; p.debt.i *= 1.20;
+      if(p.age >= 22) {
+        if(p.age >= 60 && p.money + net < 0){ net = -p.money; p.J = clamp(p.J - 10, 0, 100); if(!p.flags.broke){ p.flags.broke = true; note(p, 'เงินเก็บหมดแล้ว ต้องอยู่ด้วยเบี้ยยังชีพ ความสุขลดลงทุกปีที่ขาด'); } }
+        addMoney(p, net);
+        // ใช้หนี้ด้วยเงินที่มี (เก็บสำรองไว้ 6 เดือนของรายจ่าย)
+        const reserve = Math.max(0, hhIncome(p) * 6 * (1 - saveRate(p)));
+        let avail = Math.max(0, p.money - reserve);
+        for(const k of ['i','f','k']){ const pay = Math.min(avail, p.debt[k]); p.debt[k] -= pay; p.money -= pay; avail -= pay; }
+        // หนี้ล้นตัว
+        if(interest > Math.max(net,0) && totalDebt(p) > 50000){ p.flags.spiral = (p.flags.spiral||0) + 1; } else p.flags.spiral = 0;
+      }
+    }
+    if(p.house) { p.house.years++; p.house.value *= 1.02; }
+    if(p.status.bankrupt){ p.status.bankrupt--; if(p.status.bankrupt <= 0){ stOff(p,'bankrupt'); p.debt = { f:0, k:0, i:0 }; note(p,'ครบ 3 ปี ศาลปลดคุณจากการล้มละลาย หนี้เก่าถูกล้าง'); } }
+    bars.push({ age: p.age, net, income, rec });
+    // บัญชีกรรม: ลางร้าย
+    if(p.K < -30 && chance(.15) && !opts.quiet) notes.push(pickOne(OMENS));
+    if(p.H <= 0){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('สุขภาพทรุดลงจนร่างกายไปต่อไม่ไหว'); }
+    if(p.lifespan && p.age >= p.lifespan){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('จากไปอย่างสงบตามอายุขัย'); }
+    // เหตุการณ์ตามกำหนด (พ่อแม่เสียชีวิต)
+    if(p.parentDeath && !p.parentDeath.done && p.age >= p.parentDeath.age){
+      await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts);
+      p.parentDeath.done = true; await parentDies(p, io);
+    }
+    if(p.flags.spiral >= 2){ p.flags.spiral = 0; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await debtSpiral(p, io); }
+  }
+  // J ค่อย ๆ กลับเข้าหาค่าฐาน
+  p.J = clamp(Math.round(p.J + (p.Jbase - p.J) * 0.3 * Math.min(1, n/5)), 0, 100);
+  // ร่างกายวัยหนุ่มสาวฟื้นตัวได้บ้าง (ยกเว้นโรคเรื้อรัง)
+  if(p.age < 55 && !p.status.chronic){ const base = TIERS[p.tier].H; if(p.H < base) p.H += (base - p.H) * 0.2 * Math.min(1, n/5); }
+  p.H = Math.round(p.H);
+  await showSkip(p, io, startAge, bars, notes, opts);
+}
+async function showSkip(p, io, startAge, bars, notes, opts){
+  if(!bars.length) return;
+  p.samples.J.push(p.J); p.samples.H.push(p.H);
+  if(opts.silent || (bars.length < 3 && !notes.length)) { io.update(p); return; }
+  await io.skip({ from: bars[0].age - 1, to: p.age, bars, notes, p, pend: p.pend.splice(0) });
+}
+async function runBeats(p, io, beats, endAge, opts = {}){
+  beats.sort((a,b) => a.age - b.age);
+  for(const b of beats){
+    if(b.age > endAge) continue;
+    if(b.age > p.age) await years(p, io, b.age - p.age, opts);
+    await b.run();
+  }
+  if(endAge > p.age) await years(p, io, endAge - p.age, opts);
+}
+
+// ===== event สุ่ม =====
+function drawEvents(p, pool, n = 2){
+  const avail = pool.filter(e => e.w(p) !== null);
+  const out = [];
+  while(out.length < n && avail.length){
+    const e = wpick(avail, x => Math.max(1, x.w(p)));
+    out.push(e); avail.splice(avail.indexOf(e), 1);
+  }
+  return out;
+}
+function evBeat(p, io, e, age){ return { age, run: async () => { await runEvent(p, io, e); } }; }
+async function runEvent(p, io, e){
+  if(e.w && e.w(p) === null) return;
+  p.evHead = { title: typeof e.title === 'function' ? e.title(p) : e.title, text: e.text ? e.text(p) : '', bg: e.bg };
+  log(p, p.evHead.title);
+  await e.run(p, io);
+  if(p.evHead){ const h = p.evHead; p.evHead = null; await say(p, io, { kind:'event', bg:h.bg, title:h.title, text:h.text }); }
+}
+
+// ===== ทางแยกร่วม =====
+async function seriousIllness(p, io, lost, who = 'คุณ'){
+  const isKid = who !== 'คุณ';
+  const privCost = isKid ? 500000 : (p.age >= 60 ? 800000 : 500000);
+  const ins = (isKid && p.flags.kidInsurance) ? .2 : (p.insurance ? .3 : (p.career === 'gov' && p.age >= 22 ? .2 : 1));
+  const govBonus = (p.career === 'gov') ? 10 : 0; const far = (p.tier >= 5) ? -10 : 0;
+  const c = await choose(p, io, { kind:'fork', bg:'hospital', title: isKid ? 'ลูกป่วยหนัก ต้องเลือกวิธีรักษา' : 'ป่วยหนัก ต้องเลือกวิธีรักษา',
+    text: 'ผลการรักษาสุ่มตามโรงพยาบาลที่เลือก',
+    choices: [
+      { label:'รพ.รัฐตามสิทธิบัตรทอง', sub:'หายดี 45% · หายบางส่วน 40%', cost: 10000, loan:false, odds:[45+govBonus+far,40,15-govBonus-far] },
+      { label:'รพ.เอกชน', sub: ins < 1 ? `ประกันจ่ายให้ ${Math.round((1-ins)*100)}% · หายดี 70%` : 'หายดี 70% · หายบางส่วน 25%', cost: Math.round(privCost*ins), odds:[70,25,5] },
+      { label:'รักษาตามมีตามเกิด / ยาสมุนไพร', sub:'J−5 · หายดี 15%', cost: 0, odds:[15,45,40], j:-5 },
+    ]});
+  if(c.j) fx(p, { J: c.j });
+  const r = rnd()*100; const [a,b] = c.odds;
+  if(isKid){
+    if(r < a){ note(p, 'ลูกหายดีกลับมาวิ่งเล่นได้'); }
+    else if(r < a+b){ note(p, 'ลูกหายบางส่วน ต้องดูแลต่อเนื่อง ค่ายาปีละ 6,000'); p.annual.push({ from:p.age, to:p.age+10, amt:6000 }); }
+    else { note(p, 'อาการลูกแย่ลง'); fx(p, { J:-10 }); }
+    return;
+  }
+  if(r < a){ fx(p, { H: Math.round(lost/2) }); note(p, 'รักษาหายดี ได้สุขภาพคืนมาครึ่งหนึ่ง'); }
+  else if(r < a+b){ stOn(p,'chronic'); p.Jbase = Math.max(0, p.Jbase-5); note(p, 'หายบางส่วน ติดสถานะโรคเรื้อรัง H−2 และค่ายา 6,000 ทุกปี'); }
+  else { fx(p, { H:-10 }); note(p, 'อาการแย่ลง'); if(chance(p.age >= 60 ? .10 : .05) || p.H <= 0) throw new Death('เสียชีวิตจากอาการป่วยหนัก'); }
+}
+async function debtSpiral(p, io){
+  const td = totalDebt(p);
+  const c = await choose(p, io, { kind:'fork', bg:'bank', title:'หนี้ล้นตัว', text:`ดอกเบี้ยแต่ละปีมากกว่าเงินที่เก็บได้ 2 ปีติดกัน หนี้ตอนนี้ ฿${baht(td)}`, choices: [
+    { label:'เข้าคลินิกแก้หนี้ / ปรับโครงสร้างหนี้', sub:'หนี้ในระบบเหลือดอก 3% · C−3', cost:0, k:'clinic' },
+    { label:'ขายทรัพย์สิน', sub: p.house ? `ได้ 60% ของมูลค่าบ้าน · J−10` : 'ไม่มีทรัพย์สินให้ขาย', cost:0, cond: !!(p.house || p.car), condText:'ไม่มีบ้านหรือรถ', k:'sell' },
+    { label:'ยื่นล้มละลาย', sub:'หนี้ถูกล้างหลัง 3 ปี · C−15 J−15', cost:0, cond: td > 1000000, condText:'ต้องมีหนี้เกิน 1 ล้านบาท', k:'bk' },
+    { label:'หนีหนี้', sub:'ไม่เสียอะไรทันที', cost:0, k:'flee' },
+  ]});
+  if(c.k === 'clinic'){ p.flags.restructured = true; fx(p,{ C:-3 }); note(p,'เข้าคลินิกแก้หนี้ ดอกเบี้ยลดเหลือ 3% ต่อปี'); }
+  if(c.k === 'sell'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += 150000; p.car = false; } addMoney(p, got); for(const k of ['i','f','k']){ const pay=Math.min(p.money,p.debt[k]); p.debt[k]-=pay; p.money-=pay; } fx(p,{ J:-10 }); note(p,`ขายทรัพย์สินได้ ฿${baht(got)} นำไปใช้หนี้`); }
+  if(c.k === 'bk'){ p.status.bankrupt = 3; fx(p,{ C:-15, J:-15 }); if(p.career==='gov'){ p.career='factory'; p.cOut='mid'; p.cYears=0; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } note(p,'ยื่นล้มละลาย อีก 3 ปีหนี้จะถูกล้าง'); }
+  if(c.k === 'flee'){ fx(p,{ K:-10 }); tagBad(p,'debtflee','หนีหนี้', td); p.flags.fled = true; note(p,'คุณเลือกหนีหนี้ หนี้ยังโตต่อเงียบ ๆ'); }
+}
+async function offerDeed(p, io){
+  const opts = DEEDS.filter(d => p.age >= d.min && p.age <= d.max && !p.deeds[d.id] && (!d.careers || d.careers.includes(p.career)) && (!d.needIncome || p.career));
+  if(!opts.length) return;
+  const d = pickOne(opts);
+  const yes = await yesno(p, io, { kind:'deed', bg: p.age < 18 ? 'school' : 'home', title:'โอกาสทำความดี', text: d.label, sub: d.costText, cost: d.cost || 0, yes: d.yes || 'ทำ', no: d.no || 'ผ่านไป' });
+  if(!yes) return;
+  p.deeds[d.id] = true;
+  const ctx = {};
+  if(d.fx) fx(p, d.fx);
+  if(d.incomeCut) p.incomeCut += d.incomeCut;
+  fx(p, { K: d.K }); tagGood(p, d.tag, d.label);
+  if(d.run) d.run(p, ctx);
+  if(d.risk && chance(d.risk)){ note(p, 'คุณบาดเจ็บระหว่างช่วยเหลือผู้ประสบภัย'); fx(p,{ H:-20 }); await seriousIllness(p, io, 20); }
+  note(p, ctx.note || 'คุณเลือกทำ แม้จะไม่ได้อะไรกลับมาในตอนนี้');
+}
+async function lifestyleChoice(p, io){
+  const hh = hhIncome(p);
+  const c = await choose(p, io, { kind:'life', bg:'home', title:'ช่วงนี้ใช้ชีวิตแบบไหน', text:`รายได้ครัวเรือนราว ฿${baht(hh)}/เดือน`, choices: [
+    { label:'ประหยัด', sub:'ออมเพิ่ม 10%', v:0 },
+    { label:'ปกติ', sub:'ออมตามปกติ', v:1 },
+    { label:'หรูหรา', sub:'ออมลด 15% · ความสุขเพิ่มแบบลดหลั่น', v:2 },
+  ]});
+  p.lifestyle = c.v;
+  const spendM = hh * (1 - saveRate(p));
+  const dj = Math.round(4 * Math.log(Math.max(spendM, 1000) / 10400));
+  if(dj) fx(p, { J: dj });
+}
+// ===== STAGES =====
+function famDebtTick(p){ if(p.famDebt > 0){ const eat = Math.min(p.famDebt, p.start*.05); p.money = Math.max(0, p.money - eat); p.famDebt -= eat; } }
+function distinctAges(n, a, b){ const s = new Set(); let guard = 0; while(s.size < n && guard++ < 50) s.add(randi(a, b)); return [...s]; }
+function refundSchool(p){ const yrsLeft = Math.max(0, 18 - p.age); const r = Math.round(p.schoolPaid * yrsLeft / 12); p.schoolPaid = 0; p.school = 'rural'; return r; }
+
+async function birth(p, io){
+  const T = TIERS[p.tier], Q = QS[p.q];
+  const provPct = T.prov.find(x => x[0] === p.prov)[1];
+  const lines = [];
+  if(p.gen > 1 && p.family){
+    lines.push(`คุณเกิดเป็นลูกของ${p.family.parentName} (รุ่นที่ ${p.gen - 1}) ที่${p.prov}`);
+  } else {
+    lines.push(`คุณเกิดที่${p.prov} โอกาสเกิดที่นี่ ${provPct.toFixed(2)}%`);
+  }
+  lines.push(`${p.sex==='M'?'เพศชาย':'เพศหญิง'} · ศาสนา${p.religion}`);
+  lines.push(`ครอบครัว${Q.name} (${Q.code}) รายได้บ้านราว ฿${baht(Q.inc)}/เดือน${p.gen===1 ? ` · ในกลุ่ม${T.name} มีโอกาสเกิดฐานะนี้ ${T.q[p.q]}%` : ''}`);
+  lines.push(p.skipGen ? 'พ่อแม่ไปทำงานต่างถิ่น คุณโตมากับปู่ย่า' : 'พ่อแม่เลี้ยงคุณเอง');
+  lines.push(`เงินที่ครอบครัวพร้อมทุ่มให้คุณตลอดวัยเรียน ฿${baht(p.money)}`);
+  await say(p, io, { kind:'birth', bg:'birth', title: p.gen === 1 ? `คุณคือ 1 ใน ${POP_TOTAL.toLocaleString('en-US')} คน` : `รุ่นที่ ${p.gen}: ${p.name}`, text: lines.join('\n'), name: p.name,
+    birth: { prov:p.prov, provPct, sex:p.sex, religion:p.religion, tierName:T.name, tierQ:T.q, q:p.q, inc:Q.inc, skip:p.skipGen, money:p.money, stats:{ H:p.H, J:p.J, S:p.S, C:p.C }, gen:p.gen, parent: p.family && p.family.parentName } });
+  log(p, `เกิดที่${p.prov} ครอบครัว${Q.name}`);
+  await years(p, io, 6, { silent: true });
+}
+
+// ---------- STAGE 1 โรงเรียน ----------
+const S1_EVENTS = [
+  { id:'bully', title:'โดนบูลลี่', bg:'school', text:()=>'เพื่อนกลุ่มหนึ่งรุมแกล้งคุณทุกวัน จนไม่อยากไปโรงเรียน',
+    w:p=>20+(p.J<40?10:0)+(p.school==='inter'&&p.q<=2?5:0)+(p.flags.bullyW||0),
+    run: async (p, io) => { fx(p,{J:-15,H:-3});
+      const c = await choose(p, io, { kind:'fork', bg:'school', title:'จะรับมือกับการถูกแกล้งยังไง', choices:[
+        { label:'บอกครูหรือผู้ปกครอง', sub:'ได้ผล 60%', k:'tell' },
+        { label:'ย้ายโรงเรียน', sub: p.school==='rural' ? 'ย้ายไปโรงเรียนตำบลข้างเคียง · C−5' : 'ย้ายไปโรงเรียนรัฐที่ถูกกว่า ได้เงินคืนตามปีที่เหลือ · C−5', k:'move' },
+        { label:'ทนเงียบ', sub:'ไม่มีผลทันที', k:'quiet' } ]});
+      if(c.k==='tell'){ if(chance(.6)){ fx(p,{J:5}); note(p,'ครูจัดการให้ การแกล้งหยุดลง'); } else { fx(p,{J:-5}); note(p,'บอกครูแล้วโดนหนักกว่าเดิม'); } }
+      if(c.k==='move'){ const r = p.school==='rural'?0:refundSchool(p); if(r) addMoney(p,r); fx(p,{J:5,C:-5}); note(p, r?`ย้ายโรงเรียน ได้เงินคืน ฿${baht(r)}`:'ย้ายโรงเรียน การแกล้งหยุดลง'); }
+      if(c.k==='quiet'){ stOn(p,'bullied'); p.flags.depW = (p.flags.depW||0)+10; note(p,'คุณเก็บเรื่องไว้คนเดียว ติดสถานะถูกกลั่นแกล้งจนจบ ม.6'); }
+    } },
+  { id:'olymp', title:'ได้รางวัลโอลิมปิกวิชาการ', bg:'school', text:()=>'คุณได้เหรียญจากการแข่งขันระดับประเทศ', w:p=>5+0.2*(p.S-30),
+    run: async (p) => { fx(p,{S:10,C:10,m:20000}); note(p,'ได้ทุนรางวัล ฿20,000 และคนรู้จักเพิ่มขึ้น'); } },
+  { id:'divorce', title:'พ่อแม่หย่ากัน', bg:'home', text:()=>'บ้านเงียบลงหลังพ่อแม่ตัดสินใจแยกทาง', w:p=>15+(p.skipGen?5:0),
+    run: async (p, io) => { fx(p,{J:-20}); p.flags.parentsDivorced = true;
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'คุณจะอยู่กับใคร', choices:[
+        { label:'อยู่กับแม่', sub:'เงินครอบครัว −30%', k:'m' }, { label:'อยู่กับพ่อ', sub:'เงินครอบครัว −20% · J−5', k:'f' }, { label:'ไปอยู่กับปู่ย่า', sub:'เงินครอบครัว −50% · J−5', k:'g' } ]});
+      if(c.k==='m'){ p.money*=.7; } if(c.k==='f'){ p.money*=.8; fx(p,{J:-5}); } if(c.k==='g'){ p.money*=.5; fx(p,{K:3,J:-5}); p.skipGen = true; p.flags.bullyW=(p.flags.bullyW||0)+5; }
+      note(p, `หลังพ่อแม่หย่า เงินที่เหลือสำหรับคุณ ฿${baht(p.money)}`);
+    } },
+  { id:'crisis', title:'ครอบครัวเจอวิกฤตเศรษฐกิจ', bg:'home', text:()=>'พ่อแม่ตกงานพร้อมกัน เงินเก็บหายไปเกือบหนึ่งในสาม', w:p=>15+(p.q<=1?10:0)+(p.famDebt>0?10:0)+(p.flags.crisisW||0),
+    run: async (p, io) => { const lost = Math.round(p.money*.3); p.money -= lost; io.chips([['฿',-lost]]);
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'ครอบครัวจะประคองยังไง', choices:[
+        { label:'ย้ายไปโรงเรียนที่ถูกกว่า', sub:'ได้ค่าเรียนคืนตามปีที่เหลือ · J−8 C−5', cond:p.school!=='rural', condText:'เรียนโรงเรียนฟรีอยู่แล้ว', k:'cheap' },
+        { label:'ทำงานช่วยบ้านหลังเลิกเรียน', sub:'฿+20,000 · S−5 H−3', k:'work' },
+        { label:'ครอบครัวกู้นอกระบบมาประคอง', sub:'ได้เงินคืนครึ่งหนึ่ง · หนี้ครอบครัว +100,000', k:'loan' } ]});
+      if(c.k==='cheap'){ const r = refundSchool(p); addMoney(p,r); fx(p,{J:-8,C:-5}); note(p,`ย้ายไปโรงเรียนประจำตำบล ได้เงินคืน ฿${baht(r)}`); }
+      if(c.k==='work'){ fx(p,{m:20000,K:5,S:-5,H:-3}); tagGood(p,'family','ช่วยครอบครัวทำงานตอนเด็ก'); note(p,'คุณช่วยงานบ้านทุกเย็นจนจบ ม.6'); }
+      if(c.k==='loan'){ addMoney(p, Math.round(lost/2)); p.famDebt += 100000; p.flags.crisisW=(p.flags.crisisW||0)+10; note(p,'ครอบครัวกู้เงินดอกโหดมาประคองให้คุณเรียนที่เดิม'); }
+    } },
+  { id:'dengue', title:'ป่วยไข้เลือดออก', bg:'hospital', text:()=>'ยุงลายกัดจนคุณไข้ขึ้นสูงหลายวัน', w:p=>15+(p.tier>=5?5:0),
+    run: async (p, io) => { fx(p,{H:-10,m:-5000}); if(chance(.03)){ note(p,'อาการรุนแรงจนต้องเข้าโรงพยาบาลด่วน'); fx(p,{H:-30}); if(p.H<=0) throw new Death('ไข้เลือดออกรุนแรง'); await seriousIllness(p, io, 30); } else note(p,'พักรักษาตัวหลายวันจนหายดี'); } },
+  { id:'unrest', title:'เหตุความไม่สงบใกล้บ้าน', bg:'south', text:()=>'เสียงระเบิดดังไม่ไกลจากหมู่บ้าน', w:p=>p.tier===6?8:null,
+    run: async (p, io) => { fx(p,{J:-10}); if(chance(.02)){ fx(p,{H:-30}); if(p.H<=0) throw new Death('เหตุความไม่สงบ'); await seriousIllness(p, io, 30); } else note(p,'ทุกคนในบ้านปลอดภัย แต่คุณนอนไม่หลับไปหลายคืน'); } },
+];
+
+const S1_MINORS = {
+  rural: [
+    { title:'ช่วยพ่อแม่ทำงานหลังเลิกเรียนไหม', sub:'฿+20,000 · S−5 H−3', run:p=>{ fx(p,{m:20000,K:5,S:-5,H:-3}); tagGood(p,'family','ช่วยพ่อแม่ทำงาน'); } },
+    { title:'ขอทุนเรียนดีไหม', sub:'ต้องมีทักษะ S 40 ขึ้นไป · ได้ทุน 40%', cond:p=>p.S>=40, condText:'S ต้องถึง 40', run:p=>{ if(chance(.4)){ fx(p,{m:50000,S:5}); note(p,'ได้ทุนเรียนดี ฿50,000'); } else { fx(p,{J:-3}); note(p,'ยื่นขอทุนแต่ไม่ได้'); } } },
+    { title:'ย้ายไปอยู่กับญาติในเมืองตอน ม.ปลายไหม', sub:'S+8 C+5 · J−8 (ห่างบ้าน)', cost:30000, run:p=>fx(p,{S:8,C:5,J:-8}) },
+  ],
+  elite: [
+    { title:'เรียนกวดวิชาไหม', sub:'S+10 · H−3 J−5', cost:80000, run:p=>fx(p,{S:10,H:-3,J:-5}) },
+    { title:'เข้าห้องเรียนพิเศษ EP/Gifted ไหม', sub:'ต้อง S 45 ขึ้นไปถึงได้ผลเต็ม', cost:120000, run:p=>{ if(p.S>=45) fx(p,{S:8,C:5}); else { fx(p,{C:5}); note(p,'ตามเพื่อนในห้องพิเศษไม่ทัน ได้แค่คนรู้จักเพิ่ม'); } } },
+  ],
+  priv: [
+    { title:'ย้ายไปโรงเรียนเอกชนดังสายศาสนาไหม', sub:'C+8', cost:50000, run:p=>fx(p,{C:8}) },
+    { title:'เป็นนักกีฬาโรงเรียนไหม', sub:'H+8 J+8 · S−3 · ลุ้นทุนนักกีฬา', cost:30000, run:p=>{ fx(p,{H:8,J:8,S:-3}); if(chance(.1)){ fx(p,{m:100000}); note(p,'ได้ทุนนักกีฬา ฿100,000'); } } },
+    { title:'เรียนกวดวิชาไหม', sub:'S+10 · H−3 J−5', cost:80000, run:p=>fx(p,{S:10,H:-3,J:-5}) },
+  ],
+  inter: [
+    { title:'ไปแลกเปลี่ยนต่างประเทศ 1 ปีไหม', sub:'S+8 J+10 C+5', cost:600000, run:p=>{ fx(p,{S:8,J:10,C:5}); if(chance(.15)){ fx(p,{J:-10}); note(p,'คิดถึงบ้านมากระหว่างไปแลกเปลี่ยน'); } } },
+    { title:'ไปซัมเมอร์แคมป์ต่างประเทศไหม', sub:'C+5 J+5', cost:200000, run:p=>fx(p,{C:5,J:5}) },
+    { title:'ติวสอบเข้ามหาวิทยาลัยไทยไหม', sub:'S+5 · ไม่ติวโอกาสสอบติด ม.รัฐ −10%', cost:100000, run:p=>{ fx(p,{S:5}); p.flags.thaiTutor = true; } },
+  ],
+};
+const SCHOOL_FX = {
+  rural:{ now:{S:5}, odds:[15,55,30], good:{S:15,J:5}, mid:{S:5}, bad:{S:-5,J:-5} },
+  elite:{ now:{S:15,C:10,J:-5}, odds:[30,50,20], good:{S:20,C:5}, mid:{S:8}, bad:{J:-15} },
+  priv: { now:{S:12,C:8}, odds:[25,55,20], good:{S:15,C:5}, mid:{S:6}, bad:{J:-8} },
+  inter:{ now:{S:15,C:20,J:5}, odds:[30,50,20], good:{S:20,C:10}, mid:{S:8}, bad:{J:-10,C:-5} },
+};
+
+async function stage1(p, io){
+  p.stage = 1; famDebtTick(p);
+  const setSchool = id => { p.school = id; fx(p, SCHOOL_FX[id].now); };
+  await choose(p, io, { kind:'main', bg:'school', title:'เลือกโรงเรียน (ป.1–ม.6)', text:'ราคารวม 12 ปี ครอบครัวจ่ายจากเงินที่เตรียมไว้ให้คุณ', choices: [
+    { label:'ร.ร.ประจำตำบล', sub:'เรียนฟรี + ค่าชุด 2,500/ปี · S+5', cost:0, run:()=>setSchool('rural') },
+    { label:'ร.ร.รัฐชื่อดังในเมือง', sub:`ต้องสอบเข้า (ติด ${Math.round(30+0.5*(p.S-30))}%) · S+15 C+10 J−5`, cost:150000, defer:true, run: async () => {
+        let pass = false;
+        if(await yesno(p, io, { title:'จ่ายแป๊ะเจี๊ยะเพื่อการันตีที่นั่งไหม', text:'ผู้ปกครองบางคนจ่ายเงินพิเศษให้ลูกได้เข้าเรียนแน่นอน', cost:200000, sub:'การันตีเข้าเรียน', yes:'จ่าย', no:'สอบตามปกติ' })){
+          pass = true; fx(p,{K:-10}); tagBad(p,'corrupt','จ่ายแป๊ะเจี๊ยะเข้าโรงเรียน',200000);
+          if(chance(.05)){ fx(p,{J:-10,C:-5}); note(p,'เรื่องแป๊ะเจี๊ยะรั่วไปถึงสื่อ'); }
+        } else pass = chance((30 + 0.5*(p.S-30))/100);
+        if(pass){ spend(p, 150000); p.schoolPaid = 150000; setSchool('elite'); note(p,'สอบติดโรงเรียนรัฐชื่อดัง'); }
+        else { setSchool('rural'); note(p,'สอบไม่ติด ไปเรียนโรงเรียนประจำตำบลแทน ไม่เสียเงิน'); }
+      } },
+    { label:'โรงเรียนเอกชน', sub:'S+12 C+8', cost:600000, run:()=>{ p.schoolPaid=600000; setSchool('priv'); } },
+    { label:'โรงเรียนอินเตอร์', sub:'S+15 C+20 J+5', cost:3000000, run:()=>{ p.schoolPaid=3000000; setSchool('inter'); } },
+  ]});
+  log(p, `เข้าเรียน${SCHOOLS.find(s=>s.id===p.school).name}`);
+  const beats = [];
+  const minors = S1_MINORS[p.school]; const mAges = [8, 11, 14];
+  minors.forEach((m, i) => beats.push({ age: mAges[i], run: async () => {
+    const yes = await yesno(p, io, { title: m.title, sub: m.sub, cost: m.cost||0, cond: m.cond ? m.cond(p) : undefined, condText: m.condText });
+    if(yes) m.run(p);
+  }}));
+  if(p.sex === 'M') beats.push({ age:15, run: async () => {
+    if(await yesno(p, io, { title:'เรียน รด. (นักศึกษาวิชาทหาร) ไหม', sub:'H+3 · ไม่ต้องเกณฑ์ทหาร', cost:15000 })){ p.rd = true; fx(p,{H:3}); if(chance(.1)){ fx(p,{H:-5}); note(p,'บาดเจ็บเล็กน้อยระหว่างฝึก'); } }
+  }});
+  const evs = drawEvents(p, S1_EVENTS, 2); const eAges = distinctAges(evs.length, 7, 17);
+  evs.forEach((e, i) => beats.push(evBeat(p, io, e, eAges[i])));
+  beats.push({ age: randi(9, 16), run: () => offerDeed(p, io) });
+  beats.push({ age: 18, run: async () => {
+    const F = SCHOOL_FX[p.school]; const o = roll3(p, F.odds); fx(p, F[o]);
+    let t = { good:'เรียนได้ดีกว่าที่ใครคาด', mid:'เรียนจบตามปกติ', bad:'ช่วงมัธยมเป็นช่วงที่ยากลำบาก' }[o];
+    if(p.school==='rural' && o==='bad' && chance(.1)){ p.dropout = true; t = 'คุณออกจากโรงเรียนกลางคันหลังจบ ม.3'; }
+    if(p.status.bullied){ stOff(p,'bullied'); }
+    await say(p, io, { kind:'result', bg:'school', title:`จบชีวิตวัยเรียน: ผลลัพธ์${OUT_TH[o]}`, text: t, outcome:o });
+    log(p, `จบโรงเรียน ผล${OUT_TH[o]}`);
+  }});
+  await runBeats(p, io, beats, 18);
+}
+
+// ---------- STAGE 2 มหาวิทยาลัย ----------
+const UNI = {
+  work:  { name:'ไม่เรียนต่อ ทำงานเลย', now:{}, odds:[20,60,20], good:{m:50000,C:5}, mid:{}, bad:{J:-10} },
+  open:  { name:'มหาวิทยาลัยใกล้บ้าน', now:{S:10,C:5}, odds:[20,55,25], good:{S:8}, mid:{S:3}, bad:{} },
+  top:   { name:'ม.รัฐชั้นนำ', now:{S:20,C:15}, odds:[30,55,15], good:{S:10,C:10}, mid:{S:5}, bad:{J:-10} },
+  priv:  { name:'ม.เอกชน / ภาคอินเตอร์', now:{S:12,C:15}, odds:[25,55,20], good:{C:10}, mid:{S:3}, bad:{J:-5,m:-100000} },
+  abroad:{ name:'เรียนต่างประเทศ', now:{S:20,C:20,J:5}, odds:[35,50,15], good:{S:10}, mid:{S:5}, bad:{J:-15} },
+};
+const S2_MINORS = {
+  work: [
+    { title:'เข้ากรุงเทพฯ ไปหางานทำไหม', sub:'฿+60,000 C+3 · J−5', run:p=>fx(p,{m:60000,C:3,J:-5}) },
+    { title:p=>p.sex==='M'?'บวชเรียน 2 ปีไหม':'เรียน กศน. ให้ได้วุฒิ ม.6 ไหม', sub:p=>p.sex==='M'?'S+5 · ไม่มีรายได้ 2 ปี':'S+3', run:p=>{ if(p.sex==='M'&&p.religion==='พุทธ'){ fx(p,{S:5,K:10,m:-60000}); } else fx(p,{S:3}); } },
+    { title:'ช่วยกิจการที่บ้านไหม', sub:'฿+40,000 J+5 C+3', run:p=>{ fx(p,{m:40000,J:5,C:3}); if(p.q<=1&&chance(.2)){ fx(p,{m:-20000}); note(p,'กิจการที่บ้านขาดทุน'); } } },
+  ],
+  open: [
+    { title:'ทำงานพาร์ทไทม์ระหว่างเรียนไหม', sub:'฿+60,000 · S−3 H−3', run:p=>{ fx(p,{m:60000,S:-3,H:-3}); p.flags.uniBad=(p.flags.uniBad||0)+5; } },
+    { title:'เข้าชมรม/สโมสรนักศึกษาไหม', sub:'C+8 J+5 · S−3', cost:5000, run:p=>fx(p,{C:8,J:5,S:-3}) },
+  ],
+  top: [
+    { title:'เน้นกิจกรรม (ทำ) หรือเน้นเกรด (ไม่ทำ)', sub:'กิจกรรม: C+12 S−5', noSub:'เกรด: S+10 C−3', yes:'เน้นกิจกรรม', no:'เน้นเกรด', run:p=>fx(p,{C:12,S:-5}), runNo:p=>fx(p,{S:10,C:-3}) },
+    { title:'ฝึกงานบริษัทใหญ่ผ่านคนรู้จักไหม', sub:'C+10 S+5 · ต้องมี C 40 ขึ้นไป', run:p=>{ if(p.C>=40||chance(.3)){ fx(p,{C:10,S:5}); p.flags.officeBonus=15; } else note(p,'ไม่มีใครฝากงานให้'); } },
+  ],
+  priv: [
+    { title:'ทำธุรกิจออนไลน์ระหว่างเรียนไหม', sub:'สำเร็จ 30%', cost:30000, run:p=>{ if(chance(.3)){ fx(p,{m:300000,S:5}); note(p,'ร้านออนไลน์ขายดี ได้กำไร ฿300,000'); } else { fx(p,{J:-3}); note(p,'ร้านออนไลน์ไปไม่รอด'); } } },
+    { title:'ไปแลกเปลี่ยน 1 เทอมไหม', sub:'C+8 S+5 J+5', cost:300000, run:p=>fx(p,{C:8,S:5,J:5}) },
+  ],
+  abroad: [
+    { title:'ทำงานพาร์ทไทม์ที่ต่างประเทศไหม', sub:'฿+200,000 S+3 · H−5', run:p=>fx(p,{m:200000,S:3,H:-5}) },
+    { title:'ต่อปริญญาโทอีก 2 ปีไหม', sub:'S+15 C+10 · รายได้งานแรก +15% · เริ่มงานช้า 2 ปี', cost:3000000, run:p=>{ fx(p,{S:15,C:10}); p.eduBoost=(p.eduBoost||1)*1.15; p.flags.master=true; } },
+    { title:'ทำงานต่อที่ต่างประเทศหลังเรียนจบไหม', sub:'รายได้ช่วงทำงาน ×2 · C−10 J−5', run:p=>{ p.flags.stayAbroad=true; fx(p,{C:-10,J:-5}); } },
+  ],
+};
+const S2_EVENTS = [
+  { id:'scholar', title:'ได้ทุนการศึกษา', bg:'uni', text:()=>'ผลการเรียนของคุณดีจนได้ทุน', w:p=>p.uni==='work'?null:8+0.3*(p.S-50),
+    run: async p => { const r = Math.round((p.uniPaid||0)*.5); fx(p,{m:r}); note(p,`ได้ค่าเรียนคืน ฿${baht(r)}`); } },
+  { id:'startup', title:'เพื่อนชวนทำสตาร์ทอัพ', bg:'uni', text:()=>'เพื่อนสนิทเปิดสไลด์แผนธุรกิจให้ดู แล้วชวนคุณร่วมหุ้น', w:p=>10+0.1*p.C,
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'uni', title:'ร่วมทำสตาร์ทอัพไหม', choices:[
+        { label: p.uni==='work' ? 'ร่วมเต็มตัว' : 'ร่วมเต็มตัว (ดรอปเรียน)', sub:'สำเร็จ 25%', cost:100000, k:'full' },
+        { label:'ทำควบกับเรียน', sub:'สำเร็จ 15% · S−3', cost:50000, k:'half', cond: p.uni!=='work', condText:'ไม่ได้เรียนอยู่' },
+        { label:'ปฏิเสธ', sub:'ไม่มีผล', k:'no' } ]});
+      if(c.k==='full'){ if(chance(.25)){ fx(p,{m:1500000,C:15}); p.flags.bizFree = true; note(p,'สตาร์ทอัพสำเร็จ ได้เงิน ฿1,500,000'); } else { if(p.uni!=='work'){ p.degree=null; p.uni='work'; } note(p, p.uni==='work'?'สตาร์ทอัพเจ๊ง เสียทุนทั้งหมด':'สตาร์ทอัพเจ๊ง และคุณไม่ได้ปริญญา'); } }
+      if(c.k==='half'){ fx(p,{S:-3}); p.flags.uniBad=(p.flags.uniBad||0)+5; if(chance(.15)){ fx(p,{m:700000,C:10}); note(p,'ธุรกิจที่ทำควบกับเรียนไปได้ดี ได้ ฿700,000'); } else note(p,'ธุรกิจไม่รอด เสียทุนที่ลงไป'); }
+      if(c.k==='no' && chance(.1)){ fx(p,{J:-5}); note(p,'อีกไม่กี่ปีเพื่อนทำสำเร็จโดยไม่มีคุณ'); }
+    } },
+  { id:'depress', title:'ภาวะซึมเศร้า', bg:'dorm', text:()=>'หลายเดือนแล้วที่คุณไม่อยากลุกจากเตียง\nถ้ารู้สึกแบบนี้ในชีวิตจริง โทรสายด่วนสุขภาพจิต 1323 ได้ตลอด 24 ชั่วโมง', w:p=>12+(p.J<40?10:0)+(p.uni==='abroad'?5:0)+(p.flags.depW||0),
+    run: async (p, io) => { fx(p,{J:-20,H:-5});
+      const c = await choose(p, io, { kind:'fork', bg:'dorm', title:'จะดูแลตัวเองยังไง', choices:[
+        { label:'พบจิตแพทย์ รพ.รัฐ', sub:'ดีขึ้น 70%', cost:5000, k:'doc' }, { label:'พักการเรียน 1 ปี', sub:'J+15 H+5 · จบช้า', k:'rest' }, { label:'ฝืนเรียนต่อ', sub:'ไม่เสียเวลา', k:'push' } ]});
+      if(c.k==='doc'){ if(chance(.7)){ fx(p,{J:10}); note(p,'รักษาต่อเนื่องจนอาการดีขึ้น'); } else { fx(p,{m:-10000}); note(p,'ต้องรักษาต่ออีก 2 ปี'); } }
+      if(c.k==='rest'){ fx(p,{J:15,H:5}); p.flags.late=(p.flags.late||0)+1; note(p,'พักใจ 1 ปีแล้วกลับมาเรียนต่อ'); }
+      if(c.k==='push'){ stOn(p,'depressed'); p.flags.uniBad=(p.flags.uniBad||0)+10; note(p,'ฝืนต่อไปทั้งที่ยังไม่หาย ติดสถานะซึมเศร้า'); if(chance(.05)){ fx(p,{H:-20}); await seriousIllness(p, io, 20); } }
+    } },
+  { id:'moto', title:'อุบัติเหตุมอเตอร์ไซค์', bg:'road', text:()=>'คืนฝนตก มอเตอร์ไซค์ลื่นล้มกลางถนน', w:p=>12+(p.tier>=4?8:0)-(p.uni==='abroad'?5:0),
+    run: async (p, io) => { fx(p,{H:-20}); if(chance(.02)) throw new Death('อุบัติเหตุมอเตอร์ไซค์'); await seriousIllness(p, io, 20); } },
+  { id:'sotus', title:'ระบบรับน้อง SOTUS', bg:'uni', text:()=>'รุ่นพี่ตะโกนว้ากใส่น้องปีหนึ่งทุกเย็น', w:p=>(p.uni==='work'||p.uni==='abroad')?null:10,
+    run: async p => { fx(p,{C:5,J:-10}); if(chance(.1)){ fx(p,{H:-10}); note(p,'บาดเจ็บระหว่างกิจกรรมรับน้อง'); } } },
+];
+
+async function stage2(p, io){
+  p.stage = 2; famDebtTick(p); p.flags.uniBad = p.flags.uniBad || 0;
+  const pick = async (exclude = []) => choose(p, io, { kind:'main', bg:'uni', title:'หลังจบ ม.6 จะไปทางไหน', text:'ราคารวม 4 ปีรวมค่าครองชีพ', choices: [
+    { label:UNI.work.name, sub:'มีรายได้ทันที · เข้าได้บางอาชีพ', k:'work' },
+    { label:UNI.open.name, sub:'S+10 C+5', cost:80000, loan:'kys', k:'open', cond: !p.dropout, condText:'ออกกลางคันหลัง ม.3' },
+    { label:UNI.top.name, sub:`ต้องสอบ (ติด ${clamp(Math.round(10+(p.S-50)-(p.school==='inter'&&!p.flags.thaiTutor?10:0)),2,95)}%) · S+20 C+15`, cost:360000, loan:'kys', defer:true, k:'top', cond: !p.dropout && !exclude.includes('top'), condText: p.dropout?'ออกกลางคันหลัง ม.3':'สอบไม่ติด' },
+    { label:UNI.priv.name, sub:'S+12 C+15', cost:1000000, k:'priv', cond: !p.dropout, condText:'ออกกลางคันหลัง ม.3' },
+    { label:UNI.abroad.name, sub:'S+20 C+20 J+5', cost:6000000, k:'abroad', cond: !p.dropout, condText:'ออกกลางคันหลัง ม.3' },
+  ]});
+  let c = await pick();
+  if(c.k === 'top'){
+    const pr = clamp(10+(p.S-50)-(p.school==='inter'&&!p.flags.thaiTutor?10:0), 2, 95)/100;
+    if(chance(pr)){ spend(p, 360000, 'kys'); note(p,'สอบติดมหาวิทยาลัยรัฐชั้นนำ'); }
+    else { note(p,'สอบไม่ติด ต้องเลือกทางใหม่'); c = await pick(['top']); }
+  }
+  p.uni = c.k; p.uniPaid = c.cost || 0; p.degree = c.k === 'work' ? null : c.k;
+  if(c.k === 'work') p.flags.uniIncome = 25000;
+  fx(p, UNI[c.k].now); log(p, UNI[c.k].name);
+  const beats = [];
+  S2_MINORS[c.k].forEach((m, i) => beats.push({ age: 19 + i, run: async () => {
+    const t = typeof m.title === 'function' ? m.title(p) : m.title; const sub = typeof m.sub === 'function' ? m.sub(p) : m.sub;
+    const yes = await yesno(p, io, { title:t, sub, noSub:m.noSub, cost:m.cost||0, yes:m.yes, no:m.no, loan: m.cost >= 1000000 ? 'bank' : false });
+    if(yes) m.run(p); else if(m.runNo) m.runNo(p);
+  }}));
+  const evs = drawEvents(p, S2_EVENTS, 2); const eAges = distinctAges(evs.length, 18, 21);
+  evs.forEach((e, i) => beats.push(evBeat(p, io, e, eAges[i])));
+  if(p.sex === 'M' && !p.rd) beats.push({ age:21, run: async () => {
+    const red = chance(.35);
+    await say(p, io, { kind:'event', bg:'army', title:'วันเกณฑ์ทหาร', text:'คุณล้วงมือลงในโถ ใบดำหรือใบแดง' + (red ? '\n\nใบแดง ต้องเป็นทหาร 2 ปี' : '\n\nใบดำ รอดตัวไป') });
+    if(red){ fx(p,{H:5,J:-10,C:3}); p.flags.late=(p.flags.late||0)+2; if(chance(.03)){ fx(p,{H:-20}); note(p,'บาดเจ็บระหว่างประจำการ'); } }
+  }});
+  beats.push({ age: 20, run: () => offerDeed(p, io) });
+  beats.push({ age: 22, run: async () => {
+    const U = UNI[p.uni]; const o = roll3(p, U.odds, { b: p.flags.uniBad }); fx(p, U[o]);
+    let t = { good:'ช่วงนี้ของชีวิตไปได้สวย', mid:'ผ่านไปตามปกติ', bad:'ช่วงนี้มีแต่เรื่องเหนื่อย' }[o];
+    if(p.uni==='open' && o==='bad'){ p.degree = null; t = 'คุณเรียนไม่จบ ต้องเริ่มทำงานด้วยวุฒิ ม.6'; }
+    if(p.uni==='abroad' && o==='good') p.eduBoost = (p.eduBoost||1) * 1.2;
+    if(p.status.depressed && chance(.5)) stOff(p,'depressed');
+    await say(p, io, { kind:'result', bg:'uni', title:`จบช่วงอายุ 18–22: ผลลัพธ์${OUT_TH[o]}`, text:t + (p.degree ? '\nคุณได้ปริญญาแล้ว' : ''), outcome:o });
+  }});
+  await runBeats(p, io, beats, 22);
+  if(p.flags.late) await years(p, io, p.flags.late, { silent:true });
+  if(p.flags.master) await years(p, io, 2, { silent:true });
+}
+
+// ---------- STAGE 3 อาชีพ ----------
+async function arrested(p, io, why){
+  await say(p, io, { kind:'event', bg:'court', title:'ถูกจับ', text: why });
+  const c = await choose(p, io, { kind:'fork', bg:'court', title:'จะสู้คดียังไง', choices:[
+    { label:'สู้คดี จ้างทนาย', sub:`หลุดคดี ${clamp(Math.round(40+0.3*(p.C-50)),5,95)}%`, cost:300000, k:'fight' },
+    { label:'รับสารภาพ', sub:'ติดคุก 1 ปี J−20 C−10', k:'confess' },
+    { label:'ใช้เส้นช่วย', sub:'ต้องมี C 60 ขึ้นไป · หลุด 70%', cost:100000, cond:p.C>=60, condText:'C ต้องถึง 60', k:'line' } ]});
+  const jail = (y, d) => { p.status.prison = y; p.unemployed = Math.max(p.unemployed, y); fx(p, d); p.Jbase = Math.max(0,p.Jbase-10); if(p.career==='gov'){ p.flags.noPension = true; p.career = 'factory'; p.cOut='mid'; p.cYears=0; } note(p, `ติดคุก ${y} ปี`); };
+  if(c.k==='fight'){ if(chance(clamp(40+0.3*(p.C-50),5,95)/100)) note(p,'ศาลยกฟ้อง คุณกลับไปทำงานเดิมได้'); else jail(3, {J:-30,C:-20}); }
+  if(c.k==='confess'){ jail(1, {J:-20,C:-10}); if(['gov','office'].includes(p.career)){ p.career='factory'; p.cOut='mid'; p.cYears=0; } }
+  if(c.k==='line'){ fx(p,{K:-10}); tagBad(p,'corrupt','ใช้เส้นช่วยคดี',100000); if(chance(.7)) note(p,'คดีเงียบหายไป'); else jail(5, {J:-30,C:-20}); }
+}
+const C_MINORS = {
+  farm: [
+    { title:'กู้ ธ.ก.ส. 300,000 ขยายที่ดินไหม', sub:'รายได้ +30% · ถ้าเจอภัยแล้งหนี้เพิ่ม', run:p=>{ p.debt.f += 300000; p.incomeBoost *= 1.3; p.flags.baac = true; } },
+    { title:'เปลี่ยนไปปลูกพืชราคาสูง (ทุเรียน/อินทรีย์) ไหม', sub:'สำเร็จ 30% รายได้ ×2', cost:200000, run:p=>{ if(chance(.3)){ p.incomeBoost *= 2; note(p,'สวนทุเรียนให้ผลดี รายได้เพิ่มเป็นเท่าตัว'); } else { fx(p,{J:-5}); note(p,'5 ปีแรกได้แค่เท่าทุน'); } } },
+    { title:'ขายที่ดินบางส่วนให้นายทุนไหม', sub:'฿+1,000,000 · รายได้ −40% J−5', run:p=>{ fx(p,{m:1000000,J:-5,K:-3}); p.incomeBoost *= .6; } },
+  ],
+  factory: [
+    { title:'ทำ OT ทุกวันไหม', sub:'รายได้ +30% · H−10 J−5', run:p=>{ p.incomeBoost *= 1.3; fx(p,{H:-10,J:-5}); p.flags.ot = true; } },
+    { title:'เรียนภาคค่ำ ปวส./ป.ตรี ไหม', sub:'S+10 · ปลดล็อกหัวหน้างาน รายได้ +40% · J−3', cost:100000, run:p=>{ fx(p,{S:10,J:-3}); p.incomeBoost *= 1.4; if(!p.degree) p.degree='night'; } },
+    { title:'เข้าร่วมสหภาพแรงงานไหม', sub:'C+8 · ได้ค่าชดเชยเต็มถ้าโดนเลิกจ้าง', run:async(p,io)=>{ fx(p,{C:8}); p.flags.union = true; if(chance(.1)){ note(p,'นายจ้างเพ่งเล็ง คุณถูกเลิกจ้างทันที'); await layoffFork(p, io, true); } } },
+  ],
+  gov: [
+    { title:'ยัดเงินใต้โต๊ะเพื่อเลื่อนตำแหน่งไหม', sub:'เลื่อนเร็ว 70%', cost:300000, run:async(p,io)=>{ fx(p,{K:-15}); tagBad(p,'corrupt','ยัดเงินเลื่อนตำแหน่ง',300000); if(chance(.7)){ p.flags.cAdj=(p.flags.cAdj||0)+20; fx(p,{C:10}); } if(chance(.1)){ fx(p,{J:-20,m:-500000}); note(p,'ป.ป.ช. เรียกสอบ ต้องจ่ายค่าทนายและค่าปรับ'); } } },
+    { title:'รับเงินทอนจากงานจัดซื้อไหม', sub:'฿+1,000,000', run:async(p,io)=>{ fx(p,{m:1000000,K:-20}); tagBad(p,'corrupt','รับเงินทอนงานจัดซื้อ',1000000); if(chance(.15)) await arrested(p, io, 'ผู้ตรวจการพบเงินทอนในงานจัดซื้อ'); } },
+    { title:'ขอย้ายกลับบ้านเกิดไหม', sub:'J+10 · C−5 รายได้ −10%', run:p=>{ fx(p,{J:10,C:-5}); p.incomeBoost *= .9; } },
+  ],
+  office: [
+    { title:'ทำงานหนักมุ่งเลื่อนตำแหน่งไหม', sub:'โอกาสผลดี +15% · H−10 J−5', run:p=>{ p.flags.cAdj=(p.flags.cAdj||0)+15; fx(p,{H:-10,J:-5}); p.flags.ot = true; } },
+    { title:'เรียน MBA ไหม', sub:'S+10 C+10 รายได้ +20%', cost:500000, run:p=>{ fx(p,{S:10,C:10}); p.incomeBoost *= 1.2; } },
+    { title:'ย้ายงานบ่อย ๆ เพื่อเงินเดือนไหม', sub:'รายได้ +15% · C−5', run:p=>{ p.incomeBoost *= 1.15; fx(p,{C:-5}); if(chance(.1)){ p.unemployed += 1; note(p,'ว่างงานไป 6 เดือนระหว่างเปลี่ยนงาน'); } } },
+  ],
+  biz: [
+    { title:'ยัดเงินใต้โต๊ะเพื่อได้ใบอนุญาตไหม', sub:'โอกาสผลดี +15% C+5', cost:200000, run:async(p,io)=>{ fx(p,{K:-15,C:5}); tagBad(p,'corrupt','ยัดเงินเพื่อใบอนุญาต',200000); p.flags.cAdj=(p.flags.cAdj||0)+15; if(chance(.1)){ fx(p,{m:-Math.round(p.money*.5)}); note(p,'ถูกจับได้ ต้องจ่ายค่าปรับครึ่งหนึ่งของเงินที่มี'); } } },
+    { title:'กู้นอกระบบ 500,000 ขยายกิจการไหม', sub:'ดอก 20%/ปี · ผลดี +10% ผลแย่ +10%', run:p=>{ p.debt.i += 500000; addMoney(p,500000); p.flags.cAdj=(p.flags.cAdj||0)+10; p.flags.cBad=(p.flags.cBad||0)+10; } },
+    { title:'เปิดสาขา/ขายแฟรนไชส์ไหม', sub:'ถ้าผลดี รายได้ ×1.8 · 40% สาขาเจ๊ง', cost:1000000, run:p=>{ if(chance(.4)) note(p,'สาขาใหม่เจ๊ง เสียทุน'); else p.flags.branch = true; } },
+  ],
+  abroad: [
+    { title:'ไปแบบผิดกฎหมาย (ผีน้อย) เพื่อประหยัดค่านายหน้าไหม', sub:'ได้เงินคืน 70,000 · 25% ถูกจับส่งกลับ', run:p=>{ fx(p,{m:70000,K:-5}); tagBad(p,'selfillegal','ไปทำงานแบบผีน้อย',70000); if(chance(.25)){ note(p,'ถูกจับส่งกลับไทย'); p.flags.abroadEnd = p.age; } } },
+    { title:'ส่งเงินกลับบ้านครึ่งหนึ่งไหม', sub:'J+5 · ล้างหนี้ครอบครัว · เงินเก็บลดครึ่ง', run:p=>{ fx(p,{J:5,K:10}); p.famDebt = 0; p.incomeBoost *= .5; tagGood(p,'family','ส่งเงินกลับบ้านครึ่งหนึ่ง'); } },
+    { title:'อยู่ต่อเกินสัญญา 3 ปีไหม', sub:'฿+600,000 · J−10', run:p=>{ fx(p,{m:600000,J:-10,K:-5}); tagBad(p,'selfillegal','อยู่เกินสัญญา',600000); if(chance(.15)){ fx(p,{m:-200000}); note(p,'ถูกจับและปรับ ฿200,000'); } p.flags.abroadEnd = (p.flags.abroadEnd||p.age)+3; } },
+  ],
+  influ: [
+    { title:'รับรีวิวเว็บพนันออนไลน์ไหม', sub:'฿+2,000,000', run:async(p,io)=>{ fx(p,{m:2000000,K:-25}); tagBad(p,'harm','รีวิวเว็บพนัน',2000000); if(chance(.2)){ fx(p,{m:-1000000,C:-20}); await arrested(p, io, 'ตำรวจไซเบอร์จับกุมผู้รีวิวเว็บพนัน'); } } },
+    { title:'ซื้อยอดผู้ติดตามไหม', sub:'โอกาสดังขึ้นเล็กน้อย', cost:50000, run:p=>{ fx(p,{K:-5}); tagBad(p,'harm','ซื้อยอดผู้ติดตาม',50000); p.flags.cAdj=(p.flags.cAdj||0)+5; if(chance(.1)){ fx(p,{C:-10}); note(p,'ถูกจับได้ว่าซื้อยอด'); } } },
+    { title:'ทำคอนเทนต์ดราม่าเรียกยอดไหม', sub:'C+10 · J−10', run:p=>{ fx(p,{C:10,J:-10,K:-5}); tagBad(p,'harm','ทำคอนเทนต์ดราม่า',0); p.flags.cAdj=(p.flags.cAdj||0)+5; if(chance(.2)){ fx(p,{J:-20}); note(p,'โดนทัวร์ลงหนัก'); } } },
+  ],
+};
+function careerChoices(p, exclude = []){
+  const land = p.q >= 3 || p.tier === 4 || p.tier === 5;
+  return Object.entries(CAREERS).map(([k, C]) => {
+    let cond = !exclude.includes(k), condText = 'เพิ่งออกจากอาชีพนี้';
+    if(C.needDegree && !p.degree){ cond = false; condText = 'ต้องจบปริญญา'; }
+    if(C.maxAge && p.age > C.maxAge){ cond = false; condText = 'อายุเกิน 40'; }
+    if(p.flags.restricted && ['gov','office','abroad'].includes(k)){ cond = false; condText = 'มีประวัติติดคุก'; }
+    if(p.status.bankrupt && k==='abroad'){ cond = false; condText = 'ล้มละลาย ไปต่างประเทศไม่ได้'; }
+    let cost = C.cost; if(k==='biz' && p.flags.bizFree) cost = 0;
+    const inc = `฿${bahtS(C.start)}→${bahtS(C.caps.good)}/เดือน`;
+    let sub = inc + (k==='gov' ? ` · สอบติด ${clamp(Math.round(20+0.5*(p.S-50)+0.3*(p.C-50)+(p.degree==='top'?10:0)),3,95)}%` : '') + (k==='farm' && !land ? ' · ต้องเช่าที่ (−20%)' : '');
+    return { label:C.name, sub, cost, cond, condText, k };
+  });
+}
+async function enterCareer(p, io, opts = {}){
+  let exclude = opts.exclude || [];
+  while(true){
+    const c = await choose(p, io, { kind:'main', bg:'city', title: opts.title || 'เลือกอาชีพ', text: opts.text || 'อาชีพกำหนดรายได้ทั้งชีวิตและสิทธิหลังเกษียณ', choices: careerChoices(p, exclude) });
+    if(c.k === 'gov'){
+      const pr = clamp(20+0.5*(p.S-50)+0.3*(p.C-50)+(p.degree==='top'?10:0), 3, 95)/100;
+      if(!chance(pr)){ note(p,'สอบ ก.พ. ไม่ติด'); exclude = [...exclude, 'gov']; continue; }
+    }
+    p.career = c.k; p.cYears = 0; p.cOut = null; p.cStartAge = p.age; p.unemployed = 0; p.incomeBoost = 1; p.flags.cAdj = 0; p.flags.cBad = 0;
+    const C = CAREERS[c.k]; fx(p, C.fx);
+    if(c.k === 'farm' && !(p.q >= 3 || p.tier === 4 || p.tier === 5)) p.flags.rentLand = true;
+    if(c.k === 'abroad') p.flags.abroadEnd = p.age + 5;
+    if(p.flags.stayAbroad && c.k !== 'abroad') p.incomeBoost *= 2, p.flags.stayAbroad = false;
+    if(c.k === 'biz' && opts.capital !== undefined && opts.capital < 500000) p.flags.cBad = (p.flags.cBad||0) + 10;
+    log(p, `เริ่มอาชีพ${C.name}`);
+    return c.k;
+  }
+}
+async function careerOutcome(p, io){
+  if(!p.career || p.cOut) return;
+  const C = CAREERS[p.career];
+  const o = roll3(p, C.odds, { g: p.flags.cAdj||0, b: p.flags.cBad||0 }); p.cOut = o;
+  await say(p, io, { kind:'result', bg:C.bg, title:`${C.name}: ผลลัพธ์${OUT_TH[o]}`, text:C.outText[o], outcome:o });
+  log(p, `${C.name} ผล${OUT_TH[o]}`);
+  if(p.career==='farm' && o==='good') fx(p,{J:5});
+  if(p.career==='factory' && o==='bad') p.unemployed = 2;
+  if(p.career==='office' && o==='bad') p.flags.layoff45 = true;
+  if(p.career==='biz' && o==='good' && p.flags.branch) p.incomeBoost *= 1.8;
+  if(p.career==='biz' && o==='bad') await bizFail(p, io);
+  if(p.career==='influ' && o==='good') fx(p,{C:30});
+  if(p.career==='influ' && o==='bad') await layoffFork(p, io, false, true);
+}
+async function bizFail(p, io){
+  const c = await choose(p, io, { kind:'fork', bg:'shop', title:'ธุรกิจเจ๊ง จะไปต่อยังไง', choices:[
+    { label:'ล้มแล้วลุก เปิดใหม่', sub:'สุ่มผลลัพธ์ใหม่ S+5', cost:500000, k:'again' },
+    { label:'ไปเป็นลูกจ้าง', sub: p.degree ? 'เป็นพนักงานออฟฟิศ · J−10' : 'เป็นแรงงานโรงงาน · J−10', k:'emp' },
+    { label:'ขอให้ครอบครัวช่วย', sub:`฿+${baht(Math.round(p.start*.2))} · J−5 · ใช้ได้ครั้งเดียว`, cond:!p.flags.famHelped, condText:'เคยขอแล้ว', k:'fam' } ]});
+  if(c.k==='again'){ fx(p,{S:5}); p.cOut = null; p.cYears = 0; if(p.flags.bizFailedOnce){ p.debt.i += p.debt.f; p.debt.f = 0; } p.flags.bizFailedOnce = true; await careerOutcome(p, io); }
+  if(c.k==='emp'){ fx(p,{J:-10}); p.career = p.degree ? 'office' : 'factory'; p.cOut='mid'; p.cYears=0; }
+  if(c.k==='fam'){ p.flags.famHelped = true; fx(p,{m:Math.round(p.start*.2),J:-5}); p.career = p.degree ? 'office' : 'factory'; p.cOut='mid'; p.cYears=0; note(p,'ครอบครัวช่วยตั้งตัวใหม่ แล้วคุณไปเป็นลูกจ้าง'); }
+}
+async function layoffFork(p, io, comp = true, influ = false){
+  p.unemployed = Math.max(p.unemployed, 1); fx(p,{J:-15});
+  const sev = comp ? Math.round(curIncome(p) * (p.flags.union ? 10 : Math.min(13, 1 + p.cYears/3))) : 0;
+  if(sev) { addMoney(p, sev); note(p, `ได้เงินชดเชย ฿${baht(sev)}`); }
+  const land = p.q >= 2 || p.tier === 4 || p.tier === 5;
+  const job = clamp(40+0.3*(p.S-50)+0.3*(p.C-50), 5, 95);
+  const c = await choose(p, io, { kind:'fork', bg:'city', title: influ ? '3 ปีไม่มีคนดู ต้องเปลี่ยนทาง' : 'ตกงาน จะไปต่อยังไง', choices:[
+    influ ? { label:'ลองช่องใหม่', sub:'สุ่มผลลัพธ์ใหม่ (โอกาสดี −3%)', cost:50000, k:'retry' } : { label:'หางานสายเดิม', sub:`ได้งาน ${Math.round(job)}% · รายได้ −10%`, k:'same' },
+    { label:'เปลี่ยนอาชีพ', sub:'จ่ายต้นทุนเข้าอาชีพใหม่', k:'switch' },
+    { label: sev ? 'เอาเงินชดเชยเปิดธุรกิจ' : 'เปิดธุรกิจเล็ก ๆ', sub:'กลายเป็นธุรกิจส่วนตัว', k:'biz' },
+    { label:'กลับบ้านทำเกษตร', sub:'J+5', cond:land, condText:'ครอบครัวไม่มีที่ดิน', k:'farm' } ]});
+  if(c.k==='retry'){ p.flags.cAdj=(p.flags.cAdj||0)-3; p.cOut=null; await careerOutcome(p, io); }
+  if(c.k==='same'){ if(chance(job/100)){ p.incomeBoost *= .9; note(p,'ได้งานใหม่ในสายเดิม รายได้ลดลงเล็กน้อย'); } else { p.unemployed += 1; fx(p,{J:-10}); note(p,'หางานไม่ได้อีกหนึ่งปี'); await enterCareer(p, io, { title:'ต้องเลือกทางใหม่', exclude:[] }); } }
+  if(c.k==='switch'){ await enterCareer(p, io, { title:'เปลี่ยนอาชีพ', exclude:[p.career] }); }
+  if(c.k==='biz'){ p.career='biz'; p.cYears=0; p.cOut=null; if(sev < 500000) p.flags.cBad=(p.flags.cBad||0)+10; note(p,'เริ่มธุรกิจของตัวเอง'); }
+  if(c.k==='farm'){ p.career='farm'; p.cYears=0; p.cOut=null; fx(p,{J:5}); note(p,'กลับบ้านไปทำเกษตร'); }
+}
+const S3_EVENTS = [
+  { id:'layoff', title:'ถูกเลย์ออฟ', bg:'office', text:()=>'บริษัทประกาศลดคน ชื่อคุณอยู่ในรายชื่อ', w:p=>p.career==='gov'?null:10+(['office','factory'].includes(p.career)?10:0),
+    run: async (p, io) => layoffFork(p, io, ['office','factory'].includes(p.career)) },
+  { id:'lotto', title:'ถูกหวย', bg:'city', text:()=>'คุณตรวจลอตเตอรี่แล้วตาโต', w:p=>4+(p.lottery?2:0),
+    run: async (p, io) => { if(chance(.9)){ fx(p,{m:4000}); note(p,'ถูกเลขท้าย ได้ ฿4,000'); return; }
+      fx(p,{J:10}); const c = await choose(p, io, { kind:'fork', bg:'city', title:'ถูกรางวัลที่ 1! ได้ ฿6,000,000', choices:[
+        { label:'ฝากธนาคารเก็บไว้', sub:'J+10', k:'bank' }, { label:'ลงทุนธุรกิจหรืออสังหาฯ', sub:'40% ได้ ×2 · 20% เสียครึ่ง', k:'inv' }, { label:'แบ่งให้ญาติพี่น้อง 30%', sub:'C+10 J+5', k:'share' } ]});
+      if(c.k==='bank'){ fx(p,{m:6000000,J:10}); p.flags.scamW=(p.flags.scamW||0)+10; }
+      if(c.k==='inv'){ const r=rnd(); const g = r<.4?12000000: r<.6?3000000:6000000; fx(p,{m:g}); note(p,`ผลการลงทุน ฿${baht(g)}`); }
+      if(c.k==='share'){ fx(p,{m:4200000,K:10,C:10,J:5}); tagGood(p,'family','แบ่งเงินรางวัลให้ญาติ'); p.flags.relW=(p.flags.relW||0)+20; }
+    } },
+  { id:'flood', title:p=>p.career==='farm'&&chance(.5)?'ภัยแล้ง':'น้ำท่วม', bg:'flood', text:()=>'น้ำท่วมถึงเข่าในบ้าน ข้าวของเสียหายเกือบหมด', w:p=>12+(p.career==='farm'?15:0)+(p.tier===1?5:0),
+    run: async p => { fx(p,{m:-100000,J:-5}); if(p.career==='farm'){ p.incomeBoost *= .7; note(p,'ผลผลิตเสียหาย รายได้ลด 30%'); if(p.flags.baac){ p.debt.f += 100000; note(p,'ผิดนัด ธ.ก.ส. หนี้เพิ่ม ฿100,000'); } } } },
+  { id:'scam', title:'โดนแก๊งคอลเซ็นเตอร์', bg:'home', text:()=>'เสียงปลายสายบอกว่าบัญชีของคุณพัวพันคดียาเสพติด', w:p=>10+0.2*(50-p.S)+(p.age>=50?5:0)+(p.flags.scamW||0)+(p.lifestyle===2?5:0),
+    run: async p => { const l = Math.min(500000, Math.round(p.money*.2)); fx(p,{m:-l,J:-10}); note(p,`ถูกหลอกโอนเงิน ฿${baht(l)}`); } },
+  { id:'promo', title:p=>p.career==='biz'?'ธุรกิจโต':'ได้เลื่อนตำแหน่ง', bg:'office', text:()=>'ความพยายามหลายปีเริ่มออกผล', w:p=>12+0.2*(p.S-50)+0.2*(p.C-50),
+    run: async p => { p.incomeBoost *= 1.25; fx(p,{J:10,C:5}); note(p,'รายได้เพิ่มขึ้น 25%'); } },
+  { id:'unrest3', title:'เหตุความไม่สงบใกล้บ้าน', bg:'south', text:()=>'ร้านค้าในตลาดถูกลอบวางระเบิด', w:p=>p.tier===6?6:null,
+    run: async p => { fx(p,{J:-10}); if(p.career==='biz') p.incomeBoost *= .8; } },
+];
+
+// ---------- STAGE 4 คู่ชีวิต ----------
+const S4_MAIN = {
+  single:{ name:'อยู่เป็นโสด', now:{J:-5}, odds:[30,50,20], good:{J:10}, mid:{}, bad:{J:-15} },
+  same:  { name:'แต่งงานกับคนฐานะใกล้กัน', now:{J:10}, odds:[35,45,20], good:{J:10,H:5}, mid:{J:3}, bad:{J:-10} },
+  rich:  { name:'แต่งงานกับคนรวยกว่า', now:{J:5,C:15}, odds:[25,45,30], good:{m:500000}, mid:{}, bad:{J:-15} },
+  foreign:{ name:'แต่งงานกับชาวต่างชาติ', now:{C:5,J:5}, odds:[30,40,30], good:{}, mid:{}, bad:{J:-15} },
+  cohab: { name:'อยู่ด้วยกันไม่จดทะเบียน', now:{J:8}, odds:[30,45,25], good:{J:5}, mid:{}, bad:{} },
+};
+function spouseFrom(p, kind){
+  let sq = p.q; if(kind==='same'||kind==='cohab') sq = clamp(p.q + randi(-1,1), 0, 4); if(kind==='rich') sq = clamp(p.q + 2, 0, 5); if(kind==='foreign') sq = clamp(p.q + randi(0,1), 0, 4);
+  const sameSex = chance(.08); const sx = sameSex ? p.sex : (p.sex === 'M' ? 'F' : 'M');
+  const mu = p.religion === 'อิสลาม';
+  return { kind, q: sq, income: QS[sq].inc * .6, sex: sx, name: pickOne(sx==='M'?(mu?NAMES_MU_M:NAMES_M):(mu?NAMES_MU_F:NAMES_F)), legal: kind !== 'cohab', prenup:false, separated:false, foreign: kind==='foreign' };
+}
+async function stage4(p, io, beats){
+  p.stage = 4;
+  const c = await choose(p, io, { kind:'main', bg:'wedding', title:'ชีวิตคู่ (อายุ 25–35)', text:'คู่ชีวิตเปลี่ยนรายได้ครัวเรือนทันที ราคาคือสินสอดรวมค่างาน', choices:[
+    { label:S4_MAIN.single.name, sub:'J−5 · ออมเพิ่ม 5%', k:'single' },
+    { label:S4_MAIN.same.name, sub:'J+10 · รายได้คู่ใกล้กับคุณ', cost:300000, k:'same' },
+    { label:S4_MAIN.rich.name, sub:'J+5 C+15 · รายได้คู่สูงกว่าคุณ 2 ขั้น · ลุ้นได้สินสอดคืนพร้อมทุนตั้งตัว · ต้องมี C 40 ขึ้นไป', cost:300000, cond:p.C>=40, condText:'C ต้องถึง 40', k:'rich' },
+    { label:S4_MAIN.foreign.name, sub:'C+5 J+5 · ต้องมี S 40 ขึ้นไป', cost:200000, cond:p.S>=40, condText:'S ต้องถึง 40', k:'foreign' },
+    { label:S4_MAIN.cohab.name, sub:'J+8', cost:30000, k:'cohab' } ]});
+  const D = S4_MAIN[c.k]; fx(p, D.now); p.relKind = c.k;
+  if(c.k === 'rich') richDowry(p);
+  if(c.k !== 'single'){ p.spouse = spouseFrom(p, c.k); log(p, `ใช้ชีวิตคู่กับ${p.spouse.name}`); note(p, `คุณใช้ชีวิตคู่กับ${p.spouse.name} รายได้ของ${p.spouse.name} ราว ฿${baht(p.spouse.income)}/เดือน`); }
+  else log(p, 'เลือกเป็นโสด');
+  const o = roll3(p, D.odds); p.relOut = o;
+  const MIN = {
+    single:[ { t:'เลี้ยงสัตว์เป็นเพื่อนไหม', s:'J+10 · ค่าเลี้ยงดู 3,000/เดือน', cost:50000, r:()=>{ fx(p,{J:10}); p.annual.push({from:p.age,to:p.age+15,amt:36000}); p.flags.pet=true; } },
+             { t:'ดูแลพ่อแม่เต็มตัวไหม', s:'J−5 · รายได้ −10% · ได้มรดกเพิ่ม', cost:200000, r:()=>{ fx(p,{J:-5,K:15}); p.incomeBoost*=.9; tagGood(p,'family','ดูแลพ่อแม่เต็มตัว'); p.flags.careParents=true; } },
+             { t:'ลองใช้แอปหาคู่ไหม', s:'30% เจอคนถูกใจ · 10% โดน romance scam', cost:5000, r:async()=>{ const r=rnd(); if(r<.1){ fx(p,{m:-200000,J:-10}); note(p,'โดนหลอกโอนเงิน ฿200,000'); } else if(r<.4){ note(p,'เจอคนถูกใจ'); await rematch(p, io); } } } ],
+    same:[ { t:'จัดงานแต่งใหญ่ (กู้มาจัด 400,000) ไหม', s:'C+10 J+5 · ได้เงินซองคืนครึ่งหนึ่ง', r:()=>{ p.debt.f += 400000; addMoney(p,200000); fx(p,{C:10,J:5}); p.flags.fightW=(p.flags.fightW||0)+10; } },
+           { t:'ให้สินสอดสูงเพื่อหน้าตาไหม', s:'C+5 · 50% ครอบครัวอีกฝ่ายคืนให้', cost:500000, r:()=>{ fx(p,{C:5}); if(chance(.5)){ addMoney(p,500000); note(p,'ครอบครัวอีกฝ่ายคืนสินสอดให้ไว้ตั้งตัว'); } } },
+           { t:'อยู่บ้านพ่อแม่ (ทำ) หรือแยกบ้าน (ไม่ทำ)', y:'อยู่บ้านพ่อแม่', n:'แยกบ้าน', s:'฿+300,000 J−5', ns:'฿−300,000 J+5', r:()=>fx(p,{m:300000,J:-5}), rn:()=>fx(p,{m:-300000,J:5}) } ],
+    rich:[ { t:'ทำสัญญาก่อนสมรสไหม', s:'ถ้าหย่าไม่เสียทรัพย์สินเดิม · J−5', cost:20000, r:()=>{ p.spouse.prenup=true; fx(p,{J:-5}); } },
+           { t:'เข้าทำงานในธุรกิจครอบครัวอีกฝ่ายไหม', s:'รายได้ +50% C+15 · J−10', r:()=>{ p.incomeBoost*=1.5; fx(p,{C:15,J:-10}); p.flags.inlawJob=true; } },
+           { t:'ให้อีกฝ่ายจ่ายทุกอย่างไหม', s:'ออมเพิ่ม 15% · J−5', r:()=>{ p.flags.spousePays=true; fx(p,{J:-5}); p.flags.cheatW=(p.flags.cheatW||0)+5; } } ],
+    foreign:[ { t:'ย้ายไปอยู่ต่างประเทศกับคู่ไหม', s:'รายได้ ×2 · C−15', cost:300000, r:()=>{ p.incomeBoost*=2; fx(p,{C:-15,J:chance(.5)?10:-10}); p.flags.livesAbroad=true; } },
+              { t:'เรียนภาษาของคู่ไหม', s:'S+5 J+5', cost:50000, r:()=>fx(p,{S:5,J:5}) },
+              { t:'จัดงานแต่งทั้งสองประเทศไหม', s:'C+10 J+5', cost:300000, r:()=>fx(p,{C:10,J:5}) } ],
+    cohab:[ { t:'จดทะเบียนสมรสภายหลังไหม', s:'ได้สิทธิ์ทางกฎหมาย', cost:1000, r:()=>{ p.spouse.legal=true; } },
+            { t:'ทำพินัยกรรมคุ้มครองกันไหม', s:'ถ้าคู่เสียชีวิตได้มรดกเต็ม', cost:10000, r:()=>{ p.flags.will=true; } },
+            { t:'กู้บ้านร่วมกัน 2,000,000 ไหม', s:'J+10 ได้บ้าน · ถ้าเลิกกันต้องจ่ายคนเดียว', r:()=>{ if(!p.house) p.house={value:2000000,years:0}; fx(p,{J:10}); p.flags.jointHouse=true; } } ],
+  }[c.k];
+  MIN.forEach((m, i) => beats.push({ age: p.age + 1 + i, run: async () => {
+    if(c.k !== 'single' && !p.spouse) return;
+    const yes = await yesno(p, io, { title:m.t, sub:m.s, noSub:m.ns, cost:m.cost||0, yes:m.y, no:m.n });
+    if(yes) await m.r(); else if(m.rn) m.rn();
+  }}));
+  beats.push({ age: p.age + 4, run: async () => {
+    if(c.k !== 'single' && !p.spouse) return;
+    fx(p, D[o]);
+    let t = { good:'ชีวิตคู่ลงตัว', mid:'ชีวิตคู่มีทั้งวันดีและวันเหนื่อย', bad:'ชีวิตคู่ไม่เป็นอย่างที่หวัง' }[o];
+    if(c.k==='single') t = { good:'การอยู่คนเดียวให้อิสระที่คุณชอบ', mid:'ชีวิตโสดผ่านไปเรื่อย ๆ', bad:'คุณเหงามากกว่าที่คิด' }[o];
+    if(c.k==='foreign' && o==='good' && p.spouse) p.spouse.income *= 1.5;
+    if(c.k==='cohab' && o==='bad' && p.spouse){ t = 'คุณกับคู่เลิกกัน ไม่มีสิทธิ์ในทรัพย์สินร่วม'; await breakup(p, io, true); }
+    if(o==='good' && p.spouse) p.Jbase = Math.min(100, p.Jbase + 5);
+    await say(p, io, { kind:'result', bg:'wedding', title:`ชีวิตคู่: ผลลัพธ์${OUT_TH[o]}`, text:t, outcome:o });
+  }});
+  p.stage = 3;
+  const pool = p.spouse ? S4_COUPLE : S4_SINGLE;
+  const evs = drawEvents(p, pool, 2); const ages = distinctAges(evs.length, p.age+1, p.age+6);
+  evs.forEach((e, i) => beats.push({ age: ages[i], run: async () => { if(pool === S4_COUPLE && !p.spouse) return; if(pool===S4_SINGLE && p.spouse) return; await runEvent(p, io, e); } }));
+}
+// แต่งกับคนรวยกว่า: จ่ายสินสอดเท่าคนทั่วไป แต่ครอบครัวอีกฝ่ายมักคืนสินสอดพร้อมทุนตั้งตัว
+function richDowry(p){
+  if(chance(.6)){ fx(p,{m:400000}); note(p,'ครอบครัวอีกฝ่ายคืนสินสอดพร้อมให้ทุนตั้งตัว ฿+400,000'); }
+  else note(p,'ครอบครัวอีกฝ่ายรับสินสอดไว้ และไม่ได้ให้อะไรกลับมา');
+}
+async function rematch(p, io){
+  const c = await choose(p, io, { kind:'main', bg:'wedding', title:'เริ่มต้นชีวิตคู่ใหม่', choices:[
+    { label:S4_MAIN.same.name, sub:'J+10', cost:300000, k:'same' }, { label:S4_MAIN.cohab.name, sub:'J+8', cost:30000, k:'cohab' },
+    { label:S4_MAIN.rich.name, sub:'J+5 C+15 · ลุ้นได้สินสอดคืนพร้อมทุนตั้งตัว', cost:300000, cond:p.C>=40, condText:'C ต้องถึง 40', k:'rich' }, { label:'ยังไม่พร้อม', sub:'อยู่เป็นโสดต่อ', k:'no' } ]});
+  if(c.k === 'no') return;
+  fx(p, S4_MAIN[c.k].now); if(c.k === 'rich') richDowry(p); p.spouse = spouseFrom(p, c.k); p.relKind = c.k; note(p, `คุณเริ่มชีวิตคู่กับ${p.spouse.name}`); log(p, `ใช้ชีวิตคู่กับ${p.spouse.name}`);
+}
+async function breakup(p, io, cohab){
+  const assets = Math.max(0, p.money);
+  if(!cohab && p.spouse && p.spouse.legal){
+    const c = await choose(p, io, { kind:'fork', bg:'court', title:'หย่า: จะแบ่งสินสมรสยังไง', text:`เงินที่มีตอนนี้ ฿${baht(assets)}`, choices:[
+      { label:'แบ่งครึ่งตามกฎหมาย', sub:'เสีย 50% · J−5', cost:20000, k:'half' },
+      { label:'ฟ้องร้องสู้', sub:`ชนะ ${clamp(Math.round(40+0.3*(p.C-50)),5,95)}% เสียแค่ 30%`, cost:100000, k:'fight' },
+      { label:'ยอมให้ทั้งหมดเพื่อจบ', sub:'เสีย 80% · J+5', k:'all' } ]});
+    let share = c.k==='half' ? .5 : c.k==='all' ? .8 : (chance(clamp(40+0.3*(p.C-50),5,95)/100) ? .3 : .6);
+    if(p.spouse.prenup) share *= .5;
+    const lose = Math.round(Math.max(0,p.money) * share); p.money -= lose; io.chips([['฿',-lose]]);
+    if(c.k==='half') fx(p,{J:-5}); if(c.k==='all') fx(p,{J:5,K:5}); if(c.k==='fight' && share>=.6) fx(p,{J:-10});
+    note(p, `หย่าแล้ว เสียสินสมรส ฿${baht(lose)}`);
+  } else if(p.flags.jointHouse){ fx(p,{J:-10}); p.debt.f += 1000000; note(p,'เลิกกันแล้ว คุณต้องผ่อนบ้านคนเดียวครึ่งหนึ่ง'); }
+  if(p.flags.inlawJob){ p.incomeBoost /= 1.5; p.unemployed = 1; note(p,'งานในธุรกิจครอบครัวอีกฝ่ายจบลงพร้อมการหย่า'); }
+  if(p.kids.length){
+    const k = await yesno(p, io, { title:'ใครจะเลี้ยงลูก', yes:'เลี้ยงลูกเอง', no:'ให้อีกฝ่ายเลี้ยง', sub:'ค่าลูก +10 · รายได้ −10%', noSub:'จ่ายค่าเลี้ยงดู 5,000/เดือน · ค่าลูก −10' });
+    if(k){ p.kids.forEach(x=>x.kv=clamp(x.kv+10,0,100)); p.incomeBoost*=.9; } else { p.kids.forEach(x=>x.kv=clamp(x.kv-10,0,100)); p.annual.push({from:p.age,to:p.age+10,amt:60000}); }
+  }
+  p.spouse = null; p.flags.divorced = true; p.Jbase = Math.max(0, p.Jbase - 5); fx(p,{J:-20}); log(p,'หย่า/เลิกกับคู่');
+}
+const S4_COUPLE = [
+  { id:'cheat', title:'ถูกนอกใจ', bg:'home', text:p=>`คุณเห็นข้อความในมือถือของ${p.spouse.name}`, w:p=>10+(p.J<40?5:0)+(p.flags.cheatW||0),
+    run: async (p, io) => { fx(p,{J:-20}); p.flags.cheated = true;
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะทำยังไงต่อ', choices:[
+        { label:'ให้อภัย อยู่ด้วยกันต่อ', sub:'J−5', k:'forgive' }, { label:'แยกกันอยู่ ยังไม่หย่า', sub:'J−10 · รายได้คู่ไม่นับรวม', k:'sep' }, { label:'หย่า', sub:'แบ่งสินสมรส', k:'div' } ]});
+      if(c.k==='forgive'){ fx(p,{J:-5}); p.flags.cheatW=(p.flags.cheatW||0)+10; }
+      if(c.k==='sep'){ fx(p,{J:-10}); p.spouse.separated = true; p.annual.push({from:p.age,to:p.age+6,amt:60000}); }
+      if(c.k==='div') await breakup(p, io);
+    } },
+  { id:'divorce', title:'หย่า / เลิกกัน', bg:'court', text:()=>'ทะเลาะกันจนไม่มีทางกลับ', w:p=>8+(p.flags.cheated?10:0)+(totalDebt(p)>hhIncome(p)*12?5:0), run: async (p, io) => breakup(p, io, !p.spouse.legal) },
+  { id:'inlaw', title:'ครอบครัวอีกฝ่ายช่วยเหลือ', bg:'home', text:p=>`ครอบครัวของ${p.spouse.name}ให้เงินตั้งตัว`, w:p=>10+(p.relKind==='rich'?10:0), run: async p => fx(p,{m:300000}) },
+  { id:'fight', title:'ทะเลาะเรื่องเงิน', bg:'home', text:()=>'บิลบัตรเครดิตเดือนนี้ทำให้บ้านร้อนเป็นไฟ', w:p=>15+(totalDebt(p)>hhIncome(p)*12?10:0)+(p.flags.fightW||0), run: async p => fx(p,{J:-10,H:-3}) },
+  { id:'sjob', title:'คู่ได้งานดี', bg:'office', text:p=>`${p.spouse.name}ได้งานใหม่ที่เงินดีกว่าเดิม`, w:p=>10+0.1*p.C, run: async p => { p.spouse.income *= 1.2; fx(p,{J:5}); } },
+];
+const S4_SINGLE = [
+  { id:'friends', title:'เพื่อนแต่งงานกันหมด', bg:'wedding', text:()=>'การ์ดแต่งงานวางเรียงเต็มโต๊ะ', w:()=>12, run: async p => fx(p,{J:-5,C:3}) },
+  { id:'promo4', title:'ทุ่มเทงานจนได้เลื่อนตำแหน่ง', bg:'office', text:()=>'ไม่มีใครรอที่บ้าน คุณจึงทุ่มให้งานเต็มที่', w:p=>10+0.2*(p.S-50), run: async p => { p.incomeBoost *= 1.15; } },
+  { id:'parentsick', title:'พ่อแม่ป่วย ต้องดูแล', bg:'hospital', text:()=>'พ่อล้มป่วย ต้องมีคนดูแลตลอดเวลา', w:p=>12+(p.tier===5?10:0),
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'hospital', title:'ใครจะดูแลพ่อแม่', choices:[
+        { label:'ดูแลเอง ลดเวลางาน', sub:'J+5 · รายได้ −20% 5 ปี H−3', k:'self' }, { label:'จ้างผู้ดูแลที่บ้าน', sub:'15,000/เดือน × 5 ปี', cost:900000, k:'hire' }, { label:'ส่งบ้านพักคนชราเอกชน', sub:'25,000/เดือน × 5 ปี · J−5', cost:1500000, k:'home' } ]});
+      if(c.k==='self'){ fx(p,{J:5,K:15,H:-3}); p.incomeCut += .2; p.flags.cutBack = p.age+5; tagGood(p,'family','ดูแลพ่อแม่ที่ป่วย'); p.flags.careParents = true; }
+      if(c.k==='hire') fx(p,{K:5});
+      if(c.k==='home'){ fx(p,{K:-5,J:-5}); if(chance(.5)) tagBad(p,'abandon','ส่งพ่อแม่ไปบ้านพักแล้วไม่เคยไปเยี่ยม',0); }
+    } },
+  { id:'meet', title:'เจอคนถูกใจโดยบังเอิญ', bg:'city', text:()=>'คุณเจอคนที่คุยกันถูกคอที่ร้านกาแฟ', w:p=>8+0.1*p.C, run: async (p, io) => rematch(p, io) },
+  { id:'self', title:'ใช้เงินกับตัวเองเต็มที่', bg:'city', text:()=>'ทริปญี่ปุ่น กล้องใหม่ และนาฬิกาเรือนแรก', w:p=>10+(p.money>1000000?5:0), run: async p => fx(p,{m:-100000,J:10}) },
+];
+
+// ---------- STAGE 5 ลูก ----------
+function makeKid(p){ const mu = p.religion==='อิสลาม'; const sx = chance(.5)?'M':'F'; return { name: pickOne(sx==='M'?(mu?NAMES_MU_M:NAMES_M):(mu?NAMES_MU_F:NAMES_F)), sex:sx, kv:50, born:p.age, hhInc: hhIncome(p), debtAt: totalDebt(p), left:false }; }
+function addKid(p){ const k = makeKid(p); p.kids.push(k); p.annual.push({ from:p.age, to:p.age+18, amt:27778 }); log(p, `ลูกชื่อ${k.name}เกิด`); return k; }
+async function stage5(p, io, beats){
+  p.stage = 5;
+  const ivfP = p.age<=35?.4:p.age<=40?.25:.1;
+  const c = await choose(p, io, { kind:'main', bg:'baby', title:'เรื่องลูก', text:'ค่าเลี้ยงดูพื้นฐานถึงอายุ 18 ไม่รวมค่าโรงเรียน หักเป็นรายปี', choices:[
+    { label:'ไม่มีลูก', sub:'ออมเพิ่ม 10%', k:'none' },
+    { label:'มีลูก 1 คน', sub:'J+15 · ค่าเลี้ยงดู ~28,000/ปี · ออมลด 5%', cond:p.age<=45, condText:'อายุเกิน 45', k:'one' },
+    { label:'มีลูก 2 คนขึ้นไป', sub:'J+20 H−5 · ~56,000/ปี · ออมลด 10%', cond:p.age<=42, condText:'อายุเกิน 42', k:'two' },
+    { label:'ทำ IVF', sub:`สำเร็จ ${Math.round(ivfP*100)}% ต่อรอบ`, cost:250000, k:'ivf' },
+    { label:'รับบุตรบุญธรรม', sub:'J+15 · ต้องมีคู่หรือรายได้ 20,000+', cost:50000, cond:!!p.spouse||curIncome(p)>=20000, condText:'ต้องมีคู่หรือรายได้ 20,000', k:'adopt' } ]});
+  let mode = c.k;
+  if(c.k==='none'){ p.flags.noKids = true; }
+  if(c.k==='one'){ fx(p,{J:15}); addKid(p); }
+  if(c.k==='two'){ fx(p,{J:20,H:-5}); addKid(p); addKid(p); }
+  if(c.k==='ivf'){
+    let ok = chance(ivfP);
+    if(!ok && await yesno(p, io, { title:'IVF รอบแรกไม่สำเร็จ ลองอีกรอบไหม', sub:'H−3 J−5', cost:250000 })){ fx(p,{H:-3,J:-5}); ok = chance(ivfP); }
+    if(ok){ fx(p,{J:15}); addKid(p); note(p,'IVF สำเร็จ'); mode = 'one'; } else { fx(p,{J:-10}); note(p,'IVF ไม่สำเร็จ'); p.flags.noKids = true; mode = 'none'; }
+  }
+  if(c.k==='adopt'){ fx(p,{J:15,K:15}); const k = addKid(p); k.adopted = true; tagGood(p,'edu','รับบุตรบุญธรรม'); }
+  const odds = { none:[30,50,20], one:[30,55,15], two:[30,50,20], adopt:[30,55,15] }[mode];
+  const kidMinors = [];
+  if(p.kids.length){
+    kidMinors.push({ t:'ฝากปู่ย่าเลี้ยง (ทำ) หรือเลี้ยงเอง (ไม่ทำ)', y:'ฝากปู่ย่า', n:'เลี้ยงเอง', s:'ประหยัด · J−5 ค่าลูก−10', ns:'ค่าลูก+10 J+5 · รายได้ −30% 5 ปี',
+      r:()=>{ p.kids.forEach(k=>k.kv-=10); fx(p,{J:-5}); p.flags.grandRaise=true; }, rn:()=>{ p.kids.forEach(k=>k.kv+=10); fx(p,{J:5}); p.incomeCut+=.3; beats.push({age:p.age+5, run:async()=>{ p.incomeCut=Math.max(0,p.incomeCut-.3); }}); } });
+    kidMinors.push({ school:true });
+    kidMinors.push({ t:'ทำประกันสุขภาพและออมเพื่อลูกไหม', s:'ลดค่ารักษาลูก 80% · ลูกได้เงินตั้งตัวเพิ่ม', cost:300000, r:()=>{ p.flags.kidInsurance=true; } });
+    if(p.kids.length>=2) kidMinors.push({ t:'ทุ่มให้ลูกคนโต (ทำ) หรือแบ่งเท่ากัน (ไม่ทำ)', y:'ทุ่มให้คนโต', n:'แบ่งเท่ากัน', s:'คนโต ค่าลูก+15 คนอื่น −10', ns:'ทุกคน ค่าลูก+5', r:()=>{ p.kids[0].kv+=15; p.kids.slice(1).forEach(k=>k.kv-=10); p.flags.favorEldest=true; }, rn:()=>p.kids.forEach(k=>k.kv+=5) });
+    if(c.k==='adopt') kidMinors.push({ t:'เปิดเผยให้ลูกรู้ตั้งแต่เด็กว่าเป็นลูกบุญธรรมไหม', s:'ค่าลูก+10 J+5', r:()=>{ p.kids.forEach(k=>k.kv+=10); fx(p,{J:5}); } });
+  } else {
+    kidMinors.push({ t:'ลงทุนเพื่อเกษียณ 500,000 ไหม', s:'30 ปีต่อมาได้ ×1.5–×3', cost:500000, r:()=>{ p.flags.retireInvest = 500000; } });
+    kidMinors.push({ t:'ช่วยเลี้ยงหลาน (ลูกพี่น้อง) ไหม', s:'J+8 · ตอนแก่มีหลานช่วยดูแล', cost:100000, r:()=>{ fx(p,{J:8,K:5}); tagGood(p,'family','ช่วยเลี้ยงหลาน'); p.flags.nephew=true; } });
+    kidMinors.push({ t:'ใช้ชีวิตท่องเที่ยวรอบโลกไหม', s:'J+15 H+3', cost:500000, r:()=>fx(p,{J:15,H:3}) });
+  }
+  kidMinors.forEach((m, i) => beats.push({ age: p.age + 1 + i*2, run: async () => {
+    if(m.school){
+      if(!p.kids.length) return;
+      const ch = await choose(p, io, { kind:'minor', bg:'school', title:`ส่งลูก${p.kids.length>1?'ทุกคน':''}เรียนโรงเรียนแบบไหน`, text:'หักค่าเรียนเป็นรายปีตอนลูกอายุ 6–18', choices: SCHOOLS.map(s => ({ label:s.name, sub: s.cost ? `ปีละ ${baht(Math.round(s.cost/12))} ต่อคน` : 'เรียนฟรี', s })) });
+      p.kids.forEach(k => { k.kv += ch.s.kv; k.school = ch.s.id; if(ch.s.cost) p.annual.push({ from:k.born+6, to:k.born+18, amt:Math.round(ch.s.cost/12) }); });
+      return;
+    }
+    const yes = await yesno(p, io, { title:m.t, sub:m.s, noSub:m.ns, cost:m.cost||0, yes:m.y, no:m.n });
+    if(yes) m.r(); else if(m.rn) m.rn();
+  }}));
+  const o = roll3(p, odds);
+  beats.push({ age: p.age + 12, run: async () => {
+    const D = { none:{good:{J:10},mid:{},bad:{J:-10}}, one:{good:{J:10},mid:{},bad:{J:-10}}, two:{good:{J:15},mid:{},bad:{J:-10,m:-300000}}, adopt:{good:{J:10},mid:{},bad:{J:-10}} }[mode][o];
+    fx(p, D); if(p.kids.length && o==='good') p.kids.forEach(k=>k.kv+=10);
+    p.kids.forEach(k => k.kv = clamp(k.kv, 0, 100));
+    if(p.kids.some(k=>k.kv>=60)) p.Jbase = Math.min(100, p.Jbase + 5);
+    const t = p.kids.length ? { good:'ลูกโตมาเป็นเด็กดีและสนิทกับคุณ', mid:'ลูกโตมาตามวัย มีเรื่องให้ปวดหัวบ้าง', bad:'การเลี้ยงลูกหนักกว่าที่คิดไว้มาก' }[o] : { good:'ชีวิตไม่มีลูกให้อิสระเต็มที่', mid:'คุณไม่ค่อยคิดเรื่องนี้นัก', bad:'บางคืนคุณเสียดายที่ไม่มีลูก' }[o];
+    await say(p, io, { kind:'result', bg:'home', title:`เรื่องลูก: ผลลัพธ์${OUT_TH[o]}`, text:t, outcome:o });
+  }});
+  p.stage = 3;
+  const pool = p.kids.length ? S5_KIDS : S5_NOKIDS;
+  const evs = drawEvents(p, pool, 2); const ages = distinctAges(evs.length, Math.max(p.age+3, 36), 55);
+  evs.forEach((e, i) => beats.push(evBeat(p, io, e, ages[i])));
+}
+const S5_KIDS = [
+  { id:'ksick', title:'ลูกป่วยหนัก', bg:'hospital', text:p=>`${p.kids[0].name}ไข้ขึ้นสูงจนต้องนอนโรงพยาบาล`, w:p=>8+(p.tier>=5?5:0), run: async (p, io) => { fx(p,{J:-15}); await seriousIllness(p, io, 0, 'ลูก'); } },
+  { id:'kexam', title:'ลูกสอบติดที่ดี', bg:'school', text:p=>`${p.kids[0].name}ยืนหน้าบอร์ดประกาศผล แล้วหันมายิ้มให้คุณ`, w:p=>12+0.2*(p.kids[0].kv-50), run: async p => { fx(p,{J:15,C:5}); p.kids[0].kv+=5; } },
+  { id:'drug', title:'ลูกติดยาหรือเกเร', bg:'home', text:p=>`${p.kids[p.kids.length-1].name}กลับบ้านดึกทุกคืน ตาแดงก่ำ`, w:p=>6+(p.flags.grandRaise?5:0)+(p.kids.some(k=>k.kv<40)?5:0),
+    run: async (p, io) => { const kid = p.kids[p.kids.length-1]; fx(p,{J:-20}); kid.kv -= 15;
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะช่วยลูกยังไง', choices:[
+        { label:'ส่งบำบัดในโรงพยาบาลรัฐ', sub:'เลิกได้ 60%', cost:10000, pr:.6 }, { label:'ส่งไปวัดหรือค่ายบำบัด', sub:'เลิกได้ 40%', pr:.4 }, { label:'ย้ายลูกไปเรียนที่อื่น', sub:'เลิกได้ 50% · J−5', cost:300000, pr:.5, j:-5 } ]});
+      if(c.j) fx(p,{J:c.j});
+      if(chance(c.pr)){ kid.kv += 10; note(p, `${kid.name}เลิกได้และกลับมาเรียนต่อ`); } else { stOn(p,'druggedKid'); kid.kv -= 10; note(p, `${kid.name}ยังเลิกไม่ได้ ติดสถานะลูกติดยา`); beats_later(p, 7, () => { stOff(p,'druggedKid'); note(p, `ในที่สุด${kid.name}ก็เลิกยาได้`); }); }
+    } },
+  { id:'kjob', title:'ลูกเรียนจบ หางานได้', bg:'office', text:p=>`${p.kids[0].name}ได้งานแรกแล้ว และสัญญาว่าจะส่งเงินให้ทุกเดือน`, w:p=>10+0.2*(p.kids[0].kv-50), run: async p => { fx(p,{J:10}); p.flags.kidSend = true; } },
+  { id:'gkid', title:'หลานถูกส่งมาให้เลี้ยง', bg:'home', text:()=>'หลานตัวเล็กยืนหน้าบ้านพร้อมกระเป๋าใบใหญ่กว่าตัว', w:p=>10+(p.tier===5?10:0),
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะเลี้ยงหลานไหม', choices:[
+        { label:'รับเลี้ยงเต็มตัว', sub:'40,000/ปี · J+5 H−3', k:'raise' }, { label:'ส่งเงินให้คนอื่นเลี้ยง', sub:'60,000/ปี', k:'pay' }, { label:'ปฏิเสธ', sub:'ไม่เสียเงิน · J−10 ค่าลูก−15', k:'no' } ]});
+      if(c.k==='raise'){ p.annual.push({from:p.age,to:p.age+12,amt:40000}); fx(p,{J:5,K:10,H:-5}); tagGood(p,'family','รับเลี้ยงหลาน'); p.flags.nephew = true; }
+      if(c.k==='pay'){ p.annual.push({from:p.age,to:p.age+12,amt:60000}); fx(p,{K:3}); }
+      if(c.k==='no'){ fx(p,{K:-10,J:-10}); p.kids.forEach(k=>k.kv-=15); tagBad(p,'abandon','ปฏิเสธเลี้ยงหลาน',0); }
+    } },
+];
+function beats_later(p, n, fn){ p.flags.later = p.flags.later || []; p.flags.later.push({ age: p.age + n, fn }); }
+const S5_NOKIDS = [
+  { id:'relloan', title:'ญาติมาขอยืมเงิน', bg:'home', text:()=>'ญาติห่าง ๆ ยื่นมือมาพร้อมรอยยิ้มเกรงใจ', w:p=>12+(p.money>1000000?5:0)+(p.flags.relW||0)+(p.lifestyle===2?5:0),
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'home', title:'ให้ยืมไหม', choices:[
+        { label:'ให้ยืม', sub:'50% ได้คืนครบ', cost:100000, k:'lend' }, { label:'ให้เปล่าครึ่งหนึ่ง', sub:'C+3', cost:50000, k:'give' }, { label:'ปฏิเสธ', sub:'C−5 J−3', k:'no' } ]});
+      if(c.k==='lend'){ fx(p,{K:3}); if(chance(.5)){ addMoney(p,100000); note(p,'ญาติคืนเงินครบ'); } else note(p,'ไม่ได้เงินคืน'); }
+      if(c.k==='give'){ fx(p,{K:5,C:3}); p.flags.relW=(p.flags.relW||0)+5; }
+      if(c.k==='no') fx(p,{C:-5,J:-3});
+    } },
+  { id:'lonely', title:'เหงาในวันหยุดยาว', bg:'home', text:()=>'สงกรานต์ปีนี้บ้านเงียบกว่าทุกปี', w:p=>10+(!p.spouse?5:0), run: async p => fx(p,{J:-10}) },
+  { id:'grow', title:'เงินเก็บโตเร็ว', bg:'bank', text:()=>'ดอกเบี้ยทบต้นเริ่มทำงานแทนคุณ', w:p=>10+(p.flags.retireInvest?5:0), run: async p => fx(p,{m:Math.round(Math.max(0,p.money)*.1)}) },
+  { id:'mentor', title:'เป็นพี่เลี้ยงหลานและเด็กข้างบ้าน', bg:'home', text:()=>'เด็ก ๆ ในซอยมาขอให้คุณช่วยสอนการบ้าน', w:()=>8, run: async p => fx(p,{J:10,H:-2}) },
+  { id:'pressure', title:'ถูกกดดันจากครอบครัว', bg:'home', text:()=>'"เมื่อไหร่จะมีหลานให้แม่อุ้ม"', w:p=>10+(p.tier>=4?5:0), run: async p => fx(p,{J:-8}) },
+];
+
+// ---------- SHARESOULS ----------
+async function sharesouls(p, io){
+  const anc = p.ancestors.length ? p.ancestors.map(a => `${a.name} (รุ่นที่ ${a.gen})`).join(', ') : 'ปู่ย่าตายายของคุณ';
+  await say(p, io, { kind:'event', bg:'sharesouls', title:'ไว้อาลัยบรรพบุรุษใน SHARESOULS', text:`คุณเปิดสุสานออนไลน์ SHARESOULS แล้วนั่งดูเรื่องราวของ${anc}อยู่นาน` });
+  fx(p,{J:5,K:3}); if(p.status.grief) p.status.grief = Math.max(0, p.status.grief - 5);
+  if(!p.tagsGood.some(t=>t.label==='ไว้อาลัยบรรพบุรุษ')) tagGood(p,'family','ไว้อาลัยบรรพบุรุษ');
+  const cur = p.flags.ssTier || 0;
+  const c = await choose(p, io, { kind:'minor', bg:'sharesouls', title:'ตกแต่งสุสานให้บรรพบุรุษไหม', text: cur ? `ตอนนี้ตกแต่งไว้ระดับ ${cur}` : 'ทุกระดับมีฉากพิเศษ', choices:[
+    { label:'ดอกไม้ ธูปเทียน และของไหว้', sub:'J+3 C+1 ค่าลูก+2', cost:500, t:1, d:{J:3,K:2,C:1}, kv:2 },
+    { label:'อัลบั้มภาพและเรื่องเล่าชีวิต', sub:'J+5 C+3 ค่าลูก+5', cost:3000, t:2, d:{J:5,K:4,C:3}, kv:5 },
+    { label:'สวนอนุสรณ์ประจำตระกูล', sub:'J+8 C+5 ค่าลูก+8', cost:20000, t:3, d:{J:8,K:6,C:5}, kv:8 },
+    { label:'ไม่ตกแต่ง', sub:'ไว้อาลัยอย่างเดียว', t:0 } ]});
+  if(c.t){ fx(p, c.d); p.kids.forEach(k=>k.kv=clamp(k.kv+c.kv,0,100)); p.flags.ssTier = Math.max(cur, c.t); await say(p, io, { kind:'cut', bg:'sharesouls', tier:c.t, title:['','ครอบครัวมาไหว้หน้าสุสาน','อัลบั้มความทรงจำ','สวนอนุสรณ์ของตระกูล'][c.t], text:['','ดอกไม้ ธูป และเทียนถูกวางเรียงหน้าป้ายดิจิทัล','ภาพเก่าจากชีวิตของบรรพบุรุษเรียงตัวในอัลบั้ม','ทางเดินในสวนมีป้ายของบรรพบุรุษทุกรุ่น'][c.t] }); }
+}
+
+async function stage3(p, io){
+  p.stage = 3;
+  await enterCareer(p, io, {});
+  const beats = [];
+  const cps = [22, 27, 33, 40, 47, 54].filter(a => a >= p.age - 1).map(a => Math.max(a, p.age));
+  // minor อาชีพ (checkpoint 1)
+  const firstCareer = p.career;
+  C_MINORS[firstCareer].forEach((m, i) => beats.push({ age: p.age + i, run: async () => {
+    if(p.career !== firstCareer) return;
+    const yes = await yesno(p, io, { title:m.title, sub:m.sub, cost:m.cost||0 });
+    if(yes) await m.run(p, io);
+  }}));
+  beats.push({ age: p.age + 4, run: () => careerOutcome(p, io) });
+  // minor ทั่วไป
+  beats.push({ age: 28, run: async () => {
+    if(!p.career) return;
+    const [amt, pr, rate] = HOUSE_LOAN[p.career];
+    if(!p.house && await yesno(p, io, { title:`ผ่อนบ้านราคา ฿${baht(amt)} ไหม`, sub:`J+10 · ออมลด 10% นาน 25 ปี · กู้ผ่าน ${Math.round(pr*100)}%`, yes:'ยื่นกู้', no:'เช่าต่อ' })){
+      if(chance(pr)){ p.house = { value: amt, years: 0 }; fx(p,{J:10}); note(p,'กู้ผ่าน ได้บ้านเป็นของตัวเอง'); } else note(p,'ธนาคารไม่อนุมัติสินเชื่อ');
+    }
+  }});
+  beats.push({ age: 29, run: async () => {
+    if(!p.career) return;
+    const price = CAR_PRICE[p.career];
+    if(await yesno(p, io, { title:`ผ่อนรถราคา ฿${baht(price)} ไหม`, sub:'J+5 C+3 · H−3 · ผ่อน 7 ปี' })){ p.car = true; fx(p,{J:5,C:3,H:-3}); p.annual.push({ from:p.age, to:p.age+7, amt:Math.round(price*1.15/7) }); }
+    if(await yesno(p, io, { title:'ซื้อหวยทุกงวดไหม', sub:'งวดละ 80 บาท · J+2 (ความหวัง)' })){ p.lottery = true; fx(p,{J:2}); }
+  }});
+  beats.push({ age: 36, run: async () => {
+    if(!p.career) return; const amt = CRYPTO_AMT[p.career];
+    if(await yesno(p, io, { title:`ลงทุนคริปโต / เล่นแชร์ ฿${baht(amt)} ไหม`, sub:'30% ได้ ×3 · 50% ได้คืนครึ่ง · 20% แชร์ล้ม', cost:amt })){
+      const r = rnd(); const lose = p.career==='farm'?.3:p.career==='influ'?.3:.2;
+      if(r < .3){ fx(p,{m:amt*3}); note(p,`ได้กำไร ฿${baht(amt*2)}`); } else if(r < 1-lose){ fx(p,{m:amt/2}); note(p,'ได้คืนแค่ครึ่งเดียว'); } else note(p,'แชร์ล้ม เงินหายหมด');
+    }
+  }});
+  // checkpoint: ระดับการใช้ชีวิต + โอกาสทำความดี
+  cps.forEach((a, i) => { beats.push({ age:a, run: async () => { if(p.career && !p.unemployed && i > 0 && p.S < 80) p.S = Math.min(80, p.S + 2); await lifestyleChoice(p, io); } }); if(i>0) beats.push({ age:a+1, run: () => offerDeed(p, io) }); });
+  beats.push({ age:40, run: async () => {
+    if(p.status.prison) return;
+    if(await yesno(p, io, { title:'อายุ 40 แล้ว อยากเปลี่ยนอาชีพไหม', sub:`ตอนนี้เป็น${CAREERS[p.career]?.name||'ว่างงาน'}`, yes:'เปลี่ยน', no:'ทำต่อ' })){ await enterCareer(p, io, { title:'เปลี่ยนอาชีพ', exclude:[p.career] }); beats.push({ age:p.age+3, run:()=>careerOutcome(p, io) }); }
+  }});
+  beats.push({ age:45, run: async () => { if(p.flags.layoff45 && p.career==='office'){ p.flags.layoff45=false; await say(p, io, { kind:'event', bg:'office', title:'ถูกเลิกจ้างตอนอายุ 45', text:'บริษัทปรับโครงสร้าง ตำแหน่งของคุณถูกยุบ' }); await layoffFork(p, io, true); beats.push({ age:p.age+3, run:()=>careerOutcome(p, io) }); } } });
+  // ต่างประเทศครบสัญญา
+  beats.push({ age:27, run: async () => { await abroadCheck(p, io, beats); } });
+  beats.push({ age:45, run: async () => { if(p.career==='abroad') await abroadCheck(p, io, beats); } });
+  // Stage 4 และ 5
+  beats.push({ age:27, run: async () => stage4(p, io, beats) });
+  beats.push({ age:33, run: async () => stage5(p, io, beats) });
+  // event สุ่ม Stage 3
+  const evs = drawEvents(p, S3_EVENTS, 2); const ages = distinctAges(evs.length, 24, 58);
+  evs.forEach((e, i) => beats.push({ age:ages[i], run: () => runEvent(p, io, e) }));
+  beats.push({ age: randi(35, 55), run: () => sharesouls(p, io) });
+  // งานที่ตั้งเวลาไว้
+  const flushLater = { age:0, run: null };
+  await runBeatsWithLater(p, io, beats, 60);
+}
+async function abroadCheck(p, io, beats){
+  if(p.career === 'abroad' && p.flags.abroadEnd && p.age >= p.flags.abroadEnd){
+    if(p.cOut === 'good') fx(p,{m:1500000});
+    await say(p, io, { kind:'event', bg:'abroad', title:'กลับไทย', text: p.cOut==='good' ? 'ครบสัญญา คุณกลับไทยพร้อมเงินก้อน ฿1,500,000' : 'ครบสัญญา ถึงเวลากลับบ้าน' });
+    await enterCareer(p, io, { title:'กลับมาแล้วจะทำอะไรต่อ', exclude:['abroad'] }); beats.push({ age:p.age+3, run:()=>careerOutcome(p, io) });
+  } else if(p.career === 'abroad'){ beats.push({ age: p.flags.abroadEnd || p.age + 5, run: () => abroadCheck(p, io, beats) }); }
+}
+async function runBeatsWithLater(p, io, beats, endAge){
+  while(true){
+    if(p.flags.later){ for(const l of p.flags.later.splice(0)) beats.push({ age:l.age, run: async () => l.fn() }); }
+    if(p.flags.cutBack){ const a = p.flags.cutBack; p.flags.cutBack = null; beats.push({ age:a, run: async () => { p.incomeCut = Math.max(0, p.incomeCut - .2); } }); }
+    beats.sort((a, b) => a.age - b.age);
+    const b = beats.shift(); if(!b || b.age > endAge) break;
+    if(b.age > p.age) await years(p, io, b.age - p.age);
+    await b.run();
+  }
+  if(endAge > p.age) await years(p, io, endAge - p.age);
+}
+
+// ---------- STAGE 6 เกษียณ ----------
+const S6_EVENTS = [
+  { id:'stroke', title:'เส้นเลือดสมองแตก', bg:'hospital', text:()=>'คุณล้มฟุบข้างโต๊ะกินข้าว', w:p=>10+(p.H<40?10:0)+(p.flags.ot?5:0), run: async (p, io) => { fx(p,{H:-30}); if(p.H<=0) throw new Death('เส้นเลือดสมองแตก'); await seriousIllness(p, io, 30); } },
+  { id:'dementia', title:'สมองเสื่อม', bg:'home', text:()=>'คุณมองรูปเก่าแล้วจำหน้าคนในรูปไม่ได้', w:p=>8+5*Math.max(0,Math.floor((p.age-70)/5))-(p.J>60?3:0),
+    run: async (p, io) => { fx(p,{J:-20}); stOn(p,'dementia');
+      const hasKid = p.kids.some(k=>k.kv>=50);
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'ใครจะดูแลคุณ', choices:[
+        { label:'ลูกดูแล', sub:'J+5', cond:hasKid, condText:'ต้องมีลูกที่ค่าลูก 50 ขึ้นไป', k:'kid' },
+        { label:'จ้างผู้ดูแลที่บ้าน', sub:'15,000/เดือน', k:'hire' },
+        { label:'บ้านพักคนชราเอกชน แผนดูแลพิเศษ', sub:'35,000/เดือน · H+5 J−5', k:'home' },
+        { label:'ยื่นเข้าสถานสงเคราะห์ของรัฐ', sub:'ได้ที่ 30%', k:'gov' } ]});
+      if(c.k==='kid') fx(p,{J:5}); if(c.k==='hire') p.flags.residenceCost = (p.flags.residenceCost||0)+15000; if(c.k==='home'){ p.flags.residenceCost=(p.flags.residenceCost||0)+35000; fx(p,{H:5,J:-5}); }
+      if(c.k==='gov'){ if(chance(.3)) note(p,'ได้ที่ในสถานสงเคราะห์'); else { note(p,'ไม่ได้ที่ อยู่ลำพังต่อไป'); fx(p,{H:-5}); } }
+    } },
+  { id:'abandon', title:'ลูกทอดทิ้ง', bg:'home', text:()=>'คุณยืนรอที่หน้าต่าง แต่วันนี้ลูกก็ไม่มาอีก', w:p=>p.kids.length? 8+(p.kids.some(k=>k.kv<40)?10:0)+(p.flags.gaveLand?15:0) : null,
+    run: async (p, io) => { fx(p,{J:-25}); p.kidMoney = 0; p.Jbase = Math.max(0,p.Jbase-5);
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะทำยังไงต่อ', choices:[
+        { label:'ฟ้องเรียกค่าอุปการะเลี้ยงดู', sub:'50% ได้ 3,000/เดือน · J−5', cost:30000, k:'sue' }, { label:'ยื่นเข้าสถานสงเคราะห์ของรัฐ', sub:'ได้ที่ 30% H+3', k:'gov' }, { label:'ยอมรับและใช้ชีวิตลำพัง', sub:'J−5', k:'accept' } ]});
+      if(c.k==='sue'){ fx(p,{J:-5}); p.kids.forEach(k=>k.kv=0); if(chance(.5)) p.kidMoney = 3000; }
+      if(c.k==='gov'){ if(chance(.3)) fx(p,{H:3}); }
+      if(c.k==='accept'){ fx(p,{K:5,J:-5}); p.flags.alone = true; }
+    } },
+  { id:'inherit', title:'ได้มรดก', bg:'home', text:()=>'พ่อแม่จากไปแล้ว ทิ้งมรดกไว้ให้', w:p=>p.gen>1?null:6+(p.qBirth>=3?5:0)+(p.flags.careParents?3:0), run: async p => { const v = Math.round(INHERIT[p.qBirth]*(p.flags.careParents?1.2:1)); fx(p,{m:v}); note(p,`ได้มรดก ฿${baht(v)}`); } },
+  { id:'scam6', title:'โดนหลอกลงทุน', bg:'home', text:()=>'แชตในมือถือสัญญาผลตอบแทนเดือนละ 20%', w:p=>12+0.2*(50-p.S)-(p.flags.kidManage?10:0)+(p.lifestyle===2?5:0), run: async p => { const l = Math.round(Math.max(0,p.money)*.3); fx(p,{m:-l,J:-10}); note(p,`เงินเก็บหายไป ฿${baht(l)}`); } },
+  { id:'fall', title:'หกล้มไม่มีคนเห็น', bg:'home', text:()=>'คุณลื่นล้มในห้องน้ำ ลุกเองไม่ได้', w:p=>p.flags.alone ? 15+5*Math.max(0,Math.floor((p.age-70)/5)) : null, run: async (p, io) => { const d = p.flags.alarm?10:20; fx(p,{H:-d}); if(p.H<=0) throw new Death('หกล้มในบ้าน'); await seriousIllness(p, io, d); } },
+];
+async function stage6(p, io){
+  p.stage = 6;
+  // รายได้หลังเกษียณ
+  let pension = 0; const notes = [];
+  if(p.career==='gov' && !p.flags.noPension){ pension = Math.round(p.lastSalary*.6); p.insurance = true; notes.push(`บำนาญข้าราชการ ฿${baht(pension)}/เดือน และสวัสดิการรักษาพยาบาล`); }
+  else if(['factory','office'].includes(p.career)){ pension = 3000 + Math.min(1500, p.cYears*50); notes.push(`บำนาญประกันสังคม ฿${baht(pension)}/เดือน`); if(p.career==='office'){ const pf = clamp(Math.round(p.lastSalary*p.cYears*.6), 500000, 3000000); addMoney(p, pf); notes.push(`กองทุนสำรองเลี้ยงชีพ ฿${baht(pf)}`); } }
+  else { pension = 700; notes.push('เบี้ยยังชีพผู้สูงอายุ ฿700/เดือน'); }
+  if(p.flags.kidSend) { p.kidMoney = 5000 * p.kids.length; notes.push(`ลูกส่งเงินให้ ฿${baht(p.kidMoney)}/เดือน`); }
+  if(p.flags.retireInvest){ const r = rnd(); const m = r < .3 ? 3 : r < .85 ? 1.5 : 1; addMoney(p, p.flags.retireInvest*m); notes.push(`เงินลงทุนเพื่อเกษียณได้คืน ฿${baht(p.flags.retireInvest*m)}`); }
+  p.retireIncome = pension; p.career = p.career; p.cOut = p.cOut;
+  p.lifespan = Math.max(61, Math.round(72 + (p.H - 50)/3 + randi(-6, 6)));
+  if(p.spouse) p.spouse.income = p.spouse.income * .3;
+  await say(p, io, { kind:'stage', bg:'home', title:'เกษียณ อายุ 60', text: notes.join('\n') + `\nเงินเก็บตอนนี้ ฿${baht(p.money)}${totalDebt(p) ? ` · หนี้ ฿${baht(totalDebt(p))}` : ''}` });
+  const hasKids = p.kids.length > 0;
+  const c = await choose(p, io, { kind:'main', bg:'oldhome', title:'บั้นปลายชีวิตจะอยู่ที่ไหน', text:'ค่าใช้จ่ายพื้นฐานวัยเกษียณราว 9,000 บาท/เดือน', choices:[
+    { label:'อยู่กับลูก', sub:'J+10 · ผลขึ้นกับค่าลูก', cond:hasKids, condText:'ไม่มีลูก', k:'kid' },
+    { label:'บ้านพักคนชราเอกชน', sub:'25,000/เดือน · H+10 J−5', cost:300000, k:'priv' },
+    { label:'สถานสงเคราะห์คนชราของรัฐ', sub:'ฟรี · ได้ที่ 30% · H+3 J−10', k:'gov' },
+    { label:'อยู่คนเดียว', sub:'J−5', k:'alone' },
+    { label:'อยู่วัดปฏิบัติธรรม', sub:'J+5 · 2,000/เดือน', k:'temple', cond: p.religion==='พุทธ', condText:'สำหรับชาวพุทธ' } ]});
+  let res = c.k;
+  if(res==='gov' && !chance(.3)){ note(p,'สถานสงเคราะห์เต็ม คุณต้องอยู่คนเดียว'); res = 'alone'; }
+  const avgKv = hasKids ? p.kids.reduce((s,k)=>s+k.kv,0)/p.kids.length : 50;
+  let o;
+  if(res==='kid'){ fx(p,{J:10}); const g = avgKv/2, b = (100-avgKv)/3; const r = rnd()*100; o = r<g?'good':r<g+b?'bad':'mid'; fx(p, {good:{J:15,H:5},mid:{J:5},bad:{J:-15}}[o]); }
+  if(res==='priv'){ p.flags.residenceCost = 25000; fx(p,{H:10,J:-5}); o = roll3(p,[30,55,15]); fx(p, {good:{H:10},mid:{H:3},bad:{J:-10}}[o]); }
+  if(res==='gov'){ fx(p,{H:3,J:-10}); o = roll3(p,[15,55,30]); fx(p, {good:{J:5},mid:{},bad:{H:-5,J:-10}}[o]); }
+  if(res==='alone'){ fx(p,{J:-5}); p.flags.alone = true; o = roll3(p,[20,50,30]); if(o==='good') fx(p,{J:10}); }
+  if(res==='temple'){ fx(p,{J:5,K:10}); p.flags.residenceCost = 2000; o = roll3(p,[35,50,15]); fx(p, {good:{J:15},mid:{},bad:{H:-10}}[o]); tagGood(p,'community','อยู่วัดปฏิบัติธรรม'); }
+  p.residence = res; log(p, `บั้นปลายเลือก${c.label}`);
+  note(p, { kid:{good:'ลูกดูแลคุณอย่างดี',mid:'อยู่กับลูกแบบพอไปได้',bad:'คุณรู้สึกเป็นภาระของลูก'}, priv:{good:'ได้รับการดูแลดีมาก',mid:'บ้านพักสะอาดและเงียบสงบ',bad:'เหงาในบ้านพัก'}, gov:{good:'ได้เพื่อนวัยเดียวกันหลายคน',mid:'อยู่ได้ตามอัตภาพ',bad:'ห้องนอนรวมแออัด สุขภาพทรุด'}, alone:{good:'อิสระอย่างที่ต้องการ',mid:'ใช้ชีวิตคนเดียวเงียบ ๆ',bad:'ไม่มีใครเห็นเวลาคุณไม่สบาย'}, temple:{good:'ใจสงบอย่างที่ไม่เคยเป็น',mid:'ชีวิตเรียบง่ายในวัด',bad:'อยู่ไกลหมอเกินไป'} }[res][o]);
+  const MIN = {
+    kid:[ { t:'ขายที่ดินแบ่งให้ลูกก่อนตายไหม', s:'J+5 ค่าลูก+10 · เสี่ยงถูกทอดทิ้ง', r:()=>{ const v = p.house ? p.house.value : 0; p.house = null; p.kids.forEach(k=>k.kv+=10); fx(p,{J:5}); p.flags.gaveLand = true; p.flags.landGiven = v; } },
+          { t:'ช่วยเลี้ยงหลานไหม', s:'J+10 ค่าลูก+5 · H−5', r:()=>{ fx(p,{J:10,H:-5}); p.kids.forEach(k=>k.kv+=5); tagGood(p,'family','ช่วยเลี้ยงหลาน'); } },
+          { t:'ให้ลูกจัดการเงินทั้งหมดไหม', s:'กันแก๊งหลอกลงทุน · 15% ลูกใช้เงินเอง', r:()=>{ p.flags.kidManage = true; if(chance(.15)){ p.money*=.5; note(p,'ลูกเอาเงินไปใช้เองครึ่งหนึ่ง'); } } } ],
+    priv:[ { t:'อัปเกรดห้องพิเศษไหม', s:'+10,000/เดือน · H+5 J+5', r:()=>{ p.flags.residenceCost += 10000; fx(p,{H:5,J:5}); } },
+           { t:'ซื้อประกันสุขภาพผู้สูงอายุไหม', s:'60,000/ปี · ลดค่ารักษา 70%', r:()=>{ p.insurance = true; p.annual.push({from:p.age,to:120,amt:60000}); } },
+           { t:'จ่ายค่าเดินทางให้ญาติมาเยี่ยมทุกสัปดาห์ไหม', s:'3,000/เดือน · J+10 C+3', r:()=>{ p.flags.residenceCost += 3000; fx(p,{J:10,C:3}); } } ],
+    gov:[ { t:'เป็นอาสาสมัครในสถานสงเคราะห์ไหม', s:'J+2 · H−3', r:()=>{ fx(p,{J:2,K:5,H:-3}); tagGood(p,'community','อาสาในสถานสงเคราะห์'); } },
+          { t:'เข้าชมรมผู้สูงอายุไหม', s:'J+8 C+5', r:()=>fx(p,{J:8,C:5}) },
+          { t:'บริจาคเงินที่เหลือครึ่งหนึ่งให้สถานสงเคราะห์ไหม', s:`฿−${baht(Math.max(0,p.money)/2)}`, r:()=>{ p.money/=2; fx(p,{K:15}); tagGood(p,'community','บริจาคให้สถานสงเคราะห์'); } } ],
+    alone:[ { t:'ติดระบบแจ้งเหตุฉุกเฉินไหม', s:'ลดผลของการหกล้มครึ่งหนึ่ง', cost:10000, r:()=>{ p.flags.alarm = true; } },
+            { t:'เปิดร้านเล็ก ๆ หน้าบ้านไหม', s:'฿+3,000/เดือน J+5 · H−3', cost:30000, r:()=>{ p.flags.shopIncome = 3000; fx(p,{J:5,H:-3}); } },
+            { t:'ย้ายกลับบ้านเกิดไหม', s:'J+10 ค่าใช้จ่าย −20% · C−5 H−3', cost:50000, r:()=>{ p.flags.homeTown = true; fx(p,{J:10,C:-5,H:-3}); } } ],
+    temple:[ { t:'ถวายทรัพย์สินทั้งหมดให้วัดไหม', s:`฿−${baht(Math.max(0,p.money))} · งานศพเหลือแบบเรียบง่าย`, r:()=>{ p.money = 0; p.house = null; fx(p,{K:30}); tagGood(p,'community','ถวายทรัพย์สินให้วัด'); p.flags.gaveTemple = true; } },
+             { t:'ทำงานจิตอาสาในวัดไหม', s:'J+2 · H−2', r:()=>{ fx(p,{J:2,K:5,H:-2}); tagGood(p,'community','จิตอาสาในวัด'); } },
+             { t:'ปฏิบัติธรรมเข้มข้นไหม', s:'J+10 · H−5', r:()=>fx(p,{J:10,H:-5}) } ],
+  }[res];
+  const beats = [];
+  MIN.forEach((m, i) => beats.push({ age: 61 + i, run: async () => { if(await yesno(p, io, { title:m.t, sub:m.s, cost:m.cost||0 })) m.r(); } }));
+  const evs = drawEvents(p, S6_EVENTS, 2); const ages = distinctAges(evs.length, 63, Math.max(64, p.lifespan + 4));
+  evs.forEach((e, i) => beats.push({ age:ages[i], run: () => runEvent(p, io, e) }));
+  beats.push({ age: 65, run: () => offerDeed(p, io) });
+  beats.push({ age: 70, run: () => lifestyleChoice(p, io) });
+  for(let a = 65; a < 120; a += 5) beats.push({ age:a, run: async () => { p.C = Math.max(0, p.C - 2); } });
+  await runBeatsWithLater(p, io, beats, 125);
+}
+
+// ---------- พ่อแม่เสียชีวิต (โหมดสืบตระกูล) ----------
+async function parentDies(p, io){
+  const d = p.parentDeath;
+  await say(p, io, { kind:'event', bg:'funeral', title:`${d.name}จากไปแล้ว`, text:`${d.name}เสียชีวิตตอนอายุ ${d.ageAtDeath} ปี${d.share > 0 ? `\nมรดกส่วนของคุณ ฿${baht(d.share)}` : '\nไม่มีมรดกเหลือถึงคุณ'}` });
+  fx(p,{J:-15}); p.status.grief = 10; if(d.share > 0) fx(p,{m:d.share});
+  if(!p.ancestors.find(a => a.name === d.name)) p.ancestors.push(d.anc);
+  const bud = p.religion === 'พุทธ', mu = !bud; const hh = hhIncome(p);
+  const items = [
+    { label:'อยู่ร่วมงานศพทุกคืน', sub:'ลางาน รายได้ปีนี้ −2% · J+5', cost:Math.round(hh*12*.02), d:{J:5,K:3} },
+    { label:'บวชหน้าไฟ', sub:'ลางาน 7–15 วัน · J+3', cost:Math.round(hh*12*.03), d:{J:3,K:8}, cond: p.sex==='M' && bud },
+    { label:'ทำบุญ 7 วัน 50 วัน 100 วัน', sub:'3 ครั้ง · J+9', cost:60000, d:{J:9,K:9}, cond: bud },
+    { label:'ทำบุญเลี้ยงอาหาร วันที่ 3, 7, 40, 100', sub:'4 ครั้ง · J+12', cost:60000, d:{J:12,K:12}, cond: mu },
+    { label:'ทำบุญครบรอบวันตายทุกปี', sub:'5,000/ปี · J+4', cost:0, annual:5000, d:{J:4,K:4} },
+    { label: bud ? 'ไหว้บรรพบุรุษ / เช็งเม้งทุกปี' : 'เยี่ยมหลุมศพทุกปี', sub:'3,000/ปี · J+4', cost:0, annual:3000, d:{J:4,K:2} },
+    { label:'ทำหนังสืออนุสรณ์', sub:'J+5 C+3', cost:30000, d:{J:5,K:2,C:3}, noTag:true },
+    { label:`ตั้งทุนการศึกษาในชื่อ${d.name}`, sub:'J+5', cost:100000, d:{J:5,K:10}, tag:'edu', cond: p.money >= 100000 },
+    { label:'ตกแต่งสุสานใน SHARESOULS (สวนอนุสรณ์)', sub:'J+8 C+5', cost:20000, d:{J:8,K:6,C:5}, ss:3 },
+  ].filter(x => x.cond !== false);
+  const picks = await io.multi({ kind:'mourn', bg:'funeral', title:'กิจกรรมไว้อาลัย', text:'เลือกได้หลายข้อ ทุกข้อช่วยให้ความเศร้าจางลง', items: prepChoices(p, items), p, pend:p.pend.splice(0) });
+  for(const i of picks){ const it = items[i]; spend(p, it.cost); fx(p, it.d); if(d.familyFruit) fx(p,{J:5}); if(it.annual) p.annual.push({ from:p.age, to:120, amt:it.annual }); if(it.ss) p.flags.ssTier = Math.max(p.flags.ssTier||0, it.ss); if(!it.noTag) tagGood(p, it.tag || 'family', it.label); }
+  p.status.grief = picks.length >= 2 ? 0 : picks.length === 1 ? 5 : 10;
+  if(!p.status.grief) delete p.status.grief;
+  note(p, picks.length ? `คุณไว้อาลัย${d.name} ${picks.length} อย่าง` : 'คุณไม่ได้ทำกิจกรรมไว้อาลัย ความเศร้ายังอยู่อีกนาน');
+}
+
+// ---------- STAGE 7 งานศพ บัญชีกรรม คะแนน ----------
+function wealthPct(e){ const pts = [[0,5],[1e5,22],[5e5,40],[1e6,52],[3e6,68],[1e7,84],[5e7,95],[2e8,99]]; if(e <= 0) return 3; for(let i=1;i<pts.length;i++){ if(e <= pts[i][0]){ const [x0,y0]=pts[i-1],[x1,y1]=pts[i]; const t = (Math.log10(e+1)-Math.log10(x0+1))/(Math.log10(x1+1)-Math.log10(x0+1)); return y0 + (y1-y0)*t; } } return 99.5; }
+async function stage7(p, io){
+  p.stage = 7;
+  const kids = p.kids.length > 0;
+  const bud = p.religion === 'พุทธ';
+  const opts = bud ? [
+    { label:'เผาวันเดียว', cost:30000, sub:'ไม่เป็นภาระลูกหลาน', mult:.6, env:.3, K:0 },
+    { label:'สวดเรียบง่าย 3 วัน', cost:80000, sub:'K', mult:1, env:1, K:3 },
+    { label:'สวดอภิธรรม 7 วัน', cost:330000, sub:'แขกมาได้เต็มที่', mult:1.2, env:1, K:5 },
+    { label:'งานใหญ่ 7 วัน + มหรสพ', cost:1500000, sub:'แขก ×1.5', mult:1.5, env:1, K:0 },
+    { label:'บริจาคร่างกายให้โรงเรียนแพทย์', cost:20000, sub:'ทำบุญเล็ก ๆ', mult:.5, env:.3, K:20, tag:'life' },
+    { label:'ให้วัดหรือมูลนิธิจัดให้', cost:0, sub:'ไม่มีค่าใช้จ่าย', mult:.2, env:0, K:0 },
+  ] : [
+    { label:'ฝังที่กุโบร์ประจำชุมชน', cost:15000, sub:'เรียบง่ายตามหลักศาสนา', mult:.8, env:.5, K:5 },
+    { label:'ฝังและทำบุญเลี้ยงชุมชนหลังพิธี', cost:60000, sub:'แขกมาได้เต็มที่', mult:1.2, env:1, K:5 },
+    { label:'ฝังและบริจาคทรัพย์เป็นวากัฟ', cost:Math.round(Math.max(0,p.money)*.3), sub:'บริจาค 30% ของทรัพย์ที่เหลือ', mult:1, env:.5, K:20, tag:'community' },
+    { label:'ให้มัสยิดหรือชุมชนจัดให้', cost:0, sub:'ไม่มีค่าใช้จ่าย', mult:.4, env:0, K:0 },
+  ];
+  if(p.flags.gaveTemple) opts.forEach((o,i) => { if(bud && ![1,4,5].includes(i)) o.cond = false; });
+  const choices = opts.map(o => ({ ...o, sub: o.sub === 'K' ? 'ค่าอาหารเลี้ยงแขก 3 วัน' : o.sub, loan:false, cond: o.cond === false ? false : (o.cost <= p.money || kids), condText: o.cond === false ? 'ถวายทรัพย์ให้วัดไปแล้ว' : 'เงินไม่พอและไม่มีลูกหลานรับภาระ' }));
+  const deathTitle = p.cause || 'จากไป';
+  await say(p, io, { kind:'death', bg:'death', title:`${p.name} เสียชีวิตตอนอายุ ${p.age} ปี`, text: deathTitle });
+  const choicesPrep = prepChoices(p, choices).map(c => { if(c.disabled && c.cond !== false && kids){ c.disabled = false; c.lock = null; c.loanNote = 'ส่วนที่ขาดเป็นหนี้ของลูก'; } return c; });
+  const idx = await io.ask({ kind:'main', bg:'funeral', title:'คุณอยากให้งานศพของตัวเองเป็นแบบไหน', text:`เงินที่เหลือ ฿${baht(p.money)}`, choices: choicesPrep, pend:p.pend.splice(0) });
+  const F = opts[idx];
+  let kidDebt = 0;
+  if(F.cost > p.money){ kidDebt = F.cost - p.money; p.money = 0; } else p.money -= F.cost;
+  fx(p, { K: F.K }); if(F.tag) tagGood(p, F.tag, F.label);
+  let mult = F.mult;
+  // minor งานศพ
+  const minors = bud ? [
+    { label:'ขอให้แขกบริจาคแทนพวงหรีด', sub:'เงินซองลดครึ่ง', cost:0, k:'donate', d:{K:5} },
+    { label:'ไลฟ์สดให้ญาติต่างจังหวัด', sub:'แขก +20%', cost:5000, k:'live' },
+    { label:'ลอยอังคาร', sub:'พิธีส่งท้ายที่ท่าน้ำ', cost:5700, k:'river', d:{K:3} },
+    { label:'เขียนพินัยกรรมกันลูกทะเลาะ', sub:'แบ่งมรดกชัดเจน', cost:10000, k:'will', cond:kids },
+    { label:'บริจาคอวัยวะ', sub:'ลูกหลาน J−5 ช่วยชีวิตคนอื่น', cost:0, k:'organ', d:{K:10}, tag:'life' },
+  ] : [
+    { label:'จ่ายซะกาตที่ค้างให้ครบ', sub:'2.5% ของทรัพย์สิน', cost:Math.round(Math.max(0,p.money)*.025), k:'zakat', d:{K:5} },
+    { label:'ทำพินัยกรรมแบ่งมรดกตามหลักศาสนา', sub:'แบ่งมรดกชัดเจน', cost:10000, k:'will', cond:kids },
+    { label:'ให้ลูกหลานเลี้ยงอาหารผู้มาร่วมพิธี', sub:'แขก +20%', cost:20000, k:'live' },
+  ];
+  const mins = minors.filter(m => m.cond !== false);
+  const picks = await io.multi({ kind:'funeral', bg:'funeral', title:'สิ่งที่อยากทำก่อนลาจาก', text:'เลือกได้หลายข้อ หรือไม่เลือกเลยก็ได้', items: prepChoices(p, mins.map(m=>({...m, loan:false}))), p, pend:[] });
+  let envRate = F.env;
+  for(const i of picks){ const m = mins[i]; spend(p, m.cost); if(m.d) fx(p, m.d); if(m.tag) tagGood(p, m.tag, m.label); if(m.k==='live') mult *= 1.2; if(m.k==='donate') envRate *= .5; }
+  if(p.tagsGood.some(t=>t.type==='community') && p.K > 30) mult *= 1.1;
+  // บัญชีกรรม
+  const ledger = [];
+  let estate = Math.max(0, p.money) + (p.house ? p.house.value : 0) - totalDebt(p) - kidDebt;
+  let cPenalty = 1, kvPenalty = 0, epilogueJ = 0, goodScore = 0; const fruits = {};
+  for(const t of p.tagsBad){
+    let pr = clamp(20 + 0.5*(-p.K), 5, 90)/100; if(t.type==='selfillegal') pr /= 2; if(t.type==='debtflee') pr = 1;
+    const erupt = chance(pr); let eff = '';
+    if(erupt){
+      if(t.type==='corrupt'){ estate -= 2*t.amount; cPenalty = .5; eff = `ถูกตรวจสอบย้อนหลัง ทายาทถูกเรียกคืน ฿${baht(2*t.amount)} · ชื่อเสียงเสียหาย`; }
+      if(t.type==='harm'){ estate -= t.amount; kvPenalty += 20; eff = `ผู้เสียหายฟ้องกองมรดก ฿${baht(t.amount)} · ลูกหลานถูกประณาม`; }
+      if(t.type==='selfillegal') eff = 'กลายเป็นเรื่องเล่าในครอบครัวที่ไม่มีใครอยากพูดถึง';
+      if(t.type==='debtflee') eff = 'เจ้าหนี้ตามทวงจากกองมรดก';
+      if(t.type==='abandon'){ epilogueJ -= 10; eff = 'ไม่มีใครทำบุญครบรอบวันตายให้คุณ'; }
+    }
+    ledger.push({ age:t.age, good:false, label:t.label, type:BADTAG[t.type], erupt, eff });
+  }
+  const goodTypesFruited = new Set();
+  for(const t of p.tagsGood){
+    const pr = p.K > 0 ? clamp(20 + 0.5*p.K, 5, 90)/100 : .1;
+    const fruit = chance(pr);
+    if(fruit && !goodTypesFruited.has(t.type)){ goodTypesFruited.add(t.type); goodScore += GOODFRUIT[t.type].score; fruits[t.type] = true; if(t.type==='community') mult *= 1.5; if(t.type==='family') epilogueJ += 10; }
+    ledger.push({ age:t.age, good:true, label:t.label, type:GOODTAG[t.type], erupt:fruit, eff: fruit ? GOODFRUIT[t.type].text : '' });
+  }
+  goodScore = Math.min(15, goodScore);
+  ledger.sort((a,b) => a.age - b.age);
+  const guests = Math.max(3, Math.round(p.C * 5 * mult));
+  const envelopes = Math.round(guests * 300 * envRate);
+  estate += envelopes;
+  const heirsEstate = Math.max(0, estate);
+  const Jbar = p.samples.J.length ? p.samples.J.reduce((s,v)=>s+v,0)/p.samples.J.length : p.J;
+  const Hbar = p.samples.H.length ? p.samples.H.reduce((s,v)=>s+v,0)/p.samples.H.length : p.H;
+  const Pw = wealthPct(estate);
+  const score = 0.30*Jbar + 0.25*Hbar + 0.20*Pw + 0.20*(p.K+100)/2 + 0.05*p.C*cPenalty + goodScore;
+  const result = { name:p.name, sex:p.sex, gen:p.gen, prov:p.prov, tier:p.tier, q:p.qBirth, qEnd: incomeToQ(Math.max(1, p.lastSalary + (p.spouse?p.spouse.income:0))), religion:p.religion,
+    career: p.career ? CAREERS[p.career].name : (p.age < 22 ? 'ยังไม่ได้ทำงาน' : 'ว่างงาน'), age:p.age, cause:p.cause, guests, envelopes, estate, heirsEstate, kidDebt, ledger, goodScore, fruits, K:p.K,
+    Jbar, Hbar, Pw, score, kvPenalty, epilogueJ, funeral:F.label, kids:p.kids.map(k=>({...k})), anyFruit: goodTypesFruited.size>0, tagsBad:p.tagsBad.length, tagsGood:p.tagsGood.length };
+  result.qEnd = Math.max(result.qEnd, incomeToQ(heirsEstate/216/.12));
+  if(io.funeral) await io.funeral(result, p);
+  return result;
+}
+
+// ---------- ชีวิตทั้งชีวิต ----------
+async function live(p, io){
+  Object.defineProperty(p, 'io', { value: io, enumerable:false, writable:true });
+  try {
+    await birth(p, io); await stage1(p, io); await stage2(p, io); await stage3(p, io); await stage6(p, io);
+  } catch(e){ if(!(e instanceof Death)) throw e; p.dead = true; p.cause = e.cause; }
+  p.dead = true;
+  return await stage7(p, io);
+}
+
+// สร้างรุ่นถัดไป
+function makeChild(p, res, kidIdx){
+  const kid = p.kids[kidIdx];
+  const q = incomeToQ(kid.hhInc);
+  const nKids = p.kids.length;
+  const share = Math.round(res.heirsEstate / (nKids + (p.spouse ? 1 : 0)));
+  const anc = { name:p.name, gen:p.gen, prov:p.prov, q:p.qBirth, career:res.career, age:p.age, score:Math.round(res.score), pct:res.pct, fruits:Object.keys(res.fruits), erupted:res.ledger.filter(l=>!l.good&&l.erupt).length, ssTier:p.flags.ssTier||0 };
+  return newPlayer({ tier:p.tier, prov:p.prov, q, religion:p.religion, sex:kid.sex, name:kid.name, gen:p.gen+1,
+    money: QS[q].start + (p.flags.kidInsurance ? 300000 : 0), famDebt: Math.min(kid.debtAt, 2000000), skipGen: !!p.flags.grandRaise,
+    Jbonus: Math.round((clamp(kid.kv - res.kvPenalty,0,100) - 50)/5), Sbonus: res.fruits.edu ? 10 : 0, Cbonus: (res.fruits.honest ? 10 : 0) - (res.kvPenalty ? 10 : 0),
+    family: { parentName: p.name }, ancestors: [...p.ancestors],
+    parentDeath: { age: p.age - kid.born, name: p.name, ageAtDeath: p.age, share, anc, familyFruit: !!res.fruits.family },
+    extra: { flags: { ssTier: p.flags.ssTier || 0 } } });
+}
+
+// ===== Sim IO สำหรับจำลองชีวิตเปรียบเทียบ =====
+const SimIO = {
+  ask: async o => { const ok = o.choices.map((c,i)=>c.disabled?-1:i).filter(i=>i>=0); return ok[Math.floor(rnd()*ok.length)]; },
+  say: async () => {}, skip: async () => {}, chips: () => {}, update: () => {},
+  multi: async o => o.items.map((c,i)=>(!c.disabled && rnd()<.35)?i:-1).filter(i=>i>=0),
+};
+async function simulateLives(n, onDone){
+  const scores = [];
+  for(let i = 0; i < n; i++){
+    try { const r = await live(newPlayer(), SimIO); scores.push(r.score); } catch(e){ /* ข้ามชีวิตที่พัง */ }
+    if(i % 5 === 4) await new Promise(r => setTimeout(r, 0));
+  }
+  scores.sort((a,b)=>a-b);
+  if(onDone) onDone(scores);
+  return scores;
+}
+function percentile(scores, s){ if(!scores || scores.length < 20){ const z = (s - 48)/10; return clamp(Math.round(100/(1+Math.exp(-1.7*z))), 1, 99); } let c = 0; for(const v of scores) if(v < s) c++; return clamp(Math.round(c/scores.length*100), 1, 99); }
+// ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
+const W = 192, Hh = 108;
+const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
+  nn:'#0b1026', n2:'#16203f', dd:'#3a3530', bb:'#7a3a22', gg:'#0d5a3a', ss:'#E0A070', s3:'#B86F50', cream:'#f3e2b8', gold:'#e8b04a', teal:'#3fd1c4', purple:'#9b5de5', mud:'#6b4a2b' };
+let G2 = null;
+function R(x,y,w,h,c){ G2.fillStyle = c; G2.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+function mulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function bands(cols, y0, y1){ const n = cols.length, h = (y1-y0)/n; cols.forEach((c,i)=>{ R(0, y0+i*h, W, h+1, c); if(i>0){ for(let x=(i%2); x<W; x+=2) R(x, y0+i*h-1, 1, 1, c); } }); }
+function stars(t, n, seed, maxY, col){ const r = mulberry(seed); for(let i=0;i<n;i++){ const x = Math.floor(r()*W), y = Math.floor(r()*maxY), ph = r()*6; const on = Math.sin(t*2+ph) > -0.3; if(on) R(x,y,1,1, col || (r()<.2?P8.y:P8.w)); } }
+function ground(y, c1, c2, seed = 3){ R(0,y,W,Hh-y,c1); const r = mulberry(seed); for(let i=0;i<70;i++) R(Math.floor(r()*W), y+1+Math.floor(r()*(Hh-y)), 2, 1, c2); }
+function bldg(x, base, w, h, body, win, seed, t, lit = .5, roof){ R(x, base-h, w, h, body); if(roof) R(x-1, base-h-2, w+2, 2, roof); const r = mulberry(seed); for(let yy = base-h+3; yy < base-4; yy += 5) for(let xx = x+2; xx < x+w-2; xx += 4){ const on = r() < lit; R(xx, yy, 2, 3, on ? win : P8.n); } }
+function tree(x, base, kind = 'round', c = P8.g){
+  if(kind==='round'){ R(x-1, base-8, 2, 8, P8.b); R(x-5, base-16, 10, 7, c); R(x-4, base-18, 8, 2, c); R(x-6, base-13, 12, 3, c); R(x-3, base-15, 3, 2, P8.G); }
+  if(kind==='palm'){ R(x, base-22, 1, 22, P8.b); for(let i=-5;i<=5;i++) R(x+i, base-23-Math.abs(i)%3, 1, 2, c); R(x-3, base-25, 7, 2, c); }
+  if(kind==='banana'){ R(x, base-10, 2, 10, P8.gg); R(x-5, base-14, 6, 3, P8.G); R(x+1, base-15, 6, 3, P8.G); R(x-2, base-17, 5, 3, c); }
+  if(kind==='rubber'){ R(x, base-16, 2, 16, P8.l); R(x-4, base-22, 10, 7, P8.gg); R(x-2, base-24, 6, 2, P8.gg); }
+}
+// หลังคาทรงจั่ว: แถวบนแคบ แถวล่างกว้าง
+function roof(x, y, w, h, c, edge, top = .18){ for(let i=0;i<h;i++){ const ww = Math.round(w*(top + (1-top)*(i+1)/h)); R(x + (w-ww)/2, y+i, ww, 1, c); } if(edge){ R(x, y+h-1, w, 1, edge); } }
+function thaiFlag(x, y){ R(x, y, 1, 14, P8.l); const c = [P8.r, P8.w, P8.n, P8.n, P8.w, P8.r]; c.forEach((cc,i)=>R(x+1, y+i, 9, 1, cc)); }
+function spiritHouse(x, base){ R(x, base-8, 1, 8, P8.l); R(x-3, base-13, 7, 5, P8.gold); R(x-4, base-15, 9, 2, P8.r); R(x-1, base-17, 3, 2, P8.gold); }
+function cloud(x, y, c = P8.w){ R(x, y, 14, 3, c); R(x+3, y-2, 7, 2, c); }
+function lightning(t, x, y){ if(Math.floor(t*3)%2) return; R(x+3,y,3,1,P8.y); R(x+2,y+1,3,1,P8.y); R(x+1,y+2,5,1,P8.y); R(x+3,y+3,2,1,P8.y); R(x+2,y+4,2,1,P8.y); R(x+1,y+5,2,1,P8.y); }
+function lotus(x, y, t){ const s = Math.floor(t*2)%2; R(x+3,y-s,2,3,P8.p); R(x+1,y+1,2,2,P8.p); R(x+5,y+1,2,2,P8.p); R(x,y+3,8,1,P8.g); }
+function fork(x, y){ R(x+3, y, 1, 10, P8.b); R(x, y+1, 6, 3, P8.o); R(x+2, y+5, 6, 3, P8.B); }
+
+// ---------- ตัวละคร ----------
+const TPL = {
+  adultM: ['..hhhh..','.hhhhhh.','.hssssh.','.sesses.','.ssmmss.','..ssss..','...ss...','.tttttt.','tttttttt','stttttts','s.tttt.s','..pppp..','..pppp..','..p..p..','..p..p..','.ff..ff.'],
+  adultF: ['..hhhh..','.hhhhhh.','hhsssshh','hsessesh','hssmmssh','h.ssss.h','...ss...','.tttttt.','tttttttt','stttttts','s.tttt.s','.pppppp.','pppppppp','..s..s..','..s..s..','.ff..ff.'],
+  kidM:   ['..hhhh..','.hhhhhh.','.hssssh.','.sesses.','.ssmmss.','..ssss..','.tttttt.','stttttts','..pppp..','..p..p..','.ff..ff.'],
+  kidF:   ['..hhhh..','.hhhhhh.','hhsssshh','hsessesh','hssmmssh','.tttttt.','stttttts','.pppppp.','..s..s..','..s..s..','.ff..ff.'],
+  baby:   ['..hh..','.ssss.','.esse.','wwwwww','wwwwww','.wwww.'],
+};
+const SKINS = [P8.s, P8.ss, P8.s3];
+function outfitOf(st, ctx){
+  const q = st.q ?? 2;
+  let t = [P8.L, P8.d, P8.l][0], pnt = P8.d;
+  if(q <= 1){ t = P8.L; pnt = P8.dd; } else if(q <= 3){ t = P8.B; pnt = P8.n; } else { t = P8.gold; pnt = P8.w; }
+  if(ctx === 'school'){ t = P8.w; pnt = P8.n; }
+  if(ctx === 'uni'){ t = P8.w; pnt = P8.k; }
+  if(ctx === 'office' || ctx === 'gov'){ t = ctx==='gov' ? P8.mud : P8.B; pnt = P8.dd; }
+  if(ctx === 'farm'){ t = P8.b; pnt = P8.n; }
+  if(ctx === 'factory'){ t = P8.l; pnt = P8.d; }
+  if(ctx === 'funeral' || ctx === 'black'){ t = P8.k; pnt = P8.k; }
+  if(ctx === 'hospital'){ t = '#9cd7ff'; pnt = '#9cd7ff'; }
+  if(ctx === 'monk'){ t = P8.o; pnt = P8.o; }
+  if(ctx === 'wedding'){ t = P8.w; pnt = P8.gold; }
+  if(ctx === 'army'){ t = P8.g; pnt = P8.g; }
+  return { t, p: pnt };
+}
+function person(x, base, st, ctx, t = 0, opts = {}){
+  const age = opts.age ?? st.age ?? 30; const sex = opts.sex ?? st.sex ?? 'M';
+  let tpl = age < 3 ? TPL.baby : age < 15 ? (sex==='F'?TPL.kidF:TPL.kidM) : (sex==='F'?TPL.adultF:TPL.adultM);
+  const of = opts.outfit || outfitOf(st, ctx);
+  const hair = age >= 62 ? P8.l : age >= 50 ? '#8a8a8a' : (opts.hair || P8.k);
+  const skin = SKINS[(opts.skin ?? st.skin ?? 0) % 3];
+  const bob = opts.still ? 0 : (Math.floor(t*2 + x) % 2);
+  const muF = (st.religion === 'อิสลาม' && sex === 'F' && age >= 12 && !opts.noHijab);
+  const col = { h: muF ? P8.w : hair, s: skin, e: P8.k, m: P8.s3, t: of.t, p: of.p, f: P8.dd, w: P8.w };
+  if(ctx === 'monk' && age >= 12) col.h = skin;
+  const h = tpl.length; const y0 = base - h - (age >= 62 ? 0 : bob);
+  tpl.forEach((row, ry) => { for(let rx = 0; rx < row.length; rx++){ const ch = row[rx]; if(ch === '.') continue; const c = col[ch]; if(c) R(x + rx + (age >= 62 && ry < 7 ? 1 : 0), y0 + ry, 1, 1, c); } });
+  if(age >= 62 && !opts.noCane){ R(x+8, base-9, 1, 9, P8.b); R(x+7, base-9, 2, 1, P8.b); }
+  if(ctx === 'farm' && age >= 15){ R(x-2, y0-1, 12, 2, P8.cream); R(x+1, y0-3, 6, 2, P8.cream); }
+}
+
+// ---------- ฉากไกลตามกลุ่มจังหวัด ----------
+function far(kind, t, night = false){
+  const sky = night ? [P8.nn, P8.n2, P8.n] : [P8.B, '#5cc0ff', '#9fdcff', '#cdeeff'];
+  bands(sky, 0, 70); if(night) stars(t, 40, 9, 50); else { cloud(20+((t*2)%220)-30, 12); cloud(120+((t*1.5)%220)-30, 20); }
+  const r = mulberry(5);
+  if(kind === 'city'){ for(let x=-4; x<W; x+=14){ const h = 20 + Math.floor(r()*36); bldg(x, 70, 12, h, night ? P8.n2 : '#8fa3b8', P8.y, x+3, t, night?.5:.15); } R(0, 56, W, 3, P8.l); for(let x=6;x<W;x+=24) R(x, 59, 3, 11, P8.l); const tx = ((t*30)%260)-60; R(tx, 51, 34, 5, P8.w); R(tx, 53, 34, 1, P8.G); }
+  if(kind === 'industry'){ for(let x=0; x<96; x+=20){ R(x, 50, 18, 20, '#9aa4ad'); R(x+12, 30, 4, 22, P8.l); R(x+11, 26-((t*4+x)%6), 6, 4, P8.l); } R(96, 58, 96, 12, P8.B); for(let x=100;x<W;x+=10) R(x+((t*6)%10), 62, 4, 1, P8.w); tree(130, 70, 'palm'); tree(170, 70, 'palm'); }
+  if(kind === 'town'){ for(let x=0; x<W; x+=16) bldg(x, 70, 15, 14 + Math.floor(r()*10), '#d9b38c', P8.y, x, t, .3, P8.b); R(90, 32, 10, 38, P8.w); R(88, 30, 14, 3, P8.r); R(92, 36, 6, 6, P8.n); R(95, 37, 1, 3, P8.w); R(95, 39, 2, 1, P8.w); }
+  if(kind === 'rice'){ R(0, 60, W, 10, '#7fd45a'); for(let x=0;x<W;x+=8) R(x, 62+((x/8)%2), 6, 1, P8.G); tree(30, 62, 'palm'); tree(70, 64, 'palm'); tree(150, 62, 'palm'); R(120, 50, 4, 12, P8.gold); R(119, 46, 6, 4, P8.gold); R(121, 42, 2, 4, P8.gold); }
+  if(kind === 'mountain'){ const m = (x0, h, c) => { for(let i=0;i<70;i++) R(x0+i, 70-Math.max(0, h-Math.abs(i-35)*h/35), 1, Math.max(0, h-Math.abs(i-35)*h/35), c); }; m(-10, 34, '#4f8a6a'); m(50, 44, '#3d7558'); m(120, 38, '#4f8a6a'); R(0, 64, W, 6, '#7fd45a'); tree(100, 66, 'round', P8.gg); }
+  if(kind === 'south'){ for(let x=4;x<W;x+=13) tree(x, 70, 'rubber'); R(130, 46, 22, 24, P8.w); R(133, 38, 16, 8, P8.g); R(138, 34, 6, 4, P8.g); R(156, 28, 4, 42, P8.w); R(155, 26, 6, 3, P8.g); }
+}
+// ---------- บ้านตามฐานะ ----------
+function house(q, x, base, t, night){
+  const win = night ? P8.y : P8.n;
+  if(q === 0){ R(x, base-30, 4, 30, P8.b); R(x+36, base-30, 4, 30, P8.b); R(x, base-30, 40, 16, P8.mud); roof(x-4, base-41, 48, 11, '#9b9b9b', P8.l, .1); for(let i=0;i<48;i+=6) R(x-4+i, base-31, 1, 1, P8.d); R(x+8, base-26, 6, 6, win); R(x+24, base-26, 8, 10, P8.dd); R(x+12, base-14, 2, 14, P8.b); R(x+14, base-6, 6, 6, P8.b); R(x+30, base-5, 5, 5, P8.s3); }
+  if(q === 1){ R(x, base-22, 48, 22, '#c9c2b5'); roof(x-3, base-30, 54, 8, P8.l, P8.d, .2); R(x+4, base-18, 18, 18, P8.d); for(let i=0;i<18;i+=2) R(x+4+i, base-18, 1, 18, P8.l); R(x+28, base-16, 8, 6, win); R(x+38, base-8, 10, 6, P8.r); R(x+40, base-3, 2, 3, P8.k); R(x+46, base-3, 2, 3, P8.k); }
+  if(q === 2){ R(x, base-36, 46, 36, P8.cream); R(x-2, base-39, 50, 3, P8.b); R(x, base-19, 46, 2, P8.l); R(x+4, base-32, 10, 8, win); R(x+30, base-32, 10, 8, win); R(x+4, base-14, 18, 14, P8.d); R(x+28, base-12, 14, 8, P8.B); R(x+29, base-5, 3, 3, P8.k); R(x+38, base-5, 3, 3, P8.k); R(x+43, base-30, 6, 4, P8.l); }
+  if(q === 3){ R(x, base-34, 56, 34, P8.w); roof(x-5, base-46, 66, 12, P8.r, P8.bb, .12); R(x+6, base-28, 10, 8, win); R(x+40, base-28, 10, 8, win); R(x+22, base-18, 10, 18, P8.b); R(x-12, base-6, 70, 1, P8.w); for(let i=-12;i<58;i+=4) R(x+i, base-10, 1, 4, P8.w); R(x+60, base-10, 22, 7, P8.l); R(x+62, base-14, 14, 4, P8.l); R(x+62, base-3, 4, 3, P8.k); R(x+76, base-3, 4, 3, P8.k); }
+  if(q === 4){ R(x, base-40, 70, 40, P8.cream); R(x+34, base-52, 36, 12, P8.cream); R(x-3, base-43, 76, 3, P8.mud); R(x+31, base-55, 42, 3, P8.mud); for(let i=0;i<4;i++) R(x+4+i*16, base-34, 12, 14, '#bfe6ff'); R(x+38, base-50, 30, 6, '#bfe6ff'); R(x+28, base-16, 14, 16, P8.b); tree(x+86, base, 'round'); tree(x-10, base, 'round', P8.gg); }
+  if(q === 5){ R(x-14, base-14, 110, 14, P8.l); for(let i=-14;i<96;i+=6) R(x+i, base-17, 2, 3, P8.gold); R(x, base-52, 82, 38, P8.w); R(x+10, base-64, 62, 12, P8.w); R(x-3, base-55, 88, 3, P8.gold); R(x+7, base-67, 68, 3, P8.gold); for(let i=0;i<5;i++) R(x+6+i*15, base-48, 3, 34, P8.cream); R(x+34, base-30, 14, 16, P8.gold); R(x-14, base-4, 30, 4, P8.B); R(x+88, base-10, 4, 10, P8.gold); }
+}
+function interior(wall, floor, fy = 80){ R(0, 0, W, fy, wall); R(0, fy, W, Hh-fy, floor); R(0, fy, W, 1, P8.k); for(let x=0;x<W;x+=16) R(x, fy+4+((x/16)%2)*6, 10, 1, 'rgba(0,0,0,.18)'); }
+
+// ---------- ฉากทั้งหมด ----------
+const SCENES = {
+  title(t){ bands([P8.nn, P8.nn, P8.n2, P8.n], 0, Hh); stars(t, 120, 1, 90); const pulse = 1 + Math.round(Math.sin(t*3)); R(95-pulse, 24, 3+pulse*2, 1, P8.y); R(96, 23-pulse, 1, 3+pulse*2, P8.y); R(95, 23, 3, 3, P8.w); for(let i=0;i<W;i++){ const h = 8 + Math.sin(i/14)*3 + Math.sin(i/5)*1.5; R(i, Hh-h, 1, h, '#0a1a14'); } const r = mulberry(8); for(let i=0;i<26;i++) R(Math.floor(r()*W), Hh-4-Math.floor(r()*5), 1, 1, P8.o); },
+  birth(t, st){ far(TIERS[st.tier].far, t, true); ground(70, P8.gg, P8.g); house(st.q, 40, 92, t, true); spiritHouse(150, 92); const k = (t*0.6) % 1.4; if(k < 1){ const sx = 170 - k*110, sy = 4 + k*70; for(let i=0;i<10;i++) R(sx+i*3, sy-i*2, 2, 1, i<3?P8.w:P8.y); R(sx-1, sy-1, 3, 3, P8.w); } else { for(let i=0;i<8;i++){ const a = i*Math.PI/4; R(66+Math.cos(a)*(k-1)*40, 60+Math.sin(a)*(k-1)*30, 1, 1, P8.y); } } },
+  home(t, st){ far(TIERS[st.tier].far, t, st.night); ground(70, P8.gg, P8.g, st.tier); house(st.q, 64, 96, t, st.night); if(st.q <= 2) spiritHouse(176, 96); else tree(178, 96, 'round'); familyRow(t, st, 22, 97, st.ctx); },
+  school(t, st){ bands([P8.B, '#7ccfff', '#bfe9ff'], 0, 60); const v = st.school || 'rural'; ground(78, '#c9a46b', '#a88550');
+    if(v === 'rural'){ R(70, 52, 100, 26, P8.mud); roof(64, 40, 112, 12, P8.r, P8.bb, .3); for(let i=0;i<6;i++) R(76+i*16, 58, 10, 10, P8.cream); tree(30, 78, 'round'); }
+    else if(v === 'elite'){ for(let f=0; f<3; f++){ R(60, 30+f*16, 120, 14, P8.cream); R(60, 42+f*16, 120, 2, P8.l); for(let i=0;i<10;i++) R(64+i*11, 33+f*16, 7, 8, P8.n); } R(60, 26, 120, 4, P8.r); }
+    else if(v === 'priv'){ R(64, 22, 110, 56, '#e9eef5'); for(let i=0;i<8;i++) for(let f=0;f<4;f++) R(70+i*13, 28+f*12, 9, 8, P8.B); R(110, 60, 20, 18, P8.n); R(60, 18, 118, 4, P8.n); }
+    else { R(60, 24, 120, 54, '#a8e0ff'); for(let i=0;i<120;i+=12) R(60+i, 24, 1, 54, P8.w); R(60, 44, 120, 1, P8.w); R(60, 62, 120, 1, P8.w); R(0, 78, W, 30, P8.G); R(130, 84, 50, 10, P8.B); }
+    thaiFlag(36, 50); personCtx(t, st, 18, 98, 'school'); },
+  uni(t, st){ bands([P8.B, '#7ccfff', '#bfe9ff'], 0, 60); ground(80, '#8fd16a', P8.G); const v = st.uni;
+    if(v === 'abroad'){ bands(['#9fb6c9','#c6d4e0','#e3ebf2'], 0, 60); for(let i=0;i<5;i++){ R(40+i*28, 30, 24, 50, '#a54b3a'); R(44+i*28, 40, 6, 10, P8.n); R(56+i*28, 40, 6, 10, P8.n); } R(0, 80, W, 28, P8.w); stars(t, 60, 4, 80, P8.w); }
+    else { R(54, 40, 110, 40, P8.cream); for(let i=0;i<6;i++) R(46+i*3, 40-i*3, 126-i*6, 3, i%2?P8.r:P8.gold); for(let i=0;i<7;i++) R(60+i*15, 50, 8, 14, P8.n); tree(26, 80, 'round'); tree(180, 80, 'round', P8.gg); }
+    personCtx(t, st, 20, 100, 'uni'); },
+  dorm(t, st){ interior('#2a2f4a', '#3a3046', 80); R(120, 14, 40, 30, P8.n2); for(let i=0;i<14;i++){ const x = 122 + ((i*7 + t*40)%36), y = 16 + ((i*11 + t*60)%26); R(x, y, 1, 3, P8.B); } R(20, 66, 70, 14, P8.L); R(20, 62, 20, 6, P8.w); personCtx(t, st, 50, 74, 'none'); R(46, 52, 4, 6, P8.B); },
+  army(t, st){ interior('#c8b48a', '#8a6d4a', 82); thaiFlag(20, 20); thaiFlag(170, 20); R(70, 56, 52, 10, P8.mud); R(86, 40, 20, 16, 'rgba(220,240,255,.6)'); for(let i=0;i<8;i++) R(88+((i*5)%16), 46+((i*3)%9), 3, 2, i%3?P8.k:P8.r); for(let i=0;i<10;i++) R(10+i*18, 90, 12, 6, P8.r); personCtx(t, st, 130, 96, 'none'); },
+  road(t, st){ bands([P8.nn, P8.n2], 0, 70); for(let i=0;i<60;i++){ const x = (i*13 + t*50)%W, y = (i*17 + t*140)%100; R(x, y, 1, 4, P8.l); } R(0, 70, W, 38, P8.dd); for(let x=0;x<W;x+=24) R(x+((t*20)%24), 88, 12, 2, P8.y); R(90, 80, 26, 8, P8.r); R(92, 86, 6, 6, P8.k); R(110, 86, 6, 6, P8.k); R(150, 70, 40, 12, 'rgba(255,240,180,.35)'); personCtx(t, st, 60, 100, 'none'); },
+  city(t, st){ far('city', t, st.night); ground(70, P8.d, P8.dd); R(0, 84, W, 2, P8.y); personCtx(t, st, 40, 98, st.ctx); },
+  farm(t, st){ far('rice', t, false); R(0, 70, W, 38, '#5aa648'); for(let y=74;y<Hh;y+=6) for(let x=(y%12);x<W;x+=8) R(x, y, 1, 3, P8.G); R(130, 50, 30, 4, P8.mud); R(132, 54, 2, 16, P8.b); R(156, 54, 2, 16, P8.b); R(134, 60, 22, 6, P8.cream); R(20, 82, 16, 8, P8.d); R(16, 80, 6, 6, P8.d); personCtx(t, st, 70, 100, 'farm'); },
+  factory(t, st){ interior('#55606e', '#7d858f', 76); for(let i=0;i<3;i++) R(20+i*60, 6, 30, 2, P8.w); R(0, 62, W, 8, P8.d); for(let x=0;x<W;x+=6) R((x + t*20)%W, 63, 3, 2, P8.l); for(let i=0;i<6;i++) R(((i*40 + t*20)%220)-20, 56, 10, 6, P8.o); R(0, 70, W, 2, P8.y); personCtx(t, st, 80, 96, 'factory'); },
+  gov(t, st){ interior('#e6d6a8', '#9b7a4e', 76); thaiFlag(170, 14); for(let i=0;i<3;i++){ R(20+i*50, 60, 36, 16, P8.mud); for(let s=0;s<5;s++) R(24+i*50, 52-s*3, 14, 3, s%2?P8.w:P8.cream); } R(150, 40, 20, 36, P8.g); personCtx(t, st, 100, 96, 'gov'); },
+  office(t, st){ interior('#c9d6e3', '#6d7a8a', 76); R(110, 6, 76, 50, '#9fdcff'); for(let x=112;x<184;x+=9) R(x, 30 + (x%17), 7, 26-(x%17), '#7da0c0'); for(let i=0;i<3;i++){ R(10+i*34, 58, 30, 3, P8.l); R(18+i*34, 46, 14, 10, P8.k); R(19+i*34, 47, 12, 8, Math.floor(t*2+i)%2?P8.B:'#5cc0ff'); } personCtx(t, st, 140, 96, 'office'); },
+  shop(t, st){ bands([P8.B, '#7ccfff'], 0, 40); ground(80, P8.d, P8.dd); R(30, 14, 140, 66, P8.cream); R(26, 10, 148, 6, P8.r); R(40, 24, 120, 8, P8.w); for(let i=0;i<20;i++) R(44+i*6, 26, 3, 3, P8.r); R(44, 44, 40, 28, '#bfe6ff'); R(100, 56, 30, 16, P8.l); const f = Math.floor(t*6)%2; R(108, 50-f, 6, 6, P8.o); R(110, 47-f, 3, 3, P8.y); personCtx(t, st, 140, 100, 'none'); },
+  abroad(t, st){ bands(['#9fb6c9','#c6d4e0','#e3ebf2'], 0, 70); ground(70, P8.w, P8.l); for(let i=0;i<4;i++){ R(10+i*46, 44, 40, 26, 'rgba(220,240,255,.8)'); for(let j=0;j<40;j+=8) R(10+i*46+j, 44, 1, 26, P8.l); } stars(t, 80, 6, 100, P8.w); R(150, 76, 26, 10, P8.o); personCtx(t, st, 110, 100, 'none'); },
+  stream(t, st){ interior('#1b1530', '#2b2140', 82); for(let x=0;x<W;x+=4) R(x, 4, 3, 2, ['#ff3df0','#3df0ff','#ffdd3d'][Math.floor(x/4 + t*6)%3]); const r = 14 + Math.round(Math.sin(t*4)); R(60-r, 36, 1, 1, P8.w); for(let a=0;a<24;a++) R(60+Math.cos(a/24*6.28)*r, 40+Math.sin(a/24*6.28)*r, 1, 1, P8.w); R(110, 50, 14, 10, P8.k); R(116, 60, 2, 22, P8.d); personCtx(t, st, 54, 98, 'none'); },
+  wedding(t, st){ bands([P8.B, '#7ccfff', '#bfe9ff'], 0, 70); ground(80, '#8fd16a', P8.G); R(30, 26, 132, 4, P8.w); for(let i=0;i<132;i+=10) R(30+i, 30, 6, 4, i%20?P8.p:P8.w); R(70, 34, 4, 46, P8.w); R(118, 34, 4, 46, P8.w); for(let i=0;i<48;i+=4) R(70+i, 32-Math.round(Math.sin(i/48*3.14)*10), 4, 4, i%8?P8.p:P8.w); familyRow(t, st, 82, 98, 'wedding', true); },
+  baby(t, st){ interior('#d9f0e8', '#a8c9bd', 80); R(130, 50, 40, 20, P8.w); R(132, 70, 2, 12, P8.l); R(166, 70, 2, 12, P8.l); person(144, 64, st, 'none', t, { age:0 }); R(20, 20, 30, 20, P8.l); R(24, 24, 22, 10, P8.G); for(let x=0;x<20;x+=2) R(26+x, 29 + (Math.floor(t*8 + x)%4===0 ? -3 : 0), 1, 1, P8.k); personCtx(t, st, 90, 98, 'none'); },
+  hospital(t, st){ interior('#e6f3f7', '#b9cdd4', 80); for(let i=0;i<2;i++){ R(20+i*90, 60, 60, 10, P8.w); R(20+i*90, 56, 12, 6, '#9cd7ff'); R(24+i*90, 70, 2, 12, P8.l); R(76+i*90, 70, 2, 12, P8.l); R(86+i*90, 24, 1, 36, P8.l); R(82+i*90, 24, 8, 10, 'rgba(180,220,255,.8)'); } R(80, 6, 30, 8, P8.G); R(93, 7, 4, 6, P8.w); R(91, 9, 8, 2, P8.w); personCtx(t, st, 40, 64, 'hospital', { still:true }); },
+  flood(t, st){ interior('#d1c4a5', '#8a7a5a', 80); R(150, 20, 30, 24, '#9fdcff'); R(30, 56, 24, 18, P8.d); R(32, 58, 20, 12, P8.n); const wl = 82 + Math.round(Math.sin(t*2)*1.5); R(0, wl-14, W, Hh, 'rgba(110,80,40,.75)'); for(let x=0;x<W;x+=10) R((x + t*10)%W, wl-14, 5, 1, P8.cream); R(120, wl-16, 8, 3, P8.r); personCtx(t, st, 90, 98, 'none'); },
+  south(t, st){ far('south', t, false); ground(70, '#c9b37a', '#a8925a'); for(let i=0;i<6;i++) R(30 + Math.sin(t+i)*3, 10 + i*8, 6-i/2, 6, `rgba(90,90,90,${0.6 - i*0.08})`); personCtx(t, st, 80, 98, 'none'); },
+  court(t, st){ interior('#6b4a2b', '#4a3220', 80); R(50, 30, 92, 30, '#3d2814'); R(46, 26, 100, 4, P8.gold); R(88, 10, 16, 16, P8.gold); R(92, 14, 8, 8, P8.r); for(let i=0;i<3;i++) person(70+i*20, 50, { age:55, sex: i===1?'M':'F', q:2 }, 'black', t, { still:true }); personCtx(t, st, 90, 100, 'none'); },
+  bank(t, st){ interior('#dfe7e5', '#9aa8a5', 78); R(20, 50, 152, 28, P8.teal); R(20, 30, 152, 2, P8.l); for(let i=0;i<4;i++) R(30+i*38, 32, 30, 18, 'rgba(200,240,255,.6)'); R(170, 14, 14, 10, P8.k); R(172, 16, 10, 6, P8.G); personCtx(t, st, 90, 100, 'none'); },
+  oldhome(t, st){ far(TIERS[st.tier].far, t, false); ground(70, '#8fd16a', P8.G); R(110, 44, 50, 4, P8.r); R(112, 48, 2, 24, P8.b); R(156, 48, 2, 24, P8.b); R(108, 40, 54, 4, P8.gold); R(20, 86, 40, 4, P8.b); tree(180, 80, 'round'); personCtx(t, st, 70, 96, 'none'); },
+  temple(t, st){ interior('#f0e2c0', '#c9a46b', 82); R(80, 20, 32, 40, P8.gold); R(88, 12, 16, 10, P8.gold); R(93, 6, 6, 6, P8.gold); R(70, 60, 52, 6, P8.r); for(let i=0;i<4;i++) R(20+i*44, 88, 30, 4, P8.w); personCtx(t, st, 40, 96, 'none'); },
+  funeral(t, st){
+    if(st.religion === 'อิสลาม'){ bands([P8.B,'#9fdcff'],0,60); ground(70,'#b8a77a','#9a8a60'); for(let i=0;i<8;i++){ R(14+i*22, 62, 4, 10, P8.w); R(12+i*22, 60, 8, 2, P8.l); } tree(20, 70, 'round'); tree(170, 70, 'round'); R(140, 30, 22, 30, P8.w); R(143, 22, 16, 8, P8.g); }
+    else { interior('#2c2340', '#3d3050', 82); R(70, 58, 52, 16, P8.w); R(68, 56, 56, 3, P8.gold); R(88, 36, 16, 18, P8.gold); R(90, 38, 12, 14, P8.l); for(let i=0;i<6;i++){ const x = 10 + i*28 + (i>=3?40:0); if(x > W-14) continue; R(x, 26, 14, 14, ['#ff77a8','#ffec27','#ffffff'][i%3]); R(x+6, 40, 2, 20, P8.g); } }
+    for(let i=0;i<5;i++) R(56 + i*18 + Math.sin(t*2+i)*1, 24 - ((t*8 + i*5)%20), 1, 2, 'rgba(220,220,220,.7)');
+    personCtx(t, st, 30, 100, 'funeral'); },
+  death(t, st){ const a = Math.min(1, (t % 6)/5); interior('#2b2a3a', '#3a3848', 80); R(40, 60, 90, 12, P8.w); R(40, 56, 18, 6, P8.l); person(56, 66, st, 'none', t, { still:true, noCane:true }); G2.fillStyle = `rgba(255,250,235,${a*0.85})`; G2.fillRect(0,0,W,Hh); R(140, 10, 30, 30, `rgba(255,255,220,${0.5+a/2})`); },
+  sharesouls(t, st){ bands([P8.nn, '#0b2033', '#0f3346'], 0, 76); stars(t, 50, 12, 60, P8.teal); ground(76, '#0f4a4a', '#1a6b66');
+    for(let i=0;i<7;i++){ const x = 12 + i*26, gl = Math.floor(t*2 + i)%3===0; R(x, 52, 12, 22, P8.n); R(x+1, 53, 10, 17, gl ? P8.teal : '#1a8a85'); R(x+3, 56, 6, 1, P8.w); R(x+3, 59, 4, 1, P8.w); }
+    for(let i=0;i<14;i++){ const x = (i*29 + t*6)%W, y = 70 - ((i*13 + t*10)%60); R(x, y, 1, 1, P8.teal); }
+    const tier = st.tier3 ?? st.ssTier ?? 0;
+    if(tier >= 1){ R(62, 70, 4, 6, P8.p); R(70, 68, 1, 8, P8.l); R(70, 66-(Math.floor(t*4)%2), 1, 2, P8.o); R(76, 70, 4, 6, P8.y); }
+    if(tier >= 2){ R(84, 62, 10, 12, P8.gold); R(85, 63, 8, 8, P8.cream); }
+    if(tier >= 3){ R(0, 80, W, 4, P8.l); for(let x=6;x<W;x+=20){ R(x, 74, 3, 6, P8.gold); R(x, 72, 3, 2, Math.floor(t*3+x)%2?P8.y:P8.o); } }
+    if(st.showPlayer !== false) personCtx(t, st, 100, 98, 'none'); },
+  karma(t, st){ bands([P8.nn, '#1d1530'], 0, Hh); for(let s=0;s<3;s++){ R(10+s*64, 10, 44, 80, '#3a2412'); for(let r=0;r<6;r++){ R(10+s*64, 22+r*12, 44, 2, '#5a3a1a'); for(let k=0;k<6;k++){ const g = mulberry(s*40+r*7+k)() < (st.goodRatio ?? .5); const on = Math.floor(t*2 + k + r)%4 === 0; R(13+s*64+k*7, 14+r*12, 5, 7, g ? (on?P8.y:P8.gold) : (on?'#c39bff':P8.purple)); } } } for(let i=0;i<20;i++){ const x = (i*37 + t*8)%W, y = Hh - ((i*23 + t*12)%Hh); R(x, y, 1, 1, i%2?P8.gold:P8.purple); } },
+  timeskip(t, st){ interior('#f2e6c9', '#c9b48e', 84); R(30, 16, 44, 54, P8.w); R(30, 16, 44, 10, P8.r); for(let i=0;i<4;i++){ const y = 30 + i*9; R(36, y, 32, 2, P8.l); } const fl = (t*1.5)%1; R(30 + fl*40, 26 - fl*20, 44 - fl*30, 4, P8.w); R(120, 18, 30, 30, P8.w); R(121, 19, 28, 28, P8.cream); const a = t*2; R(135, 33, 1, 1, P8.k); for(let i=0;i<10;i++) R(135 + Math.cos(a)*i, 33 + Math.sin(a)*i, 1, 1, P8.k); for(let i=0;i<7;i++) R(135 + Math.cos(a/12)*i, 33 + Math.sin(a/12)*i, 1, 1, P8.r); },
+  end(t, st){ bands(['#ffb38a','#ffd0a0','#ffe6c4','#fff4e0'], 0, 76); R(86, 60 - Math.min(10, t*2), 20, 20, P8.y); ground(76, '#7a6a8a', '#6a5a7a'); tree(30, 80, 'palm', '#4a3a5a'); tree(160, 80, 'palm', '#4a3a5a'); R(120, 56, 4, 20, '#4a3a5a'); R(118, 50, 8, 6, '#4a3a5a'); for(let i=0;i<4;i++){ const x = (t*14 + i*30)%W; R(x, 20+i*5, 2, 1, '#4a3a5a'); R(x+2, 19+i*5, 2, 1, '#4a3a5a'); } },
+};
+function personCtx(t, st, x, base, ctx, opts = {}){ if(!st || st.age === undefined) return; person(x, base, st, ctx === 'none' ? st.ctx : ctx, t, opts); }
+function familyRow(t, st, x, base, ctx, wedding){
+  person(x, base, st, ctx, t);
+  let dx = x + 12;
+  if(st.spouse){ person(dx, base, { ...st, sex: st.spouse.sex, skin:(st.skin+1)%3, q: st.spouse.q }, ctx, t, { age: st.age }); dx += 12; }
+  if(!wedding && st.kids) st.kids.slice(0,3).forEach((k,i) => { const ka = st.age - k.born; if(ka >= 0){ person(dx, base, { ...st, sex:k.sex }, ctx === 'school' ? 'school' : st.ctx, t, { age: ka }); dx += 10; } });
+}
+function badgeOverlay(t, kind, outcome){
+  if(kind === 'event') lightning(t, 180, 4);
+  if(kind === 'deed') lotus(178, 6, t);
+  if(kind === 'fork') fork(178, 4);
+  if(kind === 'result' && outcome){ const c = { good:P8.G, mid:P8.y, bad:P8.r }[outcome]; R(176, 4, 12, 12, P8.k); R(177, 5, 10, 10, c); }
+}
+function drawScene(g, key, t, st, kind, outcome){
+  G2 = g; g.imageSmoothingEnabled = false;
+  const fn = SCENES[key] || SCENES.home;
+  try { fn(t, st || {}); } catch(e){ R(0,0,W,Hh,P8.n); }
+  badgeOverlay(t, kind, outcome);
+}
+// ===== UI =====
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const cv = $('#cv'), gx = cv.getContext('2d');
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SCENE = { bg:'title', kind:null, outcome:null };
+const CUR = { p:null, family:[], sims:null, keys:null };
+let SIM_SCORES = null;
+
+// ---------- ไอคอนพิกเซล ----------
+const ICON_TPL = {
+  H:['.rr.rr.','rrrrrrr','rrrrrrr','rrrrrrr','.rrrrr.','..rrr..','...r...'],
+  J:['.yyyyy.','yyyyyyy','ykyyyky','yyyyyyy','ykyyyky','yykkkyy','.yyyyy.'],
+  S:['bbb.bbb','bwb.bwb','bwbbbwb','bwbbbwb','bwbbbwb','bbbbbbb','.......'],
+  C:['.......','tt...tt','ttt.ttt','.ttttt.','..ttt..','...t...','.......'],
+  M:['..ooo..','.oyyyo.','oyyoyyo','oyoooyo','oyyoyyo','.oyyyo.','..ooo..'],
+  D:['wwwwww.','wrrrrw.','wwwwww.','wrrrrw.','wwwwww.','wrrw...','wwww...'],
+  K:['..vvv..','.vvvvv.','vvwvwvv','vvvvvvv','vvvvvvv','.vvvvv.','.v.v.v.'],
+  kid:['.......','pp.pp..','ppppp..','.ppp.pp','..p.ppp','....p..','.......'],
+  pin:['..rrr..','.rrwrr.','.rwwwr.','.rrwrr.','..rrr..','...r...','...r...'],
+  fam:['.t...t.','ttt.ttt','.t...t.','ttt.ttt','t.t.t.t','.......','.......'],
+  home:['...o...','..ooo..','.ooooo.','ooooooo','.w.w.w.','.w.www.','.wwwww.'],
+  clock:['.wwwww.','w..k..w','w..k..w','w..kk.w','w.....w','w.....w','.wwwww.'],
+  male:['...bbbb','.....bb','....b.b','.bbb...','b...b..','b...b..','.bbb...'],
+  female:['..ppp..','.p...p.','.p...p.','..ppp..','...p...','..ppp..','...p...'],
+  crown:['.......','y..y..y','yy.y.yy','yyyyyyy','yrybyry','yyyyyyy','.......'],
+};
+const ICON_COL = { r:'#ff4d6d', y:'#ffec27', k:'#1a1205', b:'#29adff', w:'#fff1e8', t:'#3fd1c4', o:'#ffa300', v:'#b58cff', p:'#ff77a8' };
+const ICON_ALT = { H:'สุขภาพ', J:'ความสุข', S:'ทักษะ', C:'เส้นสาย', M:'เงิน', D:'หนี้', K:'บุญบาป', kid:'ค่าลูก' };
+const ICONS = {};
+for(const [k, rows] of Object.entries(ICON_TPL)){ const c = document.createElement('canvas'); c.width = 7; c.height = 7; const x = c.getContext('2d'); rows.forEach((r, y) => [...r].forEach((ch, i) => { if(ch !== '.'){ x.fillStyle = ICON_COL[ch]; x.fillRect(i, y, 1, 1); } })); ICONS[k] = c.toDataURL(); }
+const ic = (k, cls = 'ic') => `<img class="${cls}" src="${ICONS[k]}" alt="${ICON_ALT[k] || ''}" title="${ICON_ALT[k] || ''}">`;
+const sgn = s => s === '+' ? '+' : '−';
+const upd = s => s === '+' ? 'up' : 'dn';
+// แปลงตัวย่อ H J S C ฿ ค่าลูก ให้เป็นสัญลักษณ์
+function rich(s){
+  let h = esc(s); const tok = []; const put = html => { tok.push(html); return `\u0001${tok.length-1}\u0002`; };
+  h = h.replace(/(^|[^A-Za-z])([HJSC])\s?([+−\-])\s?(\d+)/g, (m, pre, k, sg, n) => pre + put(`<span class="fx ${upd(sg)}">${ic(k)}${sgn(sg)}${n}</span>`));
+  h = h.replace(/ค่าลูก\s?([+−\-])\s?(\d+)/g, (m, sg, n) => put(`<span class="fx ${upd(sg)}">${ic('kid')}${sgn(sg)}${n}</span>`));
+  h = h.replace(/฿\s?([+−\-])\s?([\d,]+)/g, (m, sg, n) => put(`<span class="fx ${upd(sg)}">${ic('M')}${sgn(sg)}${n}</span>`));
+  h = h.replace(/(^|[^A-Za-z])([HJSC])(?=[^A-Za-z]|$)/g, (m, pre, k) => pre + put(ic(k)));
+  return h.replace(/\u0001(\d+)\u0002/g, (m, i) => tok[+i]);
+}
+
+// ---------- ฉากเคลื่อนไหว ----------
+function snap(p){
+  if(!p) return {};
+  if(p.skin === undefined) p.skin = Math.floor(Math.random()*3);
+  const ctx = p.age < 18 ? 'school' : (p.age < 22 && p.degree) ? 'uni' : p.age >= 60 ? 'none' : ({ farm:'farm', factory:'factory', gov:'gov', office:'office' }[p.career] || 'none');
+  return { age:p.age, sex:p.sex, q: p.age >= 22 ? Math.min(5, incomeToQ(hhIncome(p))) : p.q, tier:p.tier, skin:p.skin, religion:p.religion, school:p.school, uni:p.uni,
+    ctx: p.status.prison ? 'black' : ctx, spouse: p.spouse ? { sex:p.spouse.sex, q:p.spouse.q } : null, kids: p.kids.map(k => ({ sex:k.sex, born:k.born })), ssTier: p.flags.ssTier || 0, night:false };
+}
+let T0 = performance.now();
+function frame(now){
+  const t = REDUCED ? 1.2 : (now - T0)/1000;
+  const st = SCENE.st || snap(CUR.p);
+  drawScene(gx, SCENE.bg, t, st, SCENE.kind, SCENE.outcome);
+  setTimeout(() => requestAnimationFrame(frame), 90);
+}
+requestAnimationFrame(frame);
+function setScene(bg, kind, outcome, st){ SCENE.bg = bg || 'home'; SCENE.kind = kind; SCENE.outcome = outcome; SCENE.st = st || null;  Music.pick(SCENE.bg); }
+
+// ---------- เพลงประกอบ (Pixabay) · เลือกตามช่วงชีวิต + ค่อย ๆ เฟดเปลี่ยน ----------
+const Music = (() => {
+  const SRC = { arcade:'music/arcade.mp3', quest:'music/quest.mp3', guitar:'music/guitar.mp3', piano:'music/piano.mp3' };
+  const VOL = { arcade:.42, quest:.40, guitar:.55, piano:.55 };
+  const els = {}; let cur = null, want = 'arcade', unlocked = false, on = true, raf = 0;
+  try { on = localStorage.getItem('o65m_music') !== 'off'; } catch(e) {}
+  function el(k){ if(!els[k]){ const a = new Audio(SRC[k]); a.loop = true; a.preload = 'auto'; a.volume = 0; els[k] = a; } return els[k]; }
+  function trackFor(bg){
+    const st = CUR.p ? CUR.p.stage : 0;
+    if(['funeral','karma','death','end'].includes(bg) || st >= 7) return 'piano';
+    if(bg === 'timeskip') return cur || want;
+    if(st >= 6 || bg === 'hospital' || bg === 'oldhome') return 'guitar';
+    if(st >= 3) return 'quest';
+    return 'arcade';
+  }
+  function fade(){
+    cancelAnimationFrame(raf); let last = performance.now();
+    const step = now => {
+      const dt = Math.min(.1, (now - last)/1000); last = now; let busy = false;
+      for(const k in els){ const a = els[k]; const target = (on && unlocked && k === cur) ? VOL[k] : 0;
+        const d = target - a.volume; if(Math.abs(d) > .005){ busy = true; a.volume = clamp(a.volume + Math.sign(d)*Math.min(Math.abs(d), dt*.45), 0, 1); } else a.volume = target;
+        if(a.volume === 0 && target === 0 && !a.paused) a.pause(); }
+      if(busy) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+  function apply(){
+    if(!unlocked || !on){ fade(); return; }
+    const a = el(cur); if(a.paused){ a.play().catch(()=>{}); }
+    fade();
+  }
+  function pick(bg){ want = trackFor(bg); if(want === cur) return; const prev = cur; cur = want;
+    // เพลงใหม่เริ่มต้นเพลง ยกเว้นกลับมาเพลงเดิมเร็ว ๆ ให้เล่นต่อจากเดิม
+    if(prev && els[cur] && els[cur].paused) { try { els[cur].currentTime = 0; } catch(e) {} }
+    apply(); }
+  function ui(){ const b = $('#sndBtn'); if(!b) return; b.classList.toggle('off', !on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); $('#sndTxt').textContent = on ? 'เพลง' : 'ปิดเพลง'; }
+  function toggle(){ if(!unlocked && on){ unlock(); return; } on = !on; try { localStorage.setItem('o65m_music', on ? 'on' : 'off'); } catch(e) {} unlocked = true; ui(); apply(); }
+  function unlock(){ if(unlocked) return; unlocked = true; apply(); }
+  addEventListener('pointerdown', e => { if(!(e.target.closest && e.target.closest('#sndBtn'))) unlock(); }, { capture:true }); addEventListener('keydown', e => { if(e.key === 'm' || e.key === 'M'){ if(!e.target.closest || !e.target.closest('input,textarea')) toggle(); } else unlock(); }, { capture:true });
+  document.addEventListener('visibilitychange', () => { const a = cur && els[cur]; if(!a) return; if(document.hidden) a.pause(); else if(on && unlocked) a.play().catch(()=>{}); });
+  $('#sndBtn').addEventListener('click', e => { e.stopPropagation(); toggle(); });
+  ui();
+  return { pick, toggle, state: () => ({ cur, on, unlocked, playing: Object.keys(els).filter(k => !els[k].paused) }) };
+})();
+
+
+// ---------- HUD ----------
+const STAGE_TH = ['แรกเกิด','วัยเรียน','หลังจบ ม.6','วัยทำงาน','ชีวิตคู่','ลูก','วัยเกษียณ','ตอนจบ'];
+function hud(p){
+  if(!p) return; $('#hud').hidden = false; $('#tl').hidden = false; $('#logBtn').hidden = false;
+  $('#hName').textContent = p.name + (p.gen > 1 ? ` · รุ่นที่ ${p.gen}` : '');
+  $('#hAge').innerHTML = `${ic('clock')}${p.age}`;
+  $('#hWhere').textContent = `${p.prov} · ${QS[p.qBirth].name}${p.career && p.age < 60 ? ' · ' + CAREERS[p.career].name : ''}`;
+  const bar = v => `<span class="bar"><i style="width:${clamp(v,0,100)}%"></i></span>`;
+  const debt = totalDebt(p);
+  $('#hStats').innerHTML = [
+    ['H','สุขภาพ',p.H], ['J','ความสุข',p.J], ['S','ทักษะ',p.S], ['C','เส้นสาย',p.C],
+  ].map(([k,n,v]) => `<span class="stat ${k}" id="st${k}" title="${n}"><img src="${ICONS[k]}" alt="${n}">${bar(v)}<span class="v">${Math.round(v)}</span></span>`).join('')
+  + `<span class="stat M" id="stM" title="เงิน"><img src="${ICONS.M}" alt="เงิน"><span class="v">฿${bahtS(p.money)}</span></span>`
+  + (debt > 0 ? `<span class="stat D" id="stD" title="หนี้"><img src="${ICONS.D}" alt="หนี้"><span class="v">฿${bahtS(debt)}</span></span>` : '');
+  const tl = $('#tl'); const pct = a => `${clamp(a,0,100)}%`;
+  tl.innerHTML = `<div class="track"></div><div class="fill" style="width:${pct(p.age)}"></div>` + [0,20,40,60,80,100].map(a => `<span class="tick" style="left:${a}%">${a}</span>`).join('')
+    + p.log.filter((l,i,arr) => arr.findIndex(x=>x.age===l.age)===i).map(l => `<span class="ev" style="left:${pct(l.age)}"></span>`).join('')
+    + `<span class="now" style="left:${pct(p.age)}"></span>`;
+}
+const chipQ = [];
+function flushChips(){
+  const box = $('#chips'); const agg = {}; for(const [k, v] of chipQ.splice(0)) agg[k] = (agg[k] || 0) + v;
+  box.innerHTML = '';
+  const list = Object.entries(agg).filter(([k, v]) => Math.round(v) !== 0).map(([k, v]) => [k, Math.round(v)]);
+  list.forEach(([k, v], i) => setTimeout(() => {
+    const d = document.createElement('div'); d.className = 'chip ' + (v > 0 ? 'up' : 'down');
+    d.innerHTML = (k === '฿' ? ic('M', 'ic big') + `${v>0?'+':'−'}${bahtS(Math.abs(v))}` : ic(k, 'ic big') + `${v>0?'+':'−'}${Math.abs(v)}`) + `<span class="arw">${v>0?'▲':'▼'}</span>`;
+    box.appendChild(d); setTimeout(() => d.remove(), 2300);
+    const el = $('#st' + (k === '฿' ? 'M' : k)); if(el){ el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'), 220); }
+  }, i * 140));
+}
+
+// ---------- แผงตัดสินใจ ----------
+const KIND_TH = { main:'ตัดสินใจหลัก', minor:'ทางเลือกย่อย', fork:'ทางแยกบังคับ', event:'เหตุการณ์ไม่คาดคิด', deed:'โอกาสทำความดี', life:'ระดับการใช้ชีวิต', result:'ผลลัพธ์', birth:'เกิด', stage:'ช่วงชีวิต', cut:'ฉากพิเศษ', death:'ลาจาก', mourn:'ไว้อาลัย', funeral:'งานศพ' };
+function eyebrow(o){ const p = CUR.p; const st = p ? STAGE_TH[p.stage] : ''; return `<div class="eyebrow">${esc(KIND_TH[o.kind] || 'ชีวิต')}<span>${esc(st)}${p ? ' · อายุ ' + p.age : ''}</span></div>`; }
+function pendHTML(pend){ if(!pend || !pend.length) return ''; return `<div class="pend">${pend.map(x => `<div>${rich(typeof x === 'string' ? x : x.text)}</div>`).join('')}</div>`; }
+function headHTML(h){ return h ? `<div class="head"><b>⚡ ${esc(h.title)}</b>${h.text ? `<p>${rich(h.text)}</p>` : ''}</div>` : ''; }
+// ป้ายราคา = เงินที่ต้องจ่ายทันทีตอนเลือก (ไม่ต้องจ่ายก็ไม่แสดง)
+function priceHTML(c){ if(!c.cost) return ''; return `<span class="price"><small>จ่าย</small>${ic('M')}${bahtS(c.cost)}</span>`; }
+const cleanTitle = t => String(t || '').replace(/\s?\((ไม่)?ทำ\)/g, '');
+function choiceHTML(c, i, multi){
+  return `<button class="ch" data-i="${i}" ${c.disabled ? 'disabled' : ''}>${multi ? '<span class="box"></span>' : `<span class="k">${i+1}</span>`}<span class="l">${esc(c.label)}</span>${priceHTML(c)}${c.sub ? `<span class="s">${rich(c.sub)}</span>` : ''}${c.loanNote ? `<span class="loan">${ic('D')} ${rich(c.loanNote)}</span>` : ''}${c.lock ? `<span class="lock">🔒 ${rich(c.lock)}</span>` : ''}</button>`;
+}
+// ข้อความหลายบรรทัด → รายการพร้อมสัญลักษณ์
+function textHTML(t){ if(!t) return ''; const lines = String(t).split('\n').filter(Boolean); if(lines.length < 2) return `<p class="txt">${rich(t)}</p>`; return `<ul class="lines">${lines.map(l => `<li>${rich(l)}</li>`).join('')}</ul>`; }
+const OUT_ICON = { good:['▲','ดี'], mid:['■','กลาง'], bad:['▼','แย่'] };
+function outcomeHTML(o){ return o ? `<div class="outcome ${o}"><span>${OUT_ICON[o][0]}</span>${OUT_ICON[o][1]}</div>` : ''; }
+const Q_SHORT = ['จน','ค่อนข้างจน','ปานกลาง','กลางบน','มีอันจะกิน','เศรษฐี'];
+function coins(n){ return n >= 5 ? ic('crown') : Array.from({ length: n+1 }, () => ic('M')).join(''); }
+function birthHTML(b){
+  const max = Math.max(...b.tierQ);
+  const ladder = b.tierQ.map((v, i) => `<div class="rung ${i===b.q?'me':''}"><span class="pc">${v}%</span><span class="col"><i style="height:${Math.max(4, v/max*100)}%"></i></span><span class="cn">${coins(i)}</span><span class="nm">${Q_SHORT[i]}</span>${i===b.q?'<span class="you">คุณ</span>':''}</div>`).join('');
+  const stat = (k, v) => `<div class="sb">${ic(k,'ic big')}<span class="bar"><i style="width:${v}%"></i></span><b>${Math.round(v)}</b></div>`;
+  return `<div class="tiles">
+    <div class="tile">${ic('pin','ic big')}<span class="lab">จังหวัดเกิด</span><b>${esc(b.prov)}</b>${b.gen===1?`<span class="note">โอกาส ${b.provPct.toFixed(2)}%</span><span class="meter"><i style="width:${Math.min(100,b.provPct*10)}%"></i></span>`:`<span class="note">ลูกของ${esc(b.parent||'')}</span>`}</div>
+    <div class="tile">${ic(b.sex==='M'?'male':'female','ic big')}<span class="lab">${b.sex==='M'?'ชาย':'หญิง'}</span><b>${esc(b.religion)}</b></div>
+    <div class="tile">${ic(b.skip?'home':'fam','ic big')}<span class="lab">ผู้เลี้ยงดู</span><b>${b.skip?'ปู่ย่า':'พ่อแม่'}</b>${b.skip?'<span class="note">พ่อแม่ทำงานต่างถิ่น</span>':''}</div>
+  </div>
+  <div class="ladder" aria-label="โอกาสเกิดในแต่ละฐานะ">${ladder}</div>
+  <p class="help">${b.gen===1?`ความน่าจะเป็นของแต่ละฐานะใน${esc(b.tierName)}`:'ฐานะคิดจากรายได้ครอบครัวตอนคุณเกิด'} · รายได้บ้านคุณ ${ic('M')}${bahtS(b.inc)}/เดือน</p>
+  <div class="money">${ic('M','ic huge')}<div><b>${baht(b.money)}</b><span>เงินที่ครอบครัวทุ่มให้ตลอดวัยเรียน</span></div></div>
+  <div class="statrow">${stat('H',b.stats.H)}${stat('J',b.stats.J)}${stat('S',b.stats.S)}${stat('C',b.stats.C)}</div>`;
+}
+function panel(html){ const el = $('#panel'); el.innerHTML = html; return el; }
+function focusFirst(el){ const b = el.querySelector('.ch:not(:disabled), .go'); if(b && !('ontouchstart' in window)) b.focus({ preventScroll:true }); }
+function scrollPanelIntoView(){ if(innerWidth < 880){ const r = $('#panel').getBoundingClientRect(); if(r.top < 0 || r.top > innerHeight*.7) $('#panel').scrollIntoView({ block:'start', behavior: REDUCED ? 'auto' : 'smooth' }); } }
+function setKeys(fn){ CUR.keys = fn; }
+document.addEventListener('keydown', e => { if(!CUR.keys || $('#drawer').hidden === false) return; if(e.target && e.target.tagName === 'INPUT') return; CUR.keys(e); });
+
+const UI = {
+  update(p){ hud(p || CUR.p); },
+  chips(list){ chipQ.push(...list); },
+  ask(o){
+    return new Promise(res => {
+      const p = CUR.p; setScene(o.head ? o.head.bg || o.bg : o.bg, o.head ? 'event' : o.kind, null);
+      hud(p);
+      const el = panel(eyebrow(o) + headHTML(o.head) + pendHTML(o.pend) + `<h2>${esc(cleanTitle(o.title))}</h2>` + textHTML(o.text) + `<div class="choices">${o.choices.map((c,i)=>choiceHTML(c,i)).join('')}</div>`);
+      flushChips();
+      const pick = i => { if(o.choices[i] && !o.choices[i].disabled){ setKeys(null); res(i); } };
+      el.querySelectorAll('.ch').forEach(b => b.addEventListener('click', () => pick(+b.dataset.i)));
+      setKeys(e => { const n = parseInt(e.key, 10); if(n >= 1 && n <= o.choices.length){ e.preventDefault(); pick(n-1); } });
+      focusFirst(el); scrollPanelIntoView();
+    });
+  },
+  say(o){
+    return new Promise(res => {
+      setScene(o.bg, o.kind, o.outcome, o.kind === 'cut' && o.bg === 'sharesouls' ? { ...snap(CUR.p), ssTier:o.tier } : null);
+      hud(CUR.p);
+      const body = o.birth ? birthHTML(o.birth) : textHTML(o.text);
+      const title = o.kind === 'result' ? esc(o.title.replace(/: ผลลัพธ์.*$/, '')) : esc(o.title);
+      const el = panel(eyebrow(o) + pendHTML(o.pend) + outcomeHTML(o.outcome) + `<h2>${title}</h2>` + body + `<button class="go" id="goBtn">ต่อไป</button>`);
+      flushChips();
+      const done = () => { setKeys(null); res(); };
+      $('#goBtn').addEventListener('click', done);
+      setKeys(e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); done(); } });
+      focusFirst(el); scrollPanelIntoView();
+    });
+  },
+  skip(o){
+    return new Promise(res => {
+      const p = o.p; setScene('timeskip', null, null); hud(p);
+      const max = Math.max(1, ...o.bars.map(b => Math.abs(b.net)));
+      const bars = o.bars.map(b => { const h = Math.abs(b.net)/max*48; const neg = b.net < 0; return `<div class="b ${neg?'neg':''} ${b.rec?'rec':''}" title="อายุ ${b.age}: ฿${baht(b.net)}"><i style="${neg ? `top:50%;height:${h}%` : `bottom:50%;height:${h}%`}"></i></div>`; }).join('');
+      const working = o.bars.some(b => b.income);
+      const total = o.bars.reduce((s,b)=>s+b.net,0);
+      const debt = totalDebt(p);
+      const el = panel(`<div class="eyebrow">กระโดดเวลา<span>${esc(STAGE_TH[p.stage])}</span></div>` + pendHTML(o.pend) +
+        `<h2>ผ่านไป ${o.to - o.from} ปี · อายุ ${o.from} → ${o.to}</h2>` +
+        `<div class="chart"><div class="zero"></div>${bars}</div>` +
+        `<div class="legend"><span><i style="background:var(--good)"></i>${working ? 'เงินที่เก็บได้ต่อปี' : 'เงินเข้า'}</span><span><i style="background:var(--bad)"></i>ติดลบ</span>${o.bars.some(b=>b.rec)?'<span><i style="background:#8b93b8"></i>ปีเศรษฐกิจถดถอย</span>':''}</div>` +
+        `<div class="tiles">` +
+          `<div class="tile">${ic('clock','ic big')}<span class="lab">ช่วงนี้</span><b class="${total<0?'neg':'pos'}">${total<0?'▼':'▲'} ${bahtS(Math.abs(total))}</b></div>` +
+          `<div class="tile">${ic('M','ic big')}<span class="lab">เงินเก็บ</span><b>${bahtS(p.money)}</b></div>` +
+          (debt ? `<div class="tile">${ic('D','ic big')}<span class="lab">หนี้</span><b class="neg">${bahtS(debt)}</b></div>` : '') +
+          (p.age >= 22 && p.age < 60 ? `<div class="tile">${ic('home','ic big')}<span class="lab">รายได้บ้าน/เดือน</span><b>${bahtS(hhIncome(p))}</b></div>` : '') +
+        `</div>` +
+        (o.notes.length ? o.notes.map(n => `<p class="txt omen">${ic('K')} ${esc(n)}</p>`).join('') : '') +
+        `<button class="go" id="goBtn">ต่อไป</button>`);
+      flushChips();
+      const done = () => { setKeys(null); res(); };
+      $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); done(); } });
+      focusFirst(el); scrollPanelIntoView();
+    });
+  },
+  multi(o){
+    return new Promise(res => {
+      setScene(o.bg, o.kind, null); hud(CUR.p);
+      const sel = new Set();
+      const el = panel(eyebrow(o) + pendHTML(o.pend) + `<h2>${esc(cleanTitle(o.title))}</h2>` + textHTML(o.text) + `<div class="choices">${o.items.map((c,i)=>choiceHTML(c,i,true)).join('')}</div><p class="help" id="mTotal">ยังไม่ได้เลือก</p><button class="go" id="goBtn">ยืนยัน</button>`);
+      flushChips();
+      const upd = () => { const tot = [...sel].reduce((s,i)=>s+(o.items[i].cost||0),0); $('#mTotal').textContent = sel.size ? `เลือก ${sel.size} อย่าง · รวม ฿${baht(tot)}` : 'ยังไม่ได้เลือก'; };
+      el.querySelectorAll('.ch').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.i; if(sel.has(i)) sel.delete(i); else { const tot = [...sel].reduce((s,j)=>s+(o.items[j].cost||0),0) + (o.items[i].cost||0); if(tot > Math.max(0, CUR.p.money) && o.items[i].cost) return; sel.add(i); } b.classList.toggle('on', sel.has(i)); upd(); }));
+      const done = () => { setKeys(null); res([...sel]); };
+      $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key === 'Enter'){ e.preventDefault(); done(); } });
+      focusFirst(el); scrollPanelIntoView();
+    });
+  },
+  async funeral(r, p){
+    // 1) งานศพ
+    await new Promise(res => {
+      setScene('funeral', null, null, { ...snap(p), age: 40, ctx:'funeral' });
+      const el = panel(`<div class="eyebrow">งานศพ<span>${esc(r.funeral)}</span></div><h2>มีคน ${r.guests.toLocaleString()} คนมาส่งคุณ</h2><p class="txt">เงินซองที่คืนมา ฿${baht(r.envelopes)}${r.kidDebt ? `\nค่างานส่วนที่ขาด ฿${baht(r.kidDebt)} กลายเป็นหนี้ของลูก` : ''}</p><button class="go" id="goBtn">เปิดบัญชีกรรม</button>`);
+      const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
+    });
+    // 2) บัญชีกรรม
+    await new Promise(res => {
+      const goods = r.ledger.filter(l=>l.good).length, all = r.ledger.length || 1;
+      setScene('karma', null, null, { goodRatio: goods/all });
+      const rows = r.ledger.map((l, i) => `<div class="led ${l.good?'good':''}" style="animation-delay:${REDUCED?0:i*0.25}s"><span class="a">อายุ ${l.age}</span><span class="t">${esc(l.label)}</span><span class="st ${l.erupt?'y':'n'}">${l.good ? (l.erupt?'ออกผล':'เงียบ') : (l.erupt?'ปะทุ':'รอด')}</span>${l.eff ? `<span class="e">${esc(l.eff)}</span>` : ''}</div>`).join('');
+      const kTxt = `${r.K > 0 ? '+' : ''}${Math.round(r.K)}`;
+      const el = panel(`<div class="eyebrow">บัญชีกรรม<span>เฉลยหลังตาย</span></div><h2>ค่าบุญ/บาปที่ซ่อนไว้ทั้งชีวิต <span class="bigK" style="color:${r.K>=0?'var(--gold2)':'var(--karma)'}">${kTxt}</span></h2>` +
+        `<p class="txt">${r.ledger.length ? 'ทุกการกระทำถูกจดไว้ตามลำดับเวลา บางเรื่องออกผลหลังคุณจากไป' : 'ชีวิตนี้ไม่มีอะไรถูกจดไว้ในบัญชีกรรมเลย'}</p><div class="ledger">${rows}</div>` +
+        (!r.anyFruit && r.K > 40 ? `<p class="txt">มีคนพูดถึงคุณในทางดีที่งานศพ</p>` : '') +
+        `<button class="go" id="goBtn">สรุปชีวิต</button>`);
+      const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
+    });
+    r.pct = percentile(SIM_SCORES, r.score);
+  },
+};
+
+// ---------- การ์ดแชร์ ----------
+async function makeCard(r, p, family){
+  try { await document.fonts.load('700 18px "Chakra Petch"'); await document.fonts.load('12px "Silkscreen"'); } catch(e){}
+  const c = document.createElement('canvas'); c.width = 600; c.height = 750; const x = c.getContext('2d');
+  const grd = ['#0b1026','#121a3a','#1d2b53','#2a1840'];
+  grd.forEach((col, i) => { x.fillStyle = col; x.fillRect(0, i*750/4, 600, 750/4+1); });
+  const rr = mulberry(r.age*7 + r.guests);
+  for(let i=0;i<140;i++){ x.fillStyle = rr()<.2?'#ffec27':'#fff1e8'; const s = rr()<.1?4:2; x.fillRect(Math.floor(rr()*150)*4, Math.floor(rr()*120)*4, s, s); }
+  x.fillStyle = '#e8b04a'; x.fillRect(16,16,568,6); x.fillRect(16,728,568,6); x.fillRect(16,16,6,718); x.fillRect(578,16,6,718);
+  for(let i=0;i<10;i++){ x.fillRect(30+i*56, 30, 20, 4); x.fillRect(30+i*56, 716, 20, 4); }
+  // ภาพตัวละคร
+  const off = document.createElement('canvas'); off.width = 192; off.height = 108; const ox = off.getContext('2d');
+  const keep = G2; G2 = ox; person(4, 20, { ...snap(p), age: Math.max(r.age, 62) >= 62 ? r.age : r.age }, 'none', 0, { still:true, noCane:true }); G2 = keep;
+  x.imageSmoothingEnabled = false; x.fillStyle = 'rgba(63,209,196,.15)'; x.fillRect(220, 70, 160, 170); x.drawImage(off, 0, 0, 16, 22, 236, 70, 128, 176);
+  x.textAlign = 'center'; x.fillStyle = '#ffd77a'; x.font = '700 40px "Chakra Petch", sans-serif'; x.fillText(`${r.name}${r.gen>1?` · รุ่นที่ ${r.gen}`:''}`, 300, 290);
+  x.fillStyle = '#a9b0cf'; x.font = '500 22px "IBM Plex Sans Thai", "Chakra Petch", sans-serif';
+  const lines = [`เกิดที่${r.prov} · ฐานะ${QS[r.q].name}`, `อาชีพ ${r.career}`, `อายุขัย ${r.age} ปี · แขกงานศพ ${r.guests.toLocaleString()} คน`];
+  lines.forEach((l, i) => x.fillText(l, 300, 335 + i*34));
+  x.fillStyle = '#fff1e8'; x.font = '700 30px "Chakra Petch", sans-serif'; x.fillText('ชีวิตนี้ดีกว่าคนไทย', 300, 480);
+  x.fillStyle = '#ffd77a'; x.font = '700 96px "Chakra Petch", sans-serif'; x.fillText(`${r.pct}%`, 300, 580);
+  if(family && family.length > 1){ x.fillStyle = '#3fd1c4'; x.font = '600 22px "Chakra Petch", sans-serif'; x.fillText(`ตระกูลรุ่นที่ ${r.gen} · จาก ${QS[family[0].q].code} สู่ ${QS[r.q].code}`, 300, 625); }
+  x.fillStyle = '#e8b04a'; x.font = '700 30px "Chakra Petch", sans-serif'; x.fillText('1 ใน 65 ล้าน', 300, 690);
+  return c.toDataURL('image/png');
+}
+function shareText(r){ return `ฉันเกิดเป็น 1 ใน 65 ล้านคน ที่${r.prov} ฐานะ${QS[r.q].name} เป็น${r.career} อยู่ถึงอายุ ${r.age} ปี มีคนมางานศพ ${r.guests} คน\nชีวิตนี้ดีกว่าคนไทย ${r.pct}%${r.gen>1?` (ตระกูลรุ่นที่ ${r.gen})`:''}`; }
+async function copyText(t, btn){ try { await navigator.clipboard.writeText(t); btn.textContent = 'คัดลอกแล้ว'; } catch(e){ const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); btn.textContent = 'คัดลอกแล้ว'; }catch(_){ btn.textContent = 'คัดลอกไม่ได้'; } ta.remove(); } }
+
+async function summaryScreen(r, p){
+  setScene('end', null, null);
+  const img = await makeCard(r, p, CUR.family);
+  const parts = [ ['ความสุขเฉลี่ย', r.Jbar, 100, .30], ['สุขภาพเฉลี่ย', r.Hbar, 100, .25], ['ทรัพย์ที่ส่งต่อ', r.Pw, 100, .20], ['บุญ/บาป', (r.K+100)/2, 100, .20], ['เส้นสาย', p.C, 100, .05] ];
+  return new Promise(res => {
+    const el = panel(`<div class="eyebrow">สรุปชีวิต<span>${esc(r.name)} · ${r.age} ปี</span></div>` +
+      `<div class="score"><span class="n">${Math.round(r.score)}</span><span class="p">ชีวิตนี้ดีกว่าคนไทย <b style="color:var(--gold2)">${r.pct}%</b></span></div>` +
+      `<p class="help">${SIM_SCORES ? `เทียบกับชีวิตจำลอง ${SIM_SCORES.length} ชีวิตที่สุ่มเกิดตามสัดส่วนจริงและตัดสินใจแบบสุ่ม` : 'กำลังจำลองชีวิตเปรียบเทียบ ใช้ค่าประมาณไปก่อน'}</p>` +
+      `<div class="parts">${parts.map(([n,v,m,w]) => `<div class="part"><span>${n}</span><span class="bar"><i style="width:${clamp(v/m*100,0,100)}%"></i></span><span>×${w}</span></div>`).join('')}${r.goodScore ? `<div class="part"><span>กรรมดีออกผล</span><span class="bar"><i style="width:${r.goodScore/15*100}%;background:var(--gold)"></i></span><span>+${r.goodScore}</span></div>` : ''}</div>` +
+      `<div class="cardwrap"><img class="card" src="${img}" alt="การ์ดสรุปชีวิตของ ${esc(r.name)}"><div><p class="help">กดค้างที่การ์ดเพื่อบันทึกภาพ แล้วนำไปแชร์ได้</p><div class="row"><button class="go ghost" id="cpBtn">คัดลอกข้อความ</button></div></div></div>` +
+      `<button class="go" id="goBtn">ไปต่อ</button>`);
+    $('#cpBtn').addEventListener('click', e => copyText(shareText(r), e.currentTarget));
+    const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } });
+    focusFirst(el); scrollPanelIntoView();
+  });
+}
+function afterScreen(r, p){
+  return new Promise(res => {
+    const opts = [];
+    p.kids.forEach((k, i) => { if(i < 4) opts.push({ label:`เล่นต่อเป็น${k.name} (ลูก${k.sex==='M'?'ชาย':'สาว'})`, sub:`เกิดตอนคุณอายุ ${k.born} · ค่าลูก ${Math.round(k.kv)}`, v:{ t:'child', i } }); });
+    opts.push({ label:'เกิดใหม่ (ชาติหน้า)', sub: r.K < 0 ? 'บาปที่สะสมจะดึงโอกาสฐานะลงเล็กน้อย' : r.K > 0 ? 'บุญที่สะสมจะดันโอกาสฐานะขึ้นเล็กน้อย' : 'สุ่มเกิดใหม่', v:{ t:'reborn' } });
+    opts.push({ label:'เริ่มชีวิตใหม่', sub:'สุ่มเกิดตามสัดส่วนจริงเต็มที่', v:{ t:'new' } });
+    setScene(p.kids.length ? 'home' : 'title', null, null, p.kids.length ? { ...snap(p), age: 34, spouse:null, kids: p.kids.map(k => ({ sex:k.sex, born:34-8 })) } : null);
+    const el = panel(`<div class="eyebrow">ชีวิตถัดไป</div><h2>${p.kids.length ? 'ตระกูลนี้ยังมีคนสืบต่อ' : 'ชีวิตนี้จบลงแล้ว'}</h2><div class="choices">${opts.map((c,i)=>choiceHTML(c,i)).join('')}</div>`);
+    const pick = i => { setKeys(null); res(opts[i].v); };
+    el.querySelectorAll('.ch').forEach(b => b.addEventListener('click', () => pick(+b.dataset.i)));
+    setKeys(e => { const n = parseInt(e.key,10); if(n>=1&&n<=opts.length){ e.preventDefault(); pick(n-1); } });
+    focusFirst(el);
+  });
+}
+function treeScreen(){
+  const fam = CUR.family; if(fam.length < 2) return Promise.resolve();
+  const first = fam[0], last = fam[fam.length-1];
+  const avg = fam.reduce((s,f)=>s+f.score,0)/fam.length;
+  const moved = last.qEnd - first.q;
+  return new Promise(res => {
+    setScene('end', null, null);
+    const el = panel(`<div class="eyebrow">ต้นไม้ครอบครัว<span>${fam.length} รุ่น</span></div><h2>ตระกูลคุณขยับจาก ${QS[first.q].code} ไป ${QS[Math.min(5,last.qEnd)].code} ใน ${fam.length} รุ่น</h2>` +
+      `<p class="txt">คะแนนเฉลี่ยตระกูล ${Math.round(avg)} · บุญสะสมรวม ${Math.round(fam.reduce((s,f)=>s+f.K,0))}${moved > 0 ? ' · ลูกหลานไต่ฐานะขึ้นได้' : moved < 0 ? ' · ฐานะของตระกูลถดถอยลง' : ''}</p>` +
+      `<div class="tree">${fam.map(f => `<div class="gen"><span class="g">GEN ${f.gen}</span><span><b>${esc(f.name)}</b> <span class="d">${esc(f.prov)} · ${QS[f.q].name} · ${esc(f.career)} · ${f.age} ปี${f.anyFruit?' · กรรมดีออกผล':''}${f.ledger.some(l=>!l.good&&l.erupt)?' · กรรมชั่วปะทุ':''}</span></span><span class="sc">${f.pct}%</span></div>`).join('')}</div>` +
+      `<button class="go" id="goBtn">เริ่มชีวิตใหม่</button>`);
+    const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
+  });
+}
+
+// ---------- บันทึกชีวิต ----------
+$('#logBtn').addEventListener('click', () => {
+  const p = CUR.p; if(!p) return;
+  $('#drawerIn').innerHTML = `<div class="row" style="justify-content:space-between;align-items:center"><h3>บันทึกชีวิตของ${esc(p.name)}</h3><button class="linkbtn" id="closeD">ปิด</button></div><ol>${p.log.slice().reverse().map(l => `<li><b>${l.age}</b><span>${esc(l.text)}</span></li>`).join('')}</ol>`;
+  $('#drawer').hidden = false; $('#closeD').addEventListener('click', () => $('#drawer').hidden = true); $('#closeD').focus();
+});
+$('#drawer').addEventListener('click', e => { if(e.target.id === 'drawer') $('#drawer').hidden = true; });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') $('#drawer').hidden = true; });
+
+// ---------- เส้นทางเกม ----------
+function titleScreen(){
+  setScene('title', null, null); $('#hud').hidden = true; $('#tl').hidden = true; $('#logBtn').hidden = true;
+  return new Promise(res => {
+    const el = panel(`<div class="title-art">1 ใน 65 ล้าน<small>A THAI LIFE, RANDOMLY ASSIGNED</small></div>` +
+      `<p class="txt">คุณจะเกิดเป็นคนไทยหนึ่งคนจาก 65,852,335 คน จังหวัดสุ่มตามสัดส่วนประชากรจริง ฐานะสุ่มตามการกระจายรายได้จริง แล้วใช้ชีวิตตั้งแต่เรียนจนตาย</p>` +
+      `<div class="legendgrid">${[['H','สุขภาพ','ถึง 0 คือเสียชีวิต'],['J','ความสุข',''],['S','ทักษะ','ใช้สอบเข้าและเพิ่มรายได้'],['C','เส้นสาย','และจำนวนแขกงานศพ'],['M','เงิน','ติดลบกลายเป็นหนี้'],['K','บุญ/บาป','ซ่อนไว้ เฉลยตอนตาย']].map(([k,n,d]) => `<div>${ic(k,'ic big')}<b>${n}</b><span>${d}</span></div>`).join('')}</div>` +
+      `<p class="help">กดตัวเลข 1–9 เพื่อเลือก · Enter เพื่อไปต่อ</p><button class="go" id="goBtn">เกิด</button>`);
+    const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
+  });
+}
+function rebornPlayer(K){
+  const shift = Math.round(Math.abs(K)/10) * 2; const p0 = newPlayer();
+  if(!shift) return p0;
+  const tier = TIERS[p0.tier]; const q = tier.q.slice();
+  if(K < 0){ const m = Math.min(q[4], shift); q[4] -= m; q[0] += m; } else { const m = Math.min(q[0], shift); q[0] -= m; q[4] += m; }
+  const r = Math.random()*q.reduce((s,v)=>s+v,0); let acc = 0, qi = 0; for(let i=0;i<6;i++){ acc += q[i]; if(r <= acc){ qi = i; break; } }
+  return newPlayer({ tier: p0.tier, prov: p0.prov, q: qi, sex: p0.sex, religion: p0.religion });
+}
+async function playFrom(p){
+  while(true){
+    CUR.p = p;
+    const r = await live(p, UI);
+    CUR.family.push(r);
+    await summaryScreen(r, p);
+    const next = await afterScreen(r, p);
+    if(next.t === 'child'){ p = makeChild(p, r, next.i); continue; }
+    await treeScreen(); CUR.family = [];
+    p = next.t === 'reborn' ? rebornPlayer(r.K) : newPlayer();
+  }
+}
+async function boot(){
+  $('#simnote').textContent = 'กำลังจำลองชีวิตเปรียบเทียบ…';
+  simulateLives(160, s => { SIM_SCORES = s; $('#simnote').textContent = `เทียบผลกับชีวิตจำลอง ${s.length} ชีวิต`; });
+  await titleScreen();
+  await playFrom(newPlayer());
+}
+boot().catch(e => { console.error(e); panel(`<h2>เกมสะดุด</h2><p class="txt">${esc(e.message)}</p><button class="go" onclick="location.reload()">เริ่มใหม่</button>`); });
+</script>
