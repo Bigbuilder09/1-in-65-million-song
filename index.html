@@ -520,6 +520,8 @@ async function years(p, io, n, opts = {}){
     if(p.age > 70) p.H -= 2; else if(p.age > 50) p.H -= 1; else if(p.age > 40 && p.age % 2) p.H -= 1;
     if(p.status.chronic){ p.H -= 1; addMoney(p, -6000); }
     const newDz = habitYear(p);
+    // ความเครียดจากหนี้และเงินขาดมือ
+    if(p.age >= 22){ const td = totalDebt(p), inc = Math.max(1, hhIncome(p)); if(td > inc * 36) p.J -= 3; else if(td > inc * 12) p.J -= 1.5; if(p.money < 5000 && p.age < 60 && !td) p.J -= .5; if(td > inc * 36 && p.age > 40) p.H -= .5; }
     if(p.status.bullied && p.age <= 18) p.J -= 3;
     if(p.status.depressed){ p.J -= 3; }
     if(p.status.dementia){ p.J -= 3; }
@@ -2759,6 +2761,17 @@ function archetype(r, p){
   const hi = { W: W >= 80, J: J >= 62, H: H >= 68, C: C >= 70, S: S >= 75 };
   const n = Object.values(hi).filter(Boolean).length;
   if(hi.W && hi.J && hi.H && (hi.C || hi.S)) return { t:'ชีวิตครบสูตร', d:'รวย มีความสุข สุขภาพดี และคนรอบตัวนับถือ ชีวิตแบบนี้มีไม่กี่คนในหกสิบห้าล้าน', rare:true };
+  // ---- ทางที่ขาดหรือพัง ----
+  const debtBig = E < -1500000, sad = J < 45, broken = H < 45 || (r.age < 60 && /โรค|ป่วย|สุขภาพ|ไต|ตับ|มะเร็ง|หัวใจ|เส้นเลือด/.test(r.cause || ''));
+  const jailed = !!p.flags.restricted, bk = p.log.some(l => /ล้มละลาย|ศาลปลดคุณ/.test(l.text));
+  if([E < 0, sad, broken].filter(Boolean).length >= 3 || (debtBig && (sad || broken))) return { t:'พังทุกด้าน', d:'หนี้ ความทุกข์ และร่างกายที่ทรุดลง มาพร้อมกันจนไม่มีช่วงให้หายใจ' };
+  if(jailed && E < 300000) return { t:'ชีวิตหลังกำแพง', d:'ประวัติในเรือนจำปิดประตูทีละบาน จนเหลือทางเดินน้อยลงทุกปี' };
+  if(debtBig) return { t:'จมกองหนี้', d:`ตายพร้อมหนี้ ฿${bahtS(-E)} ดอกเบี้ยวิ่งเร็วกว่าที่คุณวิ่งหนีมาตลอดชีวิต` };
+  if(bk && E < 0) return { t:'ล้มแล้วลุกไม่ไหว', d:'ล้มละลายครั้งหนึ่ง แล้วชีวิตก็ไม่เคยกลับไปจุดเดิม' };
+  if(broken && r.age < 65) return { t:'ร่างกายพังก่อนวัย', d:'ร่างกายทรุดก่อนจะได้ใช้ชีวิตที่วางแผนไว้' };
+  if(sad && W < 70) return { t:'ทุกข์ทั้งชีวิต', d:'วันดีมีน้อยกว่าวันร้ายเสมอ แม้แต่ตอนที่ไม่มีอะไรผิดพลาด' };
+  if(r.guests < 40 && (p.flags.alone || !p.kids.length) && r.age >= 60) return { t:'คนที่ถูกลืม', d:'งานศพมีคนมาไม่ถึงสี่สิบคน ในชีวิตที่ยาวหลายสิบปี' };
+  if(E < 0 && J < 50) return { t:'หาเช้ากินค่ำจนวันสุดท้าย', d:'ทำงานหนักทุกวัน แต่ไม่เคยมีเงินเหลือพอจะหยุดพัก' };
   if(hi.W && K <= -30) return { t:'รวยด้วยทางลัด', d:'คุณไปถึงยอดเขาด้วยทางที่ไม่อยากให้ลูกหลานเดินตาม' };
   if(hi.W && J < 45) return { t:'เศรษฐีผู้เดียวดาย', d:'บัญชีเต็ม แต่บ้านเงียบ เงินซื้อได้เกือบทุกอย่าง ยกเว้นวันเวลาที่ผ่านไป' };
   if(hi.C && E < 0) return { t:'เส้นใหญ่ กระเป๋าแห้ง', d:'รู้จักคนทั้งจังหวัด แต่ตายพร้อมหนี้ คนมางานศพเต็มวัด แต่ไม่มีใครใช้หนี้แทน' };
