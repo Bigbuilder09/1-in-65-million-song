@@ -555,10 +555,13 @@ async function years(p, io, n, opts = {}){
     if(p.lottery && p.age < 60) net -= 1920;
     if(p.age > 18){
       // ดอกเบี้ย
-      const interest = p.debt.f*.07*(p.flags.restructured?3/7:1) + p.debt.k*.01 + p.debt.i*.20;
-      p.debt.f *= 1 + (p.flags.restructured ? .03 : .07); p.debt.k *= 1.01; p.debt.i *= 1.20;
+      // ระหว่างล้มละลาย หนี้อยู่ในมือเจ้าพนักงานพิทักษ์ทรัพย์ ดอกเบี้ยหยุดเดิน
+      const bk = !!p.status.bankrupt;
+      const interest = bk ? 0 : p.debt.f*.07*(p.flags.restructured?3/7:1) + p.debt.k*.01 + p.debt.i*.20;
+      if(!bk){ p.debt.f *= 1 + (p.flags.restructured ? .03 : .07); p.debt.k *= 1.01; p.debt.i *= 1.20; }
       if(p.age >= 22) {
         if(p.age >= 60 && p.money + net < 0){ net = -p.money; p.J = clamp(p.J - 10, 0, 100); if(!p.flags.broke){ p.flags.broke = true; note(p, 'เงินเก็บหมดแล้ว ต้องอยู่ด้วยเบี้ยยังชีพ ความสุขลดลงทุกปีที่ขาด'); } }
+        if(bk && p.money + net < 0){ net = -p.money; p.J = clamp(p.J - 3, 0, 100); } // ล้มละลาย: กู้เพิ่มไม่ได้ ต้องอยู่อย่างประหยัด
         addMoney(p, net);
         investYear(p, notes);
         // ใช้หนี้ด้วยเงินที่มี (เก็บสำรองไว้ 6 เดือนของรายจ่าย)
@@ -566,7 +569,7 @@ async function years(p, io, n, opts = {}){
         let avail = Math.max(0, p.money - reserve);
         for(const k of ['i','f','k']){ const pay = Math.min(avail, p.debt[k]); p.debt[k] -= pay; p.money -= pay; avail -= pay; }
         // หนี้ล้นตัว
-        if(interest > Math.max(net,0) && totalDebt(p) > 50000){ p.flags.spiral = (p.flags.spiral||0) + 1; } else p.flags.spiral = 0;
+        if(!bk && p.age >= (p.flags.spiralCool || 0) && interest > Math.max(net,0) && totalDebt(p) > 50000){ p.flags.spiral = (p.flags.spiral||0) + 1; } else p.flags.spiral = 0;
       }
     }
     if(p.house) { p.house.years++; p.house.value *= 1.02; }
@@ -655,15 +658,16 @@ async function seriousIllness(p, io, lost, who = 'คุณ'){
 async function debtSpiral(p, io){
   const td = totalDebt(p);
   const c = await choose(p, io, { kind:'fork', bg:'bank', title:'หนี้ล้นตัว', text:`ดอกเบี้ยแต่ละปีมากกว่าเงินที่เก็บได้ 2 ปีติดกัน หนี้ตอนนี้ ฿${baht(td)}`, choices: [
-    { label:'เข้าคลินิกแก้หนี้ / ปรับโครงสร้างหนี้', sub:'หนี้ในระบบเหลือดอก 3% · C−3', cost:0, k:'clinic' },
-    { label:'ขายทรัพย์สิน', sub: p.house ? `ได้ 60% ของมูลค่าบ้าน · J−10` : 'ไม่มีทรัพย์สินให้ขาย', cost:0, cond: !!(p.house || p.car), condText:'ไม่มีบ้านหรือรถ', k:'sell' },
-    { label:'ยื่นล้มละลาย', sub:'หนี้ถูกล้างหลัง 3 ปี · C−15 J−15', cost:0, cond: td > 1000000, condText:'ต้องมีหนี้เกิน 1 ล้านบาท', k:'bk' },
-    { label:'หนีหนี้', sub:'ไม่เสียอะไรทันที', cost:0, k:'flee' },
+    { label:'เข้าคลินิกแก้หนี้ / ปรับโครงสร้างหนี้', sub:`หนี้ในระบบเหลือดอก 3%/ปี · ย้ายหนี้นอกระบบเข้าโครงการรัฐได้ไม่เกิน ฿200,000 · C−3`, cost:0, k:'clinic' },
+    { label:'ขายทรัพย์สิน', sub: p.house ? `ขายบ้านได้ 60% ของมูลค่า${p.car ? ' ขายรถได้ 40%' : ''} · เอาไปใช้หนี้ดอกแพงก่อน · J−10` : p.car ? 'ขายรถได้ 40% ของราคา · J−10' : 'ไม่มีทรัพย์สินให้ขาย', cost:0, cond: !!(p.house || p.car), condText:'ไม่มีบ้านหรือรถ', k:'sell' },
+    { label:'ยื่นล้มละลาย', sub:'ยึดบ้านและรถขายใช้หนี้ · ดอกเบี้ยหยุดทันที · ครบ 3 ปีหนี้ที่เหลือถูกล้างหมด · ระหว่างนั้นกู้เพิ่มไม่ได้ · C−15 J−15', cost:0, cond: td > 1000000, condText:'ต้องมีหนี้เกิน 1 ล้านบาท', k:'bk' },
+    { label:'หนีหนี้', sub:'ไม่เสียอะไรทันที · หนี้ยังโตต่อและตกเป็นภาระตอนตาย', cost:0, k:'flee' },
   ]});
-  if(c.k === 'clinic'){ p.flags.restructured = true; fx(p,{ C:-3 }); note(p,'เข้าคลินิกแก้หนี้ ดอกเบี้ยลดเหลือ 3% ต่อปี'); }
+  p.flags.spiralCool = p.age + 4;
+  if(c.k === 'clinic'){ p.flags.restructured = true; const mv = Math.min(p.debt.i, 200000); p.debt.i -= mv; p.debt.f += mv; fx(p,{ C:-3 }); note(p, mv ? `เข้าคลินิกแก้หนี้ ดอกเบี้ยในระบบเหลือ 3% และย้ายหนี้นอกระบบ ฿${baht(mv)} เข้าโครงการรัฐ` : 'เข้าคลินิกแก้หนี้ ดอกเบี้ยลดเหลือ 3% ต่อปี'); if(p.debt.i > 0) note(p, `ยังเหลือหนี้นอกระบบ ฿${baht(p.debt.i)} ดอก 20% ต่อปี`); }
   if(c.k === 'sell'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } addMoney(p, got); for(const k of ['i','f','k']){ const pay=Math.min(p.money,p.debt[k]); p.debt[k]-=pay; p.money-=pay; } fx(p,{ J:-10 }); note(p,`ขายทรัพย์สินได้ ฿${baht(got)} นำไปใช้หนี้`); }
-  if(c.k === 'bk'){ p.status.bankrupt = 3; fx(p,{ C:-15, J:-15 }); if(p.career==='gov'){ p.career='factory'; p.cOut='mid'; p.cYears=0; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } note(p,'ยื่นล้มละลาย อีก 3 ปีหนี้จะถูกล้าง'); }
-  if(c.k === 'flee'){ fx(p,{ K:-10 }); tagBad(p,'debtflee','หนีหนี้', td); p.flags.fled = true; note(p,'คุณเลือกหนีหนี้ หนี้ยังโตต่อเงียบ ๆ'); }
+  if(c.k === 'bk'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } got += Math.max(0, p.money); p.money = 0; for(const k of ['i','f','k']){ const pay=Math.min(got,p.debt[k]); p.debt[k]-=pay; got-=pay; } p.status.bankrupt = 3; p.flags.spiralCool = p.age + 6; fx(p,{ C:-15, J:-15 }); note(p, `เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขาย หนี้ที่เหลือ ฿${baht(totalDebt(p))} หยุดคิดดอกเบี้ย`); if(p.career==='gov'){ p.career='factory'; p.cOut='mid'; p.cYears=0; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } note(p,'อีก 3 ปีหนี้ที่เหลือจะถูกล้าง'); }
+  if(c.k === 'flee'){ p.flags.spiralCool = p.age + 8; fx(p,{ K:-10 }); tagBad(p,'debtflee','หนีหนี้', td); p.flags.fled = true; note(p,'คุณเลือกหนีหนี้ หนี้ยังโตต่อเงียบ ๆ'); }
 }
 async function offerDeed(p, io){
   if(p.status.prison) return;
