@@ -1214,7 +1214,7 @@ async function breakup(p, io, cohab){
   p.spouse = null; p.flags.divorced = true; p.Jbase = Math.max(0, p.Jbase - 5); fx(p,{J:-20}); log(p,'หย่า/เลิกกับคู่');
 }
 const S4_COUPLE = [
-  { id:'cheat', title:'ถูกนอกใจ', bg:'home', text:p=>`คุณเห็นข้อความในมือถือของ${p.spouse.name}`, w:p=>10+(p.J<40?5:0)+(p.flags.cheatW||0),
+  { id:'cheat', title:'ถูกนอกใจ', bg:'home', text:p=>`คุณเห็นข้อความในมือถือของ${p.spouse.name}`, w:p=>4+(p.J<40?3:0)+(p.flags.cheatW||0),
     run: async (p, io) => { fx(p,{J:-20}); p.flags.cheated = true;
       const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะทำยังไงต่อ', choices:[
         { label:'ให้อภัย อยู่ด้วยกันต่อ', sub:'J−5', k:'forgive' }, { label:'แยกกันอยู่ ยังไม่หย่า', sub:'J−10 · รายได้คู่ไม่นับรวม', k:'sep' }, { label:'หย่า', sub:'แบ่งสินสมรส', k:'div' } ]});
@@ -1222,7 +1222,7 @@ const S4_COUPLE = [
       if(c.k==='sep'){ fx(p,{J:-10}); p.spouse.separated = true; p.annual.push({from:p.age,to:p.age+6,amt:60000}); }
       if(c.k==='div') await breakup(p, io);
     } },
-  { id:'divorce', title:'หย่า / เลิกกัน', bg:'court', text:()=>'ทะเลาะกันจนไม่มีทางกลับ', w:p=>8+(p.flags.cheated?10:0)+(p.flags.affair?15:0)+(totalDebt(p)>hhIncome(p)*12?5:0), run: async (p, io) => breakup(p, io, !p.spouse.legal) },
+  { id:'divorce', title:'หย่า / เลิกกัน', bg:'court', text:()=>'ทะเลาะกันจนไม่มีทางกลับ', w:p=>3+(p.flags.cheated?10:0)+(p.flags.affair?15:0)+(totalDebt(p)>hhIncome(p)*12?5:0)+(p.flags.fightW||0), run: async (p, io) => breakup(p, io, !p.spouse.legal) },
   { id:'inlaw', title:'ครอบครัวอีกฝ่ายช่วยเหลือ', bg:'home', text:p=>`ครอบครัวของ${p.spouse.name}ให้เงินตั้งตัว`, w:p=>10+(p.relKind==='rich'?10:0), run: async p => fx(p,{m:300000}) },
   { id:'fight', title:'ทะเลาะเรื่องเงิน', bg:'home', text:()=>'บิลบัตรเครดิตเดือนนี้ทำให้บ้านร้อนเป็นไฟ', w:p=>15+(totalDebt(p)>hhIncome(p)*12?10:0)+(p.flags.fightW||0), run: async p => fx(p,{J:-10,H:-3}) },
   { id:'sjob', title:'คู่ได้งานดี', bg:'office', text:p=>`${p.spouse.name}ได้งานใหม่ที่เงินดีกว่าเดิม`, w:p=>10+0.1*p.C, run: async p => { p.spouse.income *= 1.2; fx(p,{J:5}); } },
@@ -2655,6 +2655,41 @@ function thaiBeats(stage, p, io, beats){
   }
   if(stage === 6){ pickThai(p, THAI_OLD, 1).forEach(e => beats.push({ age: randi(66, 74), run: () => e.run(p, io) })); }
 }
+
+// ---------- ชีวิตคู่: เรื่องธรรมดาของคนอยู่ด้วยกัน (ไม่ได้มีแต่นอกใจกับหย่า) ----------
+const SPN = p => p.spouse ? p.spouse.name : 'คู่ของคุณ';
+S4_COUPLE.push(
+  { id:'anniv', title:'ครบรอบแต่งงาน', bg:'home', text:()=>'', w:p=>12, run: async (p, io) => {
+    const c = await askT(p, io, `วันครบรอบกับ${SPN(p)}`, 'ปฏิทินในมือถือเตือนตั้งแต่เมื่อวาน', [
+      { label:'พาไปเที่ยวทะเลสองวัน', sub:'฿−15,000 · J+8', k:'trip' }, { label:'ทำกับข้าวกินกันที่บ้าน', sub:'J+4', k:'home' }, { label:'งานยุ่งจนลืม', sub:'J−5 · เสี่ยงทะเลาะ', k:'forget' } ]);
+    if(c.k==='trip'){ fx(p,{m:-15000,J:8}); tell(p, `คุณกับ${SPN(p)}นั่งกินซีฟู้ดริมหาดจนพระอาทิตย์ตก แล้วถ่ายรูปคู่ใบเดียวที่ยังใช้เป็นหน้าจอมือถือ`); }
+    if(c.k==='home'){ fx(p,{J:4}); tell(p, `คุณทำต้มยำหม้อเล็ก ${SPN(p)}บอกว่าเค็มไปนิด แต่กินหมดหม้อ`); }
+    if(c.k==='forget'){ fx(p,{J:-5}); p.flags.fightW = (p.flags.fightW||0) + 4; tell(p, `${SPN(p)}นั่งรอที่โต๊ะกินข้าวจนสี่ทุ่ม คุณกลับมาพร้อมคำขอโทษที่ไม่มีใครอยากฟัง`); }
+  } },
+  { id:'inlaws_in', title:'พ่อแม่ของคู่ย้ายมาอยู่ด้วย', bg:'home', text:()=>'', w:p=>8+(p.tier>=4?4:0), run: async (p, io) => {
+    const c = await askT(p, io, `พ่อแม่ของ${SPN(p)}แก่ลงและอยากย้ายมาอยู่ด้วย`, 'บ้านจะแคบลง แต่มีคนช่วยดูบ้าน', [
+      { label:'รับมาอยู่ด้วย', sub:'J−3 K+5 · ประหยัดค่าจ้างคนดูแลบ้าน', k:'yes' }, { label:'ช่วยค่าเช่าบ้านใกล้ ๆ ให้แทน', sub:`฿−${baht(lm(p,36000))}/ปี`, k:'rent' } ]);
+    if(c.k==='yes'){ fx(p,{J:-3,K:5,m:lm(p,20000)}); tagGood(p,'family','รับพ่อแม่ของคู่มาดูแล'); tell(p, 'บ้านมีเสียงโทรทัศน์ช่องข่าวดังตั้งแต่หกโมงเช้า แต่กับข้าวร้อน ๆ ก็รออยู่ทุกเย็น'); }
+    else { p.annual.push({ from:p.age, to:p.age+8, amt:lm(p,36000) }); tell(p, `คุณเช่าบ้านสองชั้นท้ายซอยให้พ่อแม่ของ${SPN(p)} เดินไปหากันได้ทุกวัน`); }
+  } },
+  { id:'spouse_sick', title:'คู่ต้องผ่าตัด', bg:'hospital', text:()=>'', w:p=>6, run: async (p, io) => {
+    const c = await askT(p, io, `${SPN(p)}ปวดท้องจนต้องผ่าตัดไส้ติ่งด่วน`, '', [
+      { label:'รพ.เอกชนใกล้บ้าน', sub:'฿−120,000 · J+3', k:'priv' }, { label:'รพ.รัฐตามสิทธิ์', sub:'รอคิวนาน · J−3', k:'gov' } ], 'hospital');
+    if(c.k==='priv'){ fx(p,{m:-120000,J:3}); tell(p, `คุณนอนเฝ้า${SPN(p)}บนโซฟาในห้องพิเศษสามคืน พยาบาลจำชื่อคุณได้หมด`); }
+    else { fx(p,{J:-3}); tell(p, `คุณนั่งเฝ้า${SPN(p)}บนเก้าอี้พลาสติกหน้าวอร์ดรวม แต่หมอที่นั่นเก่งไม่แพ้ที่ไหน`); }
+  } },
+  { id:'side_biz', title:'ทำของขายออนไลน์ด้วยกัน', bg:'home', text:()=>'', w:p=>8, run: async (p, io) => {
+    const c = await askT(p, io, `${SPN(p)}ชวนทำน้ำพริกสูตรแม่ขายออนไลน์`, 'ทำหลังเลิกงานและวันหยุด', [
+      { label:'ลองทำด้วยกัน', sub:'40% ขายดี · J+3 · H−2', cost:10000, k:'yes' }, { label:'ขอพักผ่อนดีกว่า', sub:'H+1', k:'no' } ]);
+    if(c.k==='yes'){ fx(p,{J:3,H:-2}); if(chance(.4)){ fx(p,{m:lm(p,120000)}); tell(p, 'ออเดอร์เต็มทุกสุดสัปดาห์ ครัวที่บ้านหอมพริกคั่วจนเพื่อนบ้านถามว่าทำอะไร'); } else tell(p, 'ขายได้แค่เพื่อนและญาติ แต่คุณสองคนได้หัวเราะกันในครัวหลายคืน'); }
+    else { fx(p,{H:1}); tell(p, `คุณบอก${SPN(p)}ว่าไว้ค่อยว่าง ๆ แล้วก็ไม่เคยว่างจริง`); }
+  } },
+  { id:'merit_together', title:'ไปทำบุญด้วยกัน', bg:'temple', text:()=>'', w:p=>8, run: async (p, io) => {
+    if(isMuslim(p)){ fx(p,{J:4,K:2}); tell(p, `คุณกับ${SPN(p)}ไปละหมาดวันอีดที่มัสยิดกลาง แล้วแวะเยี่ยมญาติทุกบ้านจนค่ำ`); }
+    else { fx(p,{J:4,K:2,m:-2000}); tell(p, `คุณกับ${SPN(p)}ขับรถไหว้พระเก้าวันในวันหยุดยาว อธิษฐานเรื่องเดียวกันโดยไม่ได้นัด`); }
+    await say(p, io, { kind:'thai', bg:'temple', title:'วันหยุดของสองคน', text:'' });
+  } },
+);
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
