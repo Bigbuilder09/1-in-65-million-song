@@ -491,7 +491,7 @@ function saveRate(p){
   let s = p.age >= 22 ? .15 : QS[p.q].save;
   if(!p.spouse || p.spouse.separated) s += .05;
   s -= .05 * p.kids.filter(k => !k.left).length;
-  if(p.house && p.house.years < 25) s -= .10;
+  if(p.house && p.house.years < (p.house.term || 25)) s -= (p.house.saveCut ?? .10);
   if(p.flags.noKids) s += .10;
   if(p.flags.spousePays) s += .15;
   s += [ .10, 0, -.15 ][p.lifestyle];
@@ -657,9 +657,13 @@ async function debtSpiral(p, io){
 }
 async function offerDeed(p, io){
   if(p.status.prison) return;
-  const opts = DEEDS.filter(d => p.age >= d.min && p.age <= d.max && !p.deeds[d.id] && (!d.careers || d.careers.includes(p.career)) && (!d.needIncome || p.career));
-  if(!opts.length) return;
-  const d = pickOne(opts);
+  p.seenDeeds = p.seenDeeds || {};
+  const ok = d => p.age >= d.min && p.age <= d.max && !p.seenDeeds[d.id] && !p.deeds[d.id] && (!d.careers || d.careers.includes(p.career)) && (!d.needIncome || p.career) && (!d.cond || d.cond(p));
+  const goods = DEEDS.filter(ok), bads = TEMPTS.filter(ok);
+  if(!goods.length && !bads.length) return;
+  const bad = bads.length && (!goods.length || chance(.45));
+  const d = pickOne(bad ? bads : goods); p.seenDeeds[d.id] = true;
+  if(bad) return offerTempt(p, io, d);
   const yes = await yesno(p, io, { kind:'deed', bg: p.age < 18 ? 'school' : 'home', title:'โอกาสทำความดี', text: d.label, sub: d.costText, cost: d.cost || 0, yes: d.yes || 'ทำ', no: d.no || 'ผ่านไป' });
   if(!yes) return;
   p.deeds[d.id] = true;
@@ -1124,7 +1128,7 @@ async function stage4(p, io, beats){
               { t:'จัดงานแต่งทั้งสองประเทศไหม', s:'C+10 J+5', cost:300000, r:()=>fx(p,{C:10,J:5}) } ],
     cohab:[ { t:'จดทะเบียนสมรสภายหลังไหม', s:'ได้สิทธิ์ทางกฎหมาย', cost:1000, r:()=>{ p.spouse.legal=true; } },
             { t:'ทำพินัยกรรมคุ้มครองกันไหม', s:'ถ้าคู่เสียชีวิตได้มรดกเต็ม', cost:10000, r:()=>{ p.flags.will=true; } },
-            { t:'กู้บ้านร่วมกัน 2,000,000 ไหม', s:'J+10 ได้บ้าน · ถ้าเลิกกันต้องจ่ายคนเดียว', r:()=>{ if(!p.house) p.house={value:2000000,years:0}; fx(p,{J:10}); p.flags.jointHouse=true; } } ],
+            { t:'กู้บ้านร่วมกัน 2,000,000 ไหม', s:'J+10 ได้บ้าน · ถ้าเลิกกันต้องจ่ายคนเดียว', r:()=>{ if(!p.house) p.house={value:2000000,years:0,q:2,name:'ทาวน์โฮมที่กู้ร่วมกัน',term:30,saveCut:.08}; fx(p,{J:10}); p.flags.jointHouse=true; } } ],
   }[c.k];
   MIN.forEach((m, i) => beats.push({ age: p.age + 1 + i, run: async () => {
     if(c.k !== 'single' && !p.spouse) return;
@@ -1187,7 +1191,7 @@ const S4_COUPLE = [
       if(c.k==='sep'){ fx(p,{J:-10}); p.spouse.separated = true; p.annual.push({from:p.age,to:p.age+6,amt:60000}); }
       if(c.k==='div') await breakup(p, io);
     } },
-  { id:'divorce', title:'หย่า / เลิกกัน', bg:'court', text:()=>'ทะเลาะกันจนไม่มีทางกลับ', w:p=>8+(p.flags.cheated?10:0)+(totalDebt(p)>hhIncome(p)*12?5:0), run: async (p, io) => breakup(p, io, !p.spouse.legal) },
+  { id:'divorce', title:'หย่า / เลิกกัน', bg:'court', text:()=>'ทะเลาะกันจนไม่มีทางกลับ', w:p=>8+(p.flags.cheated?10:0)+(p.flags.affair?15:0)+(totalDebt(p)>hhIncome(p)*12?5:0), run: async (p, io) => breakup(p, io, !p.spouse.legal) },
   { id:'inlaw', title:'ครอบครัวอีกฝ่ายช่วยเหลือ', bg:'home', text:p=>`ครอบครัวของ${p.spouse.name}ให้เงินตั้งตัว`, w:p=>10+(p.relKind==='rich'?10:0), run: async p => fx(p,{m:300000}) },
   { id:'fight', title:'ทะเลาะเรื่องเงิน', bg:'home', text:()=>'บิลบัตรเครดิตเดือนนี้ทำให้บ้านร้อนเป็นไฟ', w:p=>15+(totalDebt(p)>hhIncome(p)*12?10:0)+(p.flags.fightW||0), run: async p => fx(p,{J:-10,H:-3}) },
   { id:'sjob', title:'คู่ได้งานดี', bg:'office', text:p=>`${p.spouse.name}ได้งานใหม่ที่เงินดีกว่าเดิม`, w:p=>10+0.1*p.C, run: async p => { p.spouse.income *= 1.2; fx(p,{J:5}); } },
@@ -1332,11 +1336,9 @@ async function stage3(p, io){
   // minor ทั่วไป
   beats.push({ age: 28, run: async () => {
     if(!p.career) return;
-    const [amt, pr, rate] = HOUSE_LOAN[p.career];
-    if(!p.house && await yesno(p, io, { title:`ผ่อนบ้านราคา ฿${baht(amt)} ไหม`, sub:`J+10 · ออมลด 10% นาน 25 ปี · กู้ผ่าน ${Math.round(pr*100)}%`, yes:'ยื่นกู้', no:'เช่าต่อ' })){
-      if(chance(pr)){ p.house = { value: amt, years: 0 }; fx(p,{J:10}); note(p,'กู้ผ่าน ได้บ้านเป็นของตัวเอง'); } else note(p,'ธนาคารไม่อนุมัติสินเชื่อ');
-    }
+    if(!p.house) await houseChoice(p, io);
   }});
+  beats.push({ age: 42, run: async () => { if(p.house && p.money + p.house.value * .9 > 2000000) await houseChoice(p, io, true); else if(!p.house && p.money > 500000) await houseChoice(p, io); } });
   beats.push({ age: 29, run: async () => {
     if(!p.career) return;
     const price = CAR_PRICE[p.career];
@@ -1900,6 +1902,123 @@ const S3_EXTRA = [
 
 S1_EVENTS.push(...S1_EXTRA);
 S3_EVENTS.push(...S3_EXTRA);
+// ===== บุญ/บาปแบบไม่ซ้ำ + บ้านหลายระดับราคา =====
+
+// ---------- โอกาสทำความดีเพิ่ม (ต่อจาก DEEDS เดิม) ----------
+DEEDS.splice(DEEDS.findIndex(d => d.id === 'bribe_no'), 1); // ย้ายไปเป็นสิ่งยั่วใจแทน
+DEEDS.push(
+  { id:'organ', label:'ลงทะเบียนบริจาคอวัยวะหลังเสียชีวิต', min:18, max:80, K:6, tag:'life', costText:'ไม่มีผลทันที' },
+  { id:'stray', label:'พาหมาจรที่โดนรถชนไปหาหมอ', min:10, max:80, K:4, tag:'community', cost:15000, fx:{J:3}, costText:'15,000 ค่ารักษา' },
+  { id:'teachkids', label:'สอนการบ้านเด็กในชุมชนทุกวันเสาร์', min:16, max:70, K:5, tag:'edu', fx:{J:-1,C:2}, costText:'J−1 · เสียวันหยุด' },
+  { id:'floodhelp', label:'ขับรถไปช่วยขนของหนีน้ำให้คนที่ไม่รู้จัก', min:20, max:60, K:6, tag:'life', cost:3000, fx:{H:-3}, costText:'3,000 ค่าน้ำมัน · H−3' },
+  { id:'witness', label:'ไปเป็นพยานให้คนที่ถูกรถชนแล้วคนชนหนี', min:18, max:80, K:6, tag:'honest', fx:{J:-3}, costText:'J−3 · ต้องขึ้นศาล 3 ครั้ง' },
+  { id:'cpr', label:'มีคนหมดสติกลางตลาด คุณเข้าไปทำ CPR', min:15, max:75, K:8, tag:'life', costText:'เสี่ยงทำพลาดต่อหน้าคนเยอะ',
+    run:(p,ctx)=>{ ctx.note = chance(.5) ? 'เขารอดชีวิต ครอบครัวเขามาขอบคุณถึงบ้าน' : 'คุณทำเต็มที่ แต่เขาไม่รอด'; } },
+  { id:'paytax', label:'ยื่นภาษีตามจริงทั้งที่ไม่มีใครตรวจ', min:25, max:59, K:6, tag:'honest', careers:['biz','influ'], incomeCut:.03, costText:'รายได้ −3%' },
+  { id:'neighborkid', label:'ออกค่าเทอมให้ลูกเพื่อนบ้านที่พ่อเพิ่งเสีย', min:30, max:80, K:8, tag:'edu', cost:40000, costText:'40,000' },
+  { id:'change', label:'บอกแม่ค้าว่าทอนเงินเกินมา 500 บาท', min:8, max:99, K:2, tag:'honest', costText:'ไม่ได้เงิน 500' },
+  { id:'osm', label:'เป็นอาสาสมัครสาธารณสุขประจำหมู่บ้าน (อสม.)', min:25, max:70, K:7, tag:'life', fx:{J:2,H:-1}, incomeCut:.02, costText:'รายได้ −2% · H−1' },
+  { id:'mentor', label:'สอนงานเด็กจบใหม่แบบไม่หวงวิชา', min:30, max:59, K:5, tag:'edu', careers:['office','gov','factory','biz'], fx:{C:3}, costText:'เสียเวลางานตัวเอง' },
+  { id:'whistle', label:'แจ้ง ป.ป.ช. ว่าหัวหน้าโกงงบประมาณ', min:25, max:59, K:12, tag:'honest', careers:['gov','office'], costText:'30% โดนกลั่นแกล้ง',
+    run:(p,ctx)=>{ if(chance(.3)){ fx(p,{J:-10,C:-10}); ctx.note = 'หัวหน้ารู้ว่าเป็นคุณ แล้วสั่งย้ายคุณไปประจำที่ห่างไกล'; } else ctx.note = 'หัวหน้าถูกสอบสวนและพ้นจากตำแหน่ง'; } },
+  { id:'feast', label:'ตั้งโรงทานในงานบุญประจำปีของหมู่บ้าน', min:30, max:90, K:5, tag:'community', cost:20000, fx:{C:2}, costText:'20,000' },
+);
+
+// ---------- สิ่งยั่วใจ (ทางลัดที่ไม่มีใครเห็น) ----------
+function bribeAmt(p){ return clamp(Math.round(Math.max(200000, (p.career ? curIncome(p) : 20000) * 18) / 100000) * 100000, 200000, 5000000); }
+const TEMPTS = [
+  { id:'shoplift', min:10, max:16, label:'เพื่อนท้าให้แอบหยิบขนมในร้านสะดวกซื้อ', gain:'J+2 C+2 · 25% โดนจับได้', fx:{J:2,C:2}, K:-3, tag:'harm', risk:.25,
+    caught:p=>{ fx(p,{J:-8,C:-3}); return 'พนักงานจับได้ พ่อแม่ต้องมารับที่ร้าน'; } },
+  { id:'cheat', min:12, max:22, label:'เพื่อนส่งคำตอบข้อสอบปลายภาคมาให้ทางมือถือ', gain:'J+3 · 20% โดนจับ', fx:{J:3}, K:-3, tag:'selfillegal', risk:.2,
+    caught:p=>{ fx(p,{J:-10,S:-3}); return 'อาจารย์จับได้ วิชานั้นปรับตกทั้งเทอม'; } },
+  { id:'votebuy', min:18, max:90, label:'หัวคะแนนเดินแจกเงิน 500 บาทให้กาเบอร์ของเขา', gain:'฿+500', m:500, K:-3, tag:'corrupt', risk:.02,
+    caught:p=>{ fx(p,{C:-3}); return 'กกต. เรียกไปให้ปากคำ'; } },
+  { id:'gamble', min:18, max:70, label:'เพื่อนชวนแทงบอลออนไลน์ "แค่ลองดู"', gain:'30% ได้ ฿50,000 · 70% เสีย ฿100,000 · เสี่ยงติด', K:-4, tag:'selfillegal', risk:.15,
+    run:p=>{ if(chance(.3)){ fx(p,{m:50000,J:3}); return 'คืนแรกได้ ฿50,000'; } fx(p,{m:-100000,J:-5}); return 'เสียไป ฿100,000 แต่คุณคิดว่าเดี๋ยวก็ได้คืน'; },
+    caught:p=>{ p.annual.push({ from:p.age, to:p.age+5, amt:40000 }); fx(p,{J:-10}); p.Jbase = Math.max(0,p.Jbase-5); return 'คุณติดพนัน เสียเงินปีละ ฿40,000 ไปอีก 5 ปี'; } },
+  { id:'pirate', min:14, max:45, label:'ดาวน์โหลดโปรแกรมและหนังเถื่อนแทนการซื้อ', gain:'฿+8,000 ที่ประหยัดได้', m:8000, K:-1, tag:'selfillegal', risk:.05,
+    caught:p=>{ fx(p,{m:-30000}); return 'คอมติดไวรัสเรียกค่าไถ่ ข้อมูลหาย ต้องจ่าย ฿30,000 กู้คืน'; } },
+  { id:'fakesick', min:22, max:59, careers:['office','factory','gov'], label:'ลาป่วยปลอม 3 วันไปเที่ยวทะเล', gain:'J+5 · 10% หัวหน้ารู้', fx:{J:5}, K:-2, tag:'selfillegal', risk:.1,
+    caught:p=>{ fx(p,{C:-5,J:-3}); return 'หัวหน้าเห็นรูปคุณในโซเชียล'; } },
+  { id:'overclaim', min:23, max:59, careers:['office','gov'], label:'เบิกค่าเดินทางเกินจริงทุกเดือนคนละนิด', gain:'฿+60,000 · 10% โดนตรวจ', m:60000, K:-6, tag:'corrupt', risk:.1,
+    caught:p=>{ fx(p,{C:-10,J:-5,m:-60000}); return 'ฝ่ายตรวจสอบภายในพบ ต้องคืนเงินและถูกตัดเงินเดือน'; } },
+  { id:'bribe', min:25, max:59, careers:['gov','office','biz'], label:p=>`มีคนเสนอเงิน ฿${baht(bribeAmt(p))} ให้คุณช่วยเซ็นผ่านงานที่ไม่ผ่านเกณฑ์`, gain:p=>`฿+${baht(bribeAmt(p))} · 12% โดนสอบสวน`, yes:'รับเงิน', no:'ปฏิเสธ',
+    m:p=>bribeAmt(p), K:-15, tag:'corrupt', amount:p=>bribeAmt(p), risk:.12, refuseK:8, refuseNote:'คุณปฏิเสธ แม้จะรู้ว่าคนอื่นอาจรับแทน',
+    caught:async (p, io)=>{ await arrested(p, io, 'ป.ป.ช. ตรวจพบเงินโอนเข้าบัญชีญาติของคุณ', 1); return ''; } },
+  { id:'scale', min:22, max:59, careers:['farm','biz'], label:'ผสมของด้อยคุณภาพ / แต่งตาชั่งให้ได้กำไรเพิ่ม', gain:'฿+150,000 · 15% ลูกค้าจับได้', m:150000, K:-10, tag:'harm', risk:.15,
+    caught:p=>{ fx(p,{C:-10}); p.incomeBoost *= .9; return 'ลูกค้าจับได้ ข่าวกระจายทั้งอำเภอ รายได้ลด 10%'; } },
+  { id:'hitrun', min:20, max:75, cond:p=>p.car, label:'ถอยรถชนรถคันอื่นที่จอดอยู่ ไม่มีใครเห็น', gain:'ไม่ต้องจ่าย ฿20,000 · 20% มีกล้อง', K:-5, tag:'harm', risk:.2, yes:'ขับออกไปเงียบ ๆ', no:'ทิ้งเบอร์โทรไว้',
+    refuseRun:p=>{ fx(p,{m:-20000}); }, refuseNote:'คุณทิ้งเบอร์ไว้ และจ่ายค่าซ่อม ฿20,000',
+    caught:p=>{ fx(p,{m:-40000,C:-3}); return 'กล้องหน้ารถอีกคันจับภาพได้ ต้องจ่ายค่าซ่อมพร้อมค่าปรับ ฿40,000'; } },
+  { id:'affair', min:28, max:55, cond:p=>p.spouse && !p.spouse.separated, label:'คนในที่ทำงานเริ่มส่งข้อความมาจีบทุกคืน', gain:'J+8 · 35% คู่ของคุณรู้', yes:'คุยต่อ', no:'ตัดจบ', fx:{J:8}, K:-8, tag:'harm', risk:.35,
+    caught:p=>{ fx(p,{J:-15}); p.flags.affair = true; return 'คู่ของคุณเปิดมือถือเจอ บ้านเงียบไปหลายเดือน'; } },
+  { id:'landgrab', min:35, max:80, cond:p=>p.house || p.q>=2, label:'ขยับหลักหมุดที่ดินกินที่เพื่อนบ้านไป 2 เมตร', gain:'฿+300,000 มูลค่าที่ดิน · 20% โดนฟ้อง', m:300000, K:-12, tag:'harm', risk:.2,
+    caught:p=>{ fx(p,{m:-500000,C:-5,J:-5}); return 'เพื่อนบ้านจ้างรังวัดใหม่ แล้วฟ้องเรียกค่าเสียหาย ฿500,000'; } },
+  { id:'forgewill', min:40, max:80, cond:p=>p.gen===1 || p.qBirth>=2, label:'พ่อแม่ป่วยหนัก คุณมีโอกาสให้ท่านเซ็นโอนที่ดินให้คุณคนเดียว', gain:'฿+800,000 · 25% พี่น้องฟ้อง', m:800000, K:-18, tag:'harm', risk:.25,
+    caught:p=>{ fx(p,{m:-600000,J:-15,C:-5}); return 'พี่น้องฟ้องศาล ต้องคืนส่วนแบ่งและไม่มีใครพูดกับคุณอีกเลย'; } },
+  { id:'mule', min:20, max:45, careers:['abroad'], label:'คนไทยด้วยกันฝากกระเป๋ากลับไทย ให้ค่าจ้าง 50,000', gain:'฿+50,000 · 5% เป็นของผิดกฎหมาย', m:50000, K:-5, tag:'selfillegal', risk:.05,
+    caught:async (p, io)=>{ await arrested(p, io, 'เจ้าหน้าที่สนามบินพบยาเสพติดในกระเป๋าที่คุณรับฝาก', 3); return ''; } },
+];
+const val = (v, p) => typeof v === 'function' ? v(p) : v;
+async function offerTempt(p, io, d){
+  const yes = await yesno(p, io, { kind:'tempt', bg: p.age < 18 ? 'school' : 'city', title:'ทางลัดที่ไม่มีใครเห็น', text: val(d.label, p), sub: val(d.gain, p), noSub: d.refuseK ? `K+${d.refuseK}` : '', yes: d.yes || 'ทำ', no: d.no || 'ไม่ทำ' });
+  if(!yes){
+    if(d.refuseRun) d.refuseRun(p);
+    if(d.refuseK){ fx(p,{K:d.refuseK}); tagGood(p,'honest',`ปฏิเสธ: ${val(d.label,p)}`); }
+    note(p, d.refuseNote || 'คุณเลือกไม่ทำ');
+    return;
+  }
+  if(d.fx) fx(p, d.fx);
+  if(d.m) fx(p, { m: val(d.m, p) });
+  fx(p, { K: d.K }); tagBad(p, d.tag, val(d.label, p), val(d.amount, p) || val(d.m, p) || 0);
+  let txt = d.run ? d.run(p) : '';
+  if(chance(d.risk)){ const t = await d.caught(p, io); if(t) note(p, t); }
+  else note(p, txt || 'ไม่มีใครรู้ อย่างน้อยก็ในตอนนี้');
+}
+
+// ---------- บ้าน ----------
+const HOMES = [
+  { id:'land',   name:'ปลูกบ้านบนที่ดินพ่อแม่',      price:700000,   q:1, J:6,  C:0,  cond:p=>p.q>=2 || p.tier===4 || p.tier===5, condText:'ครอบครัวไม่มีที่ดิน' },
+  { id:'condo',  name:'คอนโดห้องเล็กใกล้รถไฟฟ้า',    price:1600000,  q:2, J:6,  C:2 },
+  { id:'town',   name:'ทาวน์โฮมชานเมือง',           price:2600000,  q:2, J:8,  C:1 },
+  { id:'single', name:'บ้านเดี่ยวในหมู่บ้านจัดสรร',     price:4800000,  q:3, J:10, C:3 },
+  { id:'big',    name:'บ้านเดี่ยวหลังใหญ่ ทำเลดี',      price:9000000,  q:4, J:12, C:6 },
+  { id:'lux',    name:'บ้านหรูริมน้ำ',                price:30000000, q:5, J:15, C:12 },
+];
+const CAREER_BANK = { gov:1, office:.95, factory:.9, biz:.8, farm:.75, influ:.7, abroad:.7 };
+function loanOdds(p, price){
+  const hh = Math.max(1, hhIncome(p)); const pay = price * .9 * .0065; const r = pay / hh;
+  const base = r <= .3 ? .95 : r <= .45 ? .7 : r <= .6 ? .35 : r <= .8 ? .1 : .02;
+  return clamp(base * (CAREER_BANK[p.career] || .6) * (p.status.bankrupt ? 0 : 1) * (p.flags.fled ? .3 : 1), 0, .97);
+}
+function setHouse(p, h, price, loan){
+  const hh = Math.max(1, hhIncome(p));
+  p.house = { value: price, years: 0, q: h.q, id: h.id, name: h.name, term: 30, saveCut: loan > 0 ? clamp(loan * .0065 / hh, .03, .5) : 0 };
+  fx(p, { J: h.J, C: h.C }); log(p, `ได้${h.name}`);
+}
+async function houseChoice(p, io, upgrade = false){
+  if(!p.career || p.status.prison) return;
+  if(upgrade && (!p.house || p.house.q >= 5)) return;
+  const sell = upgrade ? Math.round(p.house.value * .9) : 0;
+  const cash = Math.max(0, p.money) + sell;
+  const opts = HOMES.filter(h => !upgrade || h.q > p.house.q).map(h => {
+    const down = Math.round(h.price * .1);
+    const payCash = cash >= h.price;
+    const odds = payCash ? 1 : loanOdds(p, h.price);
+    const pay = Math.round(h.price * .9 * .0065 / 100) * 100;
+    const cond = (h.cond ? h.cond(p) : true) && cash >= down;
+    return { label:h.name, sub: payCash ? `ราคา ฿${baht(h.price)} · จ่ายสดได้ · J+${h.J}` : `ราคา ฿${baht(h.price)} · ผ่อน ~${baht(pay)}/เดือน · กู้ผ่าน ${Math.round(odds*100)}%`, cost: upgrade ? 0 : (payCash ? h.price : down), loan:false,
+      cond, condText: h.cond && !h.cond(p) ? h.condText : `ต้องมีเงินดาวน์ ฿${baht(down)}`, k:h.id, h, odds, payCash, down };
+  });
+  const famHome = p.q>=2 || p.tier===4 || p.tier===5;
+  opts.push({ label: upgrade ? 'อยู่บ้านเดิมต่อ' : famHome ? 'อยู่บ้านพ่อแม่ไปก่อน' : 'เช่าอยู่ไปก่อน', sub: upgrade ? 'ไม่มีผล' : 'ค่าที่พักอยู่ในค่าใช้จ่ายปกติ', k:'none' });
+  const c = await choose(p, io, { kind:'minor', bg:'home', title: upgrade ? `ขายบ้านเดิม (ได้ ฿${baht(sell)}) แล้วขยับขึ้นไหม` : 'จะมีบ้านเป็นของตัวเองไหม', text:`รายได้ครัวเรือนราว ฿${baht(hhIncome(p))}/เดือน · เงินเก็บ ฿${baht(p.money)}`, choices: opts.map(o => ({ ...o, defer: upgrade })) });
+  if(c.k === 'none') return;
+  if(!c.payCash && !chance(c.odds)){ if(!upgrade) addMoney(p, c.cost); note(p, 'ธนาคารไม่อนุมัติสินเชื่อ ได้เงินดาวน์คืน'); return; }
+  if(upgrade){ addMoney(p, sell); const pay = c.payCash ? c.h.price : c.down; addMoney(p, -pay); note(p, `ขาย${p.house.name || 'บ้านเดิม'}ได้ ฿${baht(sell)}`); }
+  setHouse(p, c.h, c.h.price, c.payCash ? 0 : c.h.price - c.down);
+  note(p, c.payCash ? `ซื้อ${c.h.name}ด้วยเงินสด` : `กู้ผ่าน ได้${c.h.name} ผ่อน 30 ปี`);
+}
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
@@ -2113,7 +2232,7 @@ function snap(p){
   if(!p) return {};
   if(p.skin === undefined) p.skin = Math.floor(Math.random()*3);
   const ctx = p.age < 18 ? 'school' : (p.age < 22 && p.degree) ? 'uni' : p.age >= 60 ? 'none' : ({ farm:'farm', factory:'factory', gov:'gov', office:'office' }[p.career] || 'none');
-  return { age:p.age, sex:p.sex, q: p.age >= 22 ? Math.min(5, incomeToQ(hhIncome(p))) : p.q, tier:p.tier, skin:p.skin, religion:p.religion, school:p.school, uni:p.uni,
+  return { age:p.age, sex:p.sex, q: p.age >= 22 ? (p.house && p.house.q != null ? p.house.q : Math.min(5, incomeToQ(hhIncome(p)))) : p.q, tier:p.tier, skin:p.skin, religion:p.religion, school:p.school, uni:p.uni,
     ctx: p.status.prison ? 'black' : ctx, spouse: p.spouse ? { sex:p.spouse.sex, q:p.spouse.q } : null, kids: p.kids.map(k => ({ sex:k.sex, born:k.born })), ssTier: p.flags.ssTier || 0, night:false };
 }
 let T0 = performance.now();
@@ -2205,7 +2324,7 @@ function flushChips(){
 }
 
 // ---------- แผงตัดสินใจ ----------
-const KIND_TH = { main:'ตัดสินใจหลัก', minor:'ทางเลือกย่อย', fork:'ทางแยกบังคับ', event:'เหตุการณ์ไม่คาดคิด', deed:'โอกาสทำความดี', life:'ระดับการใช้ชีวิต', result:'ผลลัพธ์', birth:'เกิด', stage:'ช่วงชีวิต', cut:'ฉากพิเศษ', death:'ลาจาก', mourn:'ไว้อาลัย', funeral:'งานศพ' };
+const KIND_TH = { main:'ตัดสินใจหลัก', minor:'ทางเลือกย่อย', fork:'ทางแยกบังคับ', event:'เหตุการณ์ไม่คาดคิด', deed:'โอกาสทำความดี', tempt:'สิ่งยั่วใจ', life:'ระดับการใช้ชีวิต', result:'ผลลัพธ์', birth:'เกิด', stage:'ช่วงชีวิต', cut:'ฉากพิเศษ', death:'ลาจาก', mourn:'ไว้อาลัย', funeral:'งานศพ' };
 function eyebrow(o){ const p = CUR.p; const st = p ? STAGE_TH[p.stage] : ''; return `<div class="eyebrow">${esc(KIND_TH[o.kind] || 'ชีวิต')}<span>${esc(st)}${p ? ' · อายุ ' + p.age : ''}</span></div>`; }
 function pendHTML(pend){ if(!pend || !pend.length) return ''; return `<div class="pend">${pend.map(x => `<div>${rich(typeof x === 'string' ? x : x.text)}</div>`).join('')}</div>`; }
 function headHTML(h){ return h ? `<div class="head"><b>⚡ ${esc(h.title)}</b>${h.text ? `<p>${rich(h.text)}</p>` : ''}</div>` : ''; }
