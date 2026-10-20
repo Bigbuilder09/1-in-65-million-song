@@ -556,6 +556,7 @@ async function years(p, io, n, opts = {}){
       if(p.age >= 22) {
         if(p.age >= 60 && p.money + net < 0){ net = -p.money; p.J = clamp(p.J - 10, 0, 100); if(!p.flags.broke){ p.flags.broke = true; note(p, 'เงินเก็บหมดแล้ว ต้องอยู่ด้วยเบี้ยยังชีพ ความสุขลดลงทุกปีที่ขาด'); } }
         addMoney(p, net);
+        investYear(p, notes);
         // ใช้หนี้ด้วยเงินที่มี (เก็บสำรองไว้ 6 เดือนของรายจ่าย)
         const reserve = Math.max(0, hhIncome(p) * 6 * (1 - saveRate(p)));
         let avail = Math.max(0, p.money - reserve);
@@ -571,6 +572,7 @@ async function years(p, io, n, opts = {}){
     if(p.K < -30 && chance(.15) && !opts.quiet) notes.push(pickOne(OMENS));
     if(p.H <= 0){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death(healthDeathCause(p)); }
     if(newDz){ await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await diseaseOnset(p, io, newDz); }
+    if(p._secCase){ p._secCase = false; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await secCase(p, io); }
     if(p.lifespan && p.age >= p.lifespan){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('จากไปอย่างสงบตามอายุขัย'); }
     // เหตุการณ์ตามกำหนด (พ่อแม่เสียชีวิต)
     if(p.parentDeath && !p.parentDeath.done && p.age >= p.parentDeath.age){
@@ -971,8 +973,8 @@ const C_MINORS = {
     { title:'เข้าร่วมสหภาพแรงงานไหม', sub:'C+8 · ได้ค่าชดเชยเต็มถ้าโดนเลิกจ้าง', run:async(p,io)=>{ fx(p,{C:8}); p.flags.union = true; if(chance(.1)){ note(p,'นายจ้างเพ่งเล็ง คุณถูกเลิกจ้างทันที'); await layoffFork(p, io, true); } } },
   ],
   gov: [
-    { title:'ยัดเงินใต้โต๊ะเพื่อเลื่อนตำแหน่งไหม', sub:'เลื่อนเร็ว 70%', cost:300000, run:async(p,io)=>{ fx(p,{K:-15}); tagBad(p,'corrupt','ยัดเงินเลื่อนตำแหน่ง',300000); if(chance(.7)){ p.flags.cAdj=(p.flags.cAdj||0)+20; fx(p,{C:10}); } if(chance(.1)){ fx(p,{J:-20,m:-500000}); note(p,'ป.ป.ช. เรียกสอบ ต้องจ่ายค่าทนายและค่าปรับ'); } } },
-    { title:'รับเงินทอนจากงานจัดซื้อไหม', sub:'฿+1,000,000', run:async(p,io)=>{ fx(p,{m:1000000,K:-20}); tagBad(p,'corrupt','รับเงินทอนงานจัดซื้อ',1000000); if(chance(.15)) await arrested(p, io, 'ผู้ตรวจการพบเงินทอนในงานจัดซื้อ'); } },
+    { title:'ยัดเงินใต้โต๊ะเพื่อเลื่อนตำแหน่งไหม', sub:'เลื่อนเร็ว 70%', cost:300000, run:async(p,io)=>{ fx(p,{K:-15}); tagBad(p,'corrupt','ยัดเงินเลื่อนตำแหน่ง',300000); if(chance(.7)){ p.flags.cAdj=(p.flags.cAdj||0)+20; fx(p,{C:10}); } if(chance(connRisk(p,.1))){ fx(p,{J:-20,m:-500000}); note(p,'ป.ป.ช. เรียกสอบ ต้องจ่ายค่าทนายและค่าปรับ'); } } },
+    { title:'รับเงินทอนจากงานจัดซื้อไหม', sub:'฿+1,000,000', run:async(p,io)=>{ fx(p,{m:1000000,K:-20}); tagBad(p,'corrupt','รับเงินทอนงานจัดซื้อ',1000000); if(chance(connRisk(p,.15))) await arrested(p, io, 'ผู้ตรวจการพบเงินทอนในงานจัดซื้อ'); } },
     { title:'ขอย้ายกลับบ้านเกิดไหม', sub:'J+10 · C−5 รายได้ −10%', run:p=>{ fx(p,{J:10,C:-5}); p.incomeBoost *= .9; } },
   ],
   office: [
@@ -981,7 +983,7 @@ const C_MINORS = {
     { title:'ย้ายงานบ่อย ๆ เพื่อเงินเดือนไหม', sub:'รายได้ +15% · C−5', run:p=>{ p.incomeBoost *= 1.15; fx(p,{C:-5}); if(chance(.1)){ p.unemployed += 1; note(p,'ว่างงานไป 6 เดือนระหว่างเปลี่ยนงาน'); } } },
   ],
   biz: [
-    { title:'ยัดเงินใต้โต๊ะเพื่อได้ใบอนุญาตไหม', sub:'โอกาสผลดี +15% C+5', cost:200000, run:async(p,io)=>{ fx(p,{K:-15,C:5}); tagBad(p,'corrupt','ยัดเงินเพื่อใบอนุญาต',200000); p.flags.cAdj=(p.flags.cAdj||0)+15; if(chance(.1)){ fx(p,{m:-Math.round(p.money*.5)}); note(p,'ถูกจับได้ ต้องจ่ายค่าปรับครึ่งหนึ่งของเงินที่มี'); } } },
+    { title:'ยัดเงินใต้โต๊ะเพื่อได้ใบอนุญาตไหม', sub:'โอกาสผลดี +15% C+5', cost:200000, run:async(p,io)=>{ fx(p,{K:-15,C:5}); tagBad(p,'corrupt','ยัดเงินเพื่อใบอนุญาต',200000); p.flags.cAdj=(p.flags.cAdj||0)+15; if(chance(connRisk(p,.1))){ fx(p,{m:-Math.round(p.money*.5)}); note(p,'ถูกจับได้ ต้องจ่ายค่าปรับครึ่งหนึ่งของเงินที่มี'); } } },
     { title:'กู้นอกระบบ 500,000 ขยายกิจการไหม', sub:'ดอก 20%/ปี · ผลดี +10% ผลแย่ +10%', run:p=>{ p.debt.i += 500000; addMoney(p,500000); p.flags.cAdj=(p.flags.cAdj||0)+10; p.flags.cBad=(p.flags.cBad||0)+10; } },
     { title:'เปิดสาขา/ขายแฟรนไชส์ไหม', sub:'ถ้าผลดี รายได้ ×1.8 · 40% สาขาเจ๊ง', cost:1000000, run:p=>{ if(chance(.4)) note(p,'สาขาใหม่เจ๊ง เสียทุน'); else p.flags.branch = true; } },
   ],
@@ -991,7 +993,7 @@ const C_MINORS = {
     { title:'อยู่ต่อเกินสัญญา 3 ปีไหม', sub:'฿+600,000 · J−10', run:p=>{ fx(p,{m:600000,J:-10,K:-5}); tagBad(p,'selfillegal','อยู่เกินสัญญา',600000); if(chance(.15)){ fx(p,{m:-200000}); note(p,'ถูกจับและปรับ ฿200,000'); } p.flags.abroadEnd = (p.flags.abroadEnd||p.age)+3; } },
   ],
   influ: [
-    { title:'รับรีวิวเว็บพนันออนไลน์ไหม', sub:'฿+2,000,000', run:async(p,io)=>{ fx(p,{m:2000000,K:-25}); tagBad(p,'harm','รีวิวเว็บพนัน',2000000); if(chance(.2)){ fx(p,{m:-1000000,C:-20}); await arrested(p, io, 'ตำรวจไซเบอร์จับกุมผู้รีวิวเว็บพนัน'); } } },
+    { title:'รับรีวิวเว็บพนันออนไลน์ไหม', sub:'฿+2,000,000', run:async(p,io)=>{ fx(p,{m:2000000,K:-25}); tagBad(p,'harm','รีวิวเว็บพนัน',2000000); if(chance(connRisk(p,.2))){ fx(p,{m:-1000000,C:-20}); await arrested(p, io, 'ตำรวจไซเบอร์จับกุมผู้รีวิวเว็บพนัน'); } } },
     { title:'ซื้อยอดผู้ติดตามไหม', sub:'โอกาสดังขึ้นเล็กน้อย', cost:50000, run:p=>{ fx(p,{K:-5}); tagBad(p,'harm','ซื้อยอดผู้ติดตาม',50000); p.flags.cAdj=(p.flags.cAdj||0)+5; if(chance(.1)){ fx(p,{C:-10}); note(p,'ถูกจับได้ว่าซื้อยอด'); } } },
     { title:'ทำคอนเทนต์ดราม่าเรียกยอดไหม', sub:'C+10 · J−10', run:p=>{ fx(p,{C:10,J:-10,K:-5}); tagBad(p,'harm','ทำคอนเทนต์ดราม่า',0); p.flags.cAdj=(p.flags.cAdj||0)+5; if(chance(.2)){ fx(p,{J:-20}); note(p,'โดนทัวร์ลงหนัก'); } } },
   ],
@@ -1246,7 +1248,7 @@ async function stage5(p, io, beats){
     if(p.kids.length>=2) kidMinors.push({ t:'ทุ่มให้ลูกคนโต (ทำ) หรือแบ่งเท่ากัน (ไม่ทำ)', y:'ทุ่มให้คนโต', n:'แบ่งเท่ากัน', s:'คนโต ค่าลูก+15 คนอื่น −10', ns:'ทุกคน ค่าลูก+5', r:()=>{ p.kids[0].kv+=15; p.kids.slice(1).forEach(k=>k.kv-=10); p.flags.favorEldest=true; }, rn:()=>p.kids.forEach(k=>k.kv+=5) });
     if(c.k==='adopt') kidMinors.push({ t:'เปิดเผยให้ลูกรู้ตั้งแต่เด็กว่าเป็นลูกบุญธรรมไหม', s:'ค่าลูก+10 J+5', r:()=>{ p.kids.forEach(k=>k.kv+=10); fx(p,{J:5}); } });
   } else {
-    kidMinors.push({ t:'ลงทุนเพื่อเกษียณ 500,000 ไหม', s:'30 ปีต่อมาได้ ×1.5–×3', cost:500000, r:()=>{ p.flags.retireInvest = 500000; } });
+    kidMinors.push({ t:'ลงทุนเพื่อเกษียณ 500,000 ไหม', s:'ลงกองทุนเกษียณ เฉลี่ยราว 6%/ปี ถอนได้ตอนอายุ 60', cost:500000, r:()=>{ p.flags.retireInvest = 500000; p.flags.retireInvestAge = p.age; } });
     kidMinors.push({ t:'ช่วยเลี้ยงหลาน (ลูกพี่น้อง) ไหม', s:'J+8 · ตอนแก่มีหลานช่วยดูแล', cost:100000, r:()=>{ fx(p,{J:8,K:5}); tagGood(p,'family','ช่วยเลี้ยงหลาน'); p.flags.nephew=true; } });
     kidMinors.push({ t:'ใช้ชีวิตท่องเที่ยวรอบโลกไหม', s:'J+15 H+3', cost:500000, r:()=>fx(p,{J:15,H:3}) });
   }
@@ -1337,6 +1339,7 @@ async function stage3(p, io){
   }}));
   beats.push({ age: p.age + 4, run: () => careerOutcome(p, io) });
   depthStage3(p, io, beats);
+  investBeats(p, io, beats);
   // minor ทั่วไป
   beats.push({ age: 28, run: async () => {
     if(!p.career) return;
@@ -1430,7 +1433,7 @@ async function stage6(p, io){
   else if(['factory','office'].includes(p.career)){ pension = 3000 + Math.min(1500, p.cYears*50); notes.push(`บำนาญประกันสังคม ฿${baht(pension)}/เดือน`); if(p.career==='office'){ const pf = clamp(Math.round(p.lastSalary*p.cYears*.6), 500000, 3000000); addMoney(p, pf); notes.push(`กองทุนสำรองเลี้ยงชีพ ฿${baht(pf)}`); } }
   else { pension = 700; notes.push('เบี้ยยังชีพผู้สูงอายุ ฿700/เดือน'); }
   if(p.flags.kidSend) { p.kidMoney = 5000 * p.kids.length; notes.push(`ลูกส่งเงินให้ ฿${baht(p.kidMoney)}/เดือน`); }
-  if(p.flags.retireInvest){ const r = rnd(); const m = r < .3 ? 3 : r < .85 ? 1.5 : 1; addMoney(p, p.flags.retireInvest*m); notes.push(`เงินลงทุนเพื่อเกษียณได้คืน ฿${baht(p.flags.retireInvest*m)}`); }
+  if(p.flags.retireInvest){ const yrs = Math.max(1, 60 - (p.flags.retireInvestAge || 35)); const m = Math.max(.5, Math.exp(Math.log(1.06) * yrs + gauss() * .15 * Math.sqrt(yrs / 5))); addMoney(p, p.flags.retireInvest*m); notes.push(`เงินลงทุนเพื่อเกษียณได้คืน ฿${baht(p.flags.retireInvest*m)}`); }
   p.retireIncome = pension; p.career = p.career; p.cOut = p.cOut;
   p.lifespan = Math.max(61, Math.round(72 + (p.H - 50)/3 + randi(-6, 6) + habitLifespanAdj(p)));
   if(p.spouse) p.spouse.income = p.spouse.income * .3;
@@ -1885,20 +1888,20 @@ const S3_EXTRA = [
       const back = Math.round(Math.max(50000, p.money*.1));
       const c = await choose(p, io, { kind:'fork', bg:'bank', title:'จะจัดการยังไง', choices:[
         { label:'จ่ายภาษีย้อนหลังตามจริง', sub:`฿−${baht(back)}`, k:'pay' },
-        { label:'จ้างคนทำบัญชีตกแต่งตัวเลข', sub:'70% ผ่าน · 30% โดนคดี', cost:100000, k:'fake' },
-        { label:'ติดสินบนเจ้าหน้าที่', sub:'80% ผ่าน · 20% โดนคดี', cost:200000, k:'bribe' } ]});
+        { label:'จ้างคนทำบัญชีตกแต่งตัวเลข', sub:`${pctR(p,.3)} โดนคดี`, cost:100000, k:'fake' },
+        { label:'ติดสินบนเจ้าหน้าที่', sub:`${pctR(p,.2)} โดนคดี`, cost:200000, k:'bribe' } ]});
       if(c.k==='pay'){ fx(p,{m:-back}); note(p,'จ่ายครบ เรื่องจบ'); }
-      if(c.k==='fake'){ fx(p,{K:-10}); tagBad(p,'corrupt','ตกแต่งบัญชีเลี่ยงภาษี',back); if(chance(.3)) await arrested(p, io, 'ตรวจพบเอกสารปลอมเพื่อหลีกเลี่ยงภาษี', 1); else note(p,'ผ่านไปได้ ไม่มีใครถามต่อ'); }
-      if(c.k==='bribe'){ fx(p,{K:-15}); tagBad(p,'corrupt','ติดสินบนเจ้าหน้าที่สรรพากร',200000); if(chance(.2)) await arrested(p, io, 'เจ้าหน้าที่คนนั้นโดนสอบ และซัดทอดมาถึงคุณ', 1); else note(p,'เรื่องเงียบไป'); }
+      if(c.k==='fake'){ fx(p,{K:-10}); tagBad(p,'corrupt','ตกแต่งบัญชีเลี่ยงภาษี',back); if(chance(connRisk(p,.3))) await arrested(p, io, 'ตรวจพบเอกสารปลอมเพื่อหลีกเลี่ยงภาษี', 1); else note(p,'ผ่านไปได้ ไม่มีใครถามต่อ'); }
+      if(c.k==='bribe'){ fx(p,{K:-15}); tagBad(p,'corrupt','ติดสินบนเจ้าหน้าที่สรรพากร',200000); if(chance(connRisk(p,.2))) await arrested(p, io, 'เจ้าหน้าที่คนนั้นโดนสอบ และซัดทอดมาถึงคุณ', 1); else note(p,'เรื่องเงียบไป'); }
     } },
   { id:'ponzi', title:'ชวนเป็นแม่ข่าย', bg:'city', text:()=>'คนรู้จักชวนเป็นแม่ข่ายระบบลงทุนผลตอบแทนเดือนละ 10%', w:p=>p.C>=40?7:4,
     run: async (p, io) => {
       const c = await choose(p, io, { kind:'fork', bg:'city', title:'จะเข้าร่วมไหม', choices:[
-        { label:'เป็นแม่ข่าย ชวนคนรู้จักลงเงิน', sub:'฿+1,500,000 · 40% ระบบล่มแล้วโดนคดี', k:'boss' },
+        { label:'เป็นแม่ข่าย ชวนคนรู้จักลงเงิน', sub:`฿+1,500,000 · ${pctR(p,.4)} ระบบล่มแล้วโดนคดี`, k:'boss' },
         { label:'ลงเงินเองเฉย ๆ', sub:'60% เงินหาย', cost:100000, k:'join' },
         { label:'ปฏิเสธ และเตือนคนอื่น', sub:'K+5 C−2', k:'warn' } ]});
       if(c.k==='boss'){ fx(p,{m:1500000,K:-25}); tagBad(p,'harm','เป็นแม่ข่ายแชร์ลูกโซ่',1500000);
-        if(chance(.4)){ fx(p,{m:-1000000}); await arrested(p, io, 'ระบบล่ม ผู้เสียหายหลายร้อยคนแจ้งความข้อหาฉ้อโกงประชาชน', 2); } else note(p,'คุณถอนตัวทันก่อนระบบล่ม คนที่คุณชวนมาเสียเงินแทน'); }
+        if(chance(connRisk(p,.4))){ fx(p,{m:-1000000}); await arrested(p, io, 'ระบบล่ม ผู้เสียหายหลายร้อยคนแจ้งความข้อหาฉ้อโกงประชาชน', 2); } else note(p,'คุณถอนตัวทันก่อนระบบล่ม คนที่คุณชวนมาเสียเงินแทน'); }
       if(c.k==='join'){ if(chance(.6)) note(p,'ระบบปิดตัว เงินหายทั้งหมด'); else { fx(p,{m:180000}); note(p,'ถอนออกมาทัน ได้กำไรเล็กน้อย'); } }
       if(c.k==='warn'){ fx(p,{K:5,C:-2}); tagGood(p,'community','เตือนคนอื่นเรื่องแชร์ลูกโซ่'); }
     } },
@@ -1966,7 +1969,7 @@ const TEMPTS = [
 const val = (v, p) => typeof v === 'function' ? v(p) : v;
 async function offerTempt(p, io, d){
   p._tempt = d;
-  const yes = await yesno(p, io, { kind:'tempt', bg: p.age < 18 ? 'school' : 'city', title:'ทางลัดที่ไม่มีใครเห็น', text: val(d.label, p), sub: val(d.gain, p), noSub: d.refuseK ? `K+${d.refuseK}` : '', yes: d.yes || 'ทำ', no: d.no || 'ไม่ทำ' });
+  const yes = await yesno(p, io, { kind:'tempt', bg: p.age < 18 ? 'school' : 'city', title:'ทางลัดที่ไม่มีใครเห็น', text: val(d.label, p), sub: p.age >= 18 ? val(d.gain, p).replace(`${Math.round(d.risk*100)}%`, pctR(p, d.risk)) : val(d.gain, p), noSub: d.refuseK ? `K+${d.refuseK}` : '', yes: d.yes || 'ทำ', no: d.no || 'ไม่ทำ' });
   if(!yes){
     if(d.refuseRun) d.refuseRun(p);
     if(d.refuseK){ fx(p,{K:d.refuseK}); tagGood(p,'honest',`ปฏิเสธ: ${val(d.label,p)}`); }
@@ -1977,7 +1980,7 @@ async function offerTempt(p, io, d){
   if(d.m) fx(p, { m: val(d.m, p) });
   fx(p, { K: d.K }); tagBad(p, d.tag, val(d.label, p), val(d.amount, p) || val(d.m, p) || 0);
   let txt = d.run ? d.run(p) : '';
-  if(chance(d.risk)){ const t = await d.caught(p, io); if(t) note(p, t); }
+  if(chance(p.age >= 18 ? connRisk(p, d.risk) : d.risk)){ const t = await d.caught(p, io); if(t) note(p, t); }
   else note(p, txt || 'ไม่มีใครรู้ อย่างน้อยก็ในตอนนี้');
 }
 
@@ -2296,6 +2299,68 @@ STORIES.splice(STORIES.length - 2, 0, { t:(o,c)=> c.yes !== undefined && YN.some
   const t = rnd() < .45 ? (fresh(p, mood(p)) || fresh(p, memory(p))) : '';
   return t && p.age >= 18 ? `${s} · ${t}` : s;
 } });
+STORIES.unshift({ t:(o,c)=>/เก็บไว้ที่ไหน/.test(o.title||''), f:(X,p,o,c)=>({
+  bank:'คุณเปิดสมุดบัญชีเงินฝากประจำเล่มใหม่ ดอกเบี้ยน้อย แต่คุณนอนหลับสบาย',
+  fund:'คุณตั้งให้ตัดเงินเข้ากองทุนรวมทุกวันที่ 25 แล้วพยายามไม่เปิดดูพอร์ตบ่อยเกินไป',
+  spec:'คุณโหลดแอปเทรดหุ้นมาสามแอป และเริ่มตื่นมาดูกราฟก่อนแปรงฟัน',
+  insider:`คนรู้จักในวงกอล์ฟกระซิบชื่อหุ้นตัวหนึ่ง คุณซื้อก่อนข่าวออกสามวัน`,
+})[c.k] });
+// ===== เงินเก็บอยู่ที่ไหน: ฝาก / กองทุน / หุ้นซิ่ง / ข้อมูลวงใน · ความเสี่ยงทุจริตขึ้นกับเส้นสาย =====
+
+// เส้นสายลดความเสี่ยงโดนจับ: C 60+ เสี่ยงราวครึ่งเดียว · C ต่ำกว่า 30 เสี่ยงราว 1.5 เท่า
+function connRisk(p, base){ return clamp(base * clamp(1.75 - p.C / 40, .4, 1.6), .01, .95); }
+const pctR = (p, base) => `${Math.round(connRisk(p, base) * 100)}%`;
+
+const INVEST = {
+  bank:    { name:'ฝากธนาคาร',               short:'เงินฝาก',       sub:'ราว 1.5%/ปี · ไม่เสี่ยง' },
+  fund:    { name:'กองทุนรวมดัชนี / หุ้นปันผล', short:'กองทุนรวม',      sub:'เฉลี่ยราว 6%/ปี · บางปีติดลบ · ปีวิกฤตตก 30%' },
+  spec:    { name:'หุ้นซิ่ง / คริปโต',          short:'หุ้นซิ่งและคริปโต', sub:'ปีดีพุ่ง 50–100% · ปีแย่หายได้ 70% · ระยะยาวไม่แน่ว่าจะชนะกองทุน' },
+  insider: { name:'หุ้นตามข้อมูลวงใน',         short:'หุ้นตามข้อมูลวงใน', sub:'เฉลี่ยราว 10%/ปี · ผันผวนต่ำ · K−10 · เสี่ยงโดน ก.ล.ต.' },
+};
+function investYear(p, notes){
+  if(p.age < 22 || p.money <= 0) return;
+  const k = p.invest || 'bank';
+  const crash = chance(.06); // ปีวิกฤตของทั้งตลาด
+  let r;
+  if(k === 'bank') r = .015;
+  else if(k === 'fund') r = crash ? -.30 + .05*gauss() : .085 + .12*gauss();
+  else if(k === 'spec') r = crash ? -.6 + .1*gauss() : .14 + .42*gauss();
+  else { r = .10 + .07*gauss(); if(chance(connRisk(p, .06))) p._secCase = true; }
+  r = clamp(r, -.75, 1.5);
+  const amt = Math.round(p.money * r);
+  p.money += amt;
+  p.invRet = (p.invRet || 0) + amt;
+  if(crash && (k === 'fund' || k === 'spec')) notes.push(`ปีวิกฤต ตลาดหุ้นดิ่ง พอร์ต${INVEST[k].short}ของคุณหายไป ฿${bahtS(-amt)}`);
+  else if(k === 'spec' && r > .6) notes.push(`หุ้นที่คุณถือพุ่งแรง พอร์ตโตขึ้น ฿${bahtS(amt)}`);
+  else if(k === 'spec' && r < -.3) notes.push(`หุ้นซิ่งในพอร์ตร่วงหนัก หายไป ฿${bahtS(-amt)}`);
+}
+async function secCase(p, io){
+  await say(p, io, { kind:'event', bg:'court', title:'ก.ล.ต. ตรวจพบการซื้อขายผิดปกติ', text:'ชื่อคุณอยู่ในรายชื่อคนที่ซื้อหุ้นก่อนข่าวใหญ่ออกไม่กี่วัน' });
+  const fine = Math.round(Math.max(200000, p.money * .3));
+  const c = await choose(p, io, { kind:'fork', bg:'court', title:'จะจัดการคดีนี้ยังไง', choices:[
+    { label:'ยอมจ่ายค่าปรับทางแพ่ง', sub:`฿−${baht(fine)} · C−10`, k:'pay' },
+    { label:'สู้คดี', sub:'ชนะ 40% · ถ้าแพ้โดนคดีอาญา', cost:300000, k:'fight' },
+    { label:'ให้คนรู้จักช่วยเคลียร์', sub:`ต้องมี C 70 ขึ้นไป · หลุด 70%`, cond:p.C>=70, condText:'C ต้องถึง 70', k:'line' } ]});
+  p.invest = 'bank';
+  if(c.k==='pay'){ fx(p,{m:-fine,C:-10}); note(p,'จ่ายค่าปรับแล้ว ถูกห้ามซื้อขายหุ้น 5 ปี'); }
+  if(c.k==='fight'){ if(chance(.4)) note(p,'ศาลยกฟ้อง แต่คุณเลิกใช้ข้อมูลวงในไปเลย'); else { fx(p,{m:-fine}); await arrested(p, io, 'คดีใช้ข้อมูลภายในซื้อขายหลักทรัพย์', 1); } }
+  if(c.k==='line'){ fx(p,{K:-10}); tagBad(p,'corrupt','ใช้เส้นเคลียร์คดีหุ้น', fine); if(chance(.7)) note(p,'เรื่องเงียบหายไปอย่างไร้ร่องรอย'); else { fx(p,{m:-fine,C:-10}); note(p,'เส้นที่ใช้ไม่พอ ต้องจ่ายค่าปรับเต็ม'); } }
+}
+async function investChoice(p, io, retire = false){
+  if(p.status.prison) return;
+  const cur = p.invest || 'bank';
+  const opts = Object.entries(INVEST).map(([k, v]) => ({ label: v.name + (k === cur ? ' (ตอนนี้)' : ''), sub: v.sub, k,
+    cond: k !== 'insider' || p.C >= 60, condText:'ต้องมีเส้นสาย C 60 ขึ้นไปถึงจะได้ข้อมูลวงใน' }));
+  const c = await choose(p, io, { kind:'minor', bg:'bank', title: retire ? 'เงินเกษียณจะเก็บไว้ที่ไหน' : 'เงินเก็บของคุณจะเก็บไว้ที่ไหน',
+    text:`เงินเก็บตอนนี้ ฿${baht(Math.max(0, p.money))}${p.invRet ? ` · กำไรขาดทุนสะสม ฿${baht(p.invRet)}` : ''}`, choices: opts });
+  p.invest = c.k;
+  if(c.k === 'insider' && !p.flags.insiderTagged){ p.flags.insiderTagged = true; fx(p,{K:-10}); tagBad(p,'corrupt','ซื้อขายหุ้นด้วยข้อมูลวงใน', 0); }
+  log(p, `เก็บเงินแบบ${INVEST[c.k].short}`);
+}
+function investBeats(p, io, beats){
+  [25, 40].forEach(age => beats.push({ age, run: () => investChoice(p, io) }));
+  beats.push({ age: 58, run: () => investChoice(p, io, true) });
+}
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
