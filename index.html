@@ -1393,7 +1393,7 @@ async function stage3(p, io){
     }
   }});
   // checkpoint: ระดับการใช้ชีวิต + โอกาสทำความดี
-  cps.forEach((a, i) => { beats.push({ age:a, run: async () => { if(p.career && !p.unemployed && i > 0 && p.S < 80) p.S = Math.min(80, p.S + 2); await lifestyleChoice(p, io); } }); if(i>0) beats.push({ age:a+1, run: () => offerDeed(p, io) }); });
+  cps.forEach((a, i) => { beats.push({ age:a, run: async () => { if(p.career && !p.unemployed && i > 0 && p.S < 80) p.S = Math.min(80, p.S + 2); await lifestyleChoice(p, io); if(i > 0) await freeTime(p, io); } }); if(i>0) beats.push({ age:a+1, run: () => offerDeed(p, io) }); });
   beats.push({ age:40, run: async () => {
     if(p.status.prison) return;
     if(await yesno(p, io, { title:'อายุ 40 แล้ว อยากเปลี่ยนอาชีพไหม', sub:`ตอนนี้เป็น${CAREERS[p.career]?.name||'ว่างงาน'}`, yes:'เปลี่ยน', no:'ทำต่อ' })){ await enterCareer(p, io, { title:'เปลี่ยนอาชีพ', exclude:[p.career] }); beats.push({ age:p.age+3, run:()=>careerOutcome(p, io) }); }
@@ -2699,6 +2699,44 @@ S4_COUPLE.push(
     await say(p, io, { kind:'thai', bg:'temple', title:'วันหยุดของสองคน', text:'' });
   } },
 );
+// ===== เวลาว่างวัยทำงาน: ทางเพิ่มทักษะ ความสุข เส้นสาย สุขภาพ =====
+function freeOpts(p){
+  const c = p.career, X = ctxOf(p);
+  const course = { office:['เรียนคอร์สออนไลน์และสอบใบรับรองวิชาชีพ', 'คุณนั่งเรียนคอร์สออนไลน์หลังสามทุ่มจนสอบใบรับรองผ่าน'],
+    gov:['เข้าอบรมหลักสูตรของกรม', 'คุณนั่งอบรมในโรงแรมต่างจังหวัดสามวัน ได้ใบประกาศกลับมาหนึ่งใบ'],
+    farm:['อบรมเกษตรสมัยใหม่กับเกษตรอำเภอ', 'คุณได้เรียนเรื่องระบบน้ำหยดกับการขายผลผลิตออนไลน์จากเกษตรอำเภอ'],
+    factory:['เรียนช่างไฟฟ้าและเชื่อมเหล็กเพิ่ม', 'คุณเรียนช่างวันอาทิตย์ที่วิทยาลัยเทคนิค มือเริ่มจับงานได้คล่องขึ้น'],
+    biz:['เข้าคอร์สผู้ประกอบการ', 'คุณนั่งฟังเจ้าของแบรนด์ดังเล่าเรื่องล้มแล้วลุกจนจดไม่ทัน'],
+    influ:['เรียนตัดต่อและการตลาดออนไลน์', 'คุณเรียนเทคนิคตัดคลิปใหม่ ยอดวิวคลิปถัดไปขึ้นเห็น ๆ'],
+    abroad:['เรียนภาษาของประเทศที่ทำงาน', 'คุณท่องศัพท์ระหว่างพักเที่ยง จนเริ่มคุยกับหัวหน้าได้โดยไม่ต้องใช้มือช่วย'] }[c] || ['เรียนคอร์สเพิ่มทักษะ', 'คุณใช้เวลาว่างเรียนสิ่งใหม่'];
+  const social = { office:['ตีกอล์ฟกับลูกค้าและผู้บริหาร', 30000, 7, 'วันเสาร์ของคุณเริ่มที่สนามกอล์ฟตอนหกโมงเช้า นามบัตรในกระเป๋าเพิ่มขึ้นทุกสัปดาห์'],
+    gov:['ไปงานเลี้ยงรุ่นหลักสูตรผู้บริหาร', 15000, 7, 'คุณยกแก้วกับคนที่วันหนึ่งอาจเซ็นคำสั่งย้ายคุณ'],
+    farm:['เข้ากลุ่มวิสาหกิจชุมชนในหมู่บ้าน', 2000, 5, 'คุณประชุมกับเพื่อนบ้านที่ศาลากลางหมู่บ้าน แล้วรวมกันขายผลผลิตได้ราคาดีขึ้น'],
+    factory:['เป็นกรรมการกองทุนสวัสดิการพนักงาน', 0, 5, 'เพื่อนร่วมงานเริ่มเดินมาปรึกษาคุณทุกเรื่องตั้งแต่ค่ารถไปจนถึงเรื่องหย่า'],
+    biz:['เข้าหอการค้าจังหวัด', 20000, 7, `คุณได้รู้จักนักธุรกิจรุ่นใหญ่ของ${X.prov} ที่โต๊ะจีนงานเลี้ยงประจำปี`],
+    influ:['ไปงานอีเวนต์และคอลแลบกับครีเอเตอร์คนอื่น', 15000, 7, 'คุณถ่ายคลิปคู่กับครีเอเตอร์ที่ดังกว่า แล้วยอดผู้ติดตามขยับตาม'],
+    abroad:['ร่วมกลุ่มคนไทยในต่างแดน', 3000, 5, 'คุณช่วยงานบุญที่วัดไทยในต่างแดน แล้วได้เครือข่ายคนไทยด้วยกัน'] }[c] || ['ออกงานสังคม', 10000, 5, 'คุณเริ่มไปงานเลี้ยงที่เคยปฏิเสธ'];
+  const fam = p.kids.length ? `พาครอบครัวไปเที่ยวและอยู่กับลูก` : p.spouse ? `ใช้เวลากับ${p.spouse.name}มากขึ้น` : `กลับไปหาพ่อแม่ที่${X.prov}บ่อยขึ้น`;
+  return [
+    { k:'course', label:course[0], sub:'S+5', cost:lm(p,12000), st:course[1], run:()=>{ fx(p,{S:5}); if(c==='farm') p.incomeBoost *= 1.05; } },
+    { k:'social', label:social[0], sub:`C+${social[2]}`, cost:social[1], st:social[3], run:()=>fx(p,{C:social[2]}) },
+    { k:'family', label:fam, sub: p.kids.length ? 'J+6 ค่าลูก+3' : 'J+6', cost:lm(p,8000), st: p.kids.length ? `คุณพา${p.kids.map(k=>k.name).join(' ')}ไปทะเล แล้วนั่งดูลูกก่อปราสาททรายจนมืด` : p.spouse ? `คุณกับ${p.spouse.name}กลับมาทำกับข้าวกินด้วยกันทุกเย็น` : `แม่ทำกับข้าวรอทุกครั้งที่คุณกลับ${X.prov}`, run:()=>{ fx(p,{J:6}); p.kids.forEach(k=>k.kv+=3); if(p.flags.fightW) p.flags.fightW = Math.max(0, p.flags.fightW-3); } },
+    { k:'hobby', label:'งานอดิเรก ปลูกต้นไม้ ตกปลา เล่นดนตรี', sub:'J+5 H+1', cost:lm(p,5000), st:pk(['ระเบียงบ้านคุณเต็มไปด้วยกระถางต้นไม้','คุณออกไปตกปลาที่อ่างเก็บน้ำทุกเช้าวันอาทิตย์','คุณซื้อกีตาร์โปร่งมาหัดเล่นเพลงที่ฟังตอนวัยรุ่น'], p), run:()=>fx(p,{J:5,H:1}) },
+    { k:'exercise', label:'ออกกำลังกายจริงจัง วิ่งมาราธอน ปั่นจักรยาน', sub:'H+4 J+1', cost:lm(p,6000), st:'คุณลงวิ่งมินิมาราธอนรายการแรก แล้วได้เหรียญที่แขวนไว้หัวเตียง', run:()=>{ fx(p,{H:4,J:1}); hab(p).ex = 1; } },
+    { k:'side', label:'รับงานเสริมหลังเลิกงาน', sub:`฿+${baht(lm(p,60000))} · J−3 H−2`, cost:0, st:'คุณรับจ็อบเสริมจนดึกแทบทุกคืน บัญชีโตขึ้นแต่ตาคล้ำลง', run:()=>fx(p,{m:lm(p,60000),J:-3,H:-2}) },
+    { k:'volunteer', label:'เป็นจิตอาสาในชุมชน', sub:'C+2 J+2', cost:0, st:'คุณช่วยทาสีโรงเรียนในชุมชน แล้วได้รู้จักคนในละแวกบ้านมากกว่าที่อยู่มาสิบปี', run:()=>{ fx(p,{C:2,J:2,K:3}); tagGood(p,'community','จิตอาสาในชุมชน'); } },
+  ];
+}
+async function freeTime(p, io){
+  if(p.status.prison || !p.career) return;
+  const items = freeOpts(p);
+  let picks = await io.multi({ kind:'life', bg: CAREERS[p.career].bg || 'city', title:'ช่วงนี้ใช้เวลาว่างกับอะไร', text:'เลือกได้ไม่เกิน 2 อย่าง (เวลามีจำกัด) หรือไม่เลือกก็ได้', items: prepChoices(p, items), max:2, p, pend:p.pend.splice(0) });
+  picks = picks.slice(0, 2);
+  if(!picks.length){ tell(p, 'เวลาว่างทั้งหมดหมดไปกับงานและการนอน'); return; }
+  const lines = [];
+  for(const i of picks){ const it = items[i]; spend(p, it.cost); it.run(); lines.push(it.st); log(p, it.label); }
+  tell(p, lines.join(' · '));
+}
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
@@ -3114,7 +3152,7 @@ const UI = {
       const el = panel(eyebrow(o) + pendHTML(o.pend) + `<h2>${esc(cleanTitle(o.title))}</h2>` + textHTML(o.text) + `<div class="choices">${o.items.map((c,i)=>choiceHTML(c,i,true)).join('')}</div><p class="help" id="mTotal">ยังไม่ได้เลือก</p><button class="go" id="goBtn">ยืนยัน</button>`);
       flushChips();
       const upd = () => { const tot = [...sel].reduce((s,i)=>s+(o.items[i].cost||0),0); $('#mTotal').textContent = sel.size ? `เลือก ${sel.size} อย่าง · รวม ฿${baht(tot)}` : 'ยังไม่ได้เลือก'; };
-      el.querySelectorAll('.ch').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.i; if(sel.has(i)) sel.delete(i); else { const tot = [...sel].reduce((s,j)=>s+(o.items[j].cost||0),0) + (o.items[i].cost||0); if(tot > Math.max(0, CUR.p.money) && o.items[i].cost) return; sel.add(i); } b.classList.toggle('on', sel.has(i)); upd(); }));
+      el.querySelectorAll('.ch').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.i; if(sel.has(i)) sel.delete(i); else { if(o.max && sel.size >= o.max) return; const tot = [...sel].reduce((s,j)=>s+(o.items[j].cost||0),0) + (o.items[i].cost||0); if(tot > Math.max(0, CUR.p.money) && o.items[i].cost) return; sel.add(i); } b.classList.toggle('on', sel.has(i)); upd(); }));
       const done = () => { setKeys(null); res([...sel]); };
       $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key === 'Enter'){ e.preventDefault(); done(); } });
       focusFirst(el); scrollPanelIntoView();
