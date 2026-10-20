@@ -504,6 +504,7 @@ async function years(p, io, n, opts = {}){
     // สุขภาพตามวัย
     if(p.age > 70) p.H -= 2; else if(p.age > 50) p.H -= 1; else if(p.age > 40 && p.age % 2) p.H -= 1;
     if(p.status.chronic){ p.H -= 1; addMoney(p, -6000); }
+    const newDz = habitYear(p);
     if(p.status.bullied && p.age <= 18) p.J -= 3;
     if(p.status.depressed){ p.J -= 3; }
     if(p.status.dementia){ p.J -= 3; }
@@ -564,7 +565,8 @@ async function years(p, io, n, opts = {}){
     bars.push({ age: p.age, net, income, rec });
     // บัญชีกรรม: ลางร้าย
     if(p.K < -30 && chance(.15) && !opts.quiet) notes.push(pickOne(OMENS));
-    if(p.H <= 0){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('สุขภาพทรุดลงจนร่างกายไปต่อไม่ไหว'); }
+    if(p.H <= 0){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death(healthDeathCause(p)); }
+    if(newDz){ await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await diseaseOnset(p, io, newDz); }
     if(p.lifespan && p.age >= p.lifespan){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('จากไปอย่างสงบตามอายุขัย'); }
     // เหตุการณ์ตามกำหนด (พ่อแม่เสียชีวิต)
     if(p.parentDeath && !p.parentDeath.done && p.age >= p.parentDeath.age){
@@ -654,6 +656,7 @@ async function debtSpiral(p, io){
   if(c.k === 'flee'){ fx(p,{ K:-10 }); tagBad(p,'debtflee','หนีหนี้', td); p.flags.fled = true; note(p,'คุณเลือกหนีหนี้ หนี้ยังโตต่อเงียบ ๆ'); }
 }
 async function offerDeed(p, io){
+  if(p.status.prison) return;
   const opts = DEEDS.filter(d => p.age >= d.min && p.age <= d.max && !p.deeds[d.id] && (!d.careers || d.careers.includes(p.career)) && (!d.needIncome || p.career));
   if(!opts.length) return;
   const d = pickOne(opts);
@@ -669,6 +672,7 @@ async function offerDeed(p, io){
   note(p, ctx.note || 'คุณเลือกทำ แม้จะไม่ได้อะไรกลับมาในตอนนี้');
 }
 async function lifestyleChoice(p, io){
+  if(p.status.prison) return;
   const hh = hhIncome(p);
   const c = await choose(p, io, { kind:'life', bg:'home', title:'ช่วงนี้ใช้ชีวิตแบบไหน', text:`รายได้ครัวเรือนราว ฿${baht(hh)}/เดือน`, choices: [
     { label:'ประหยัด', sub:'ออมเพิ่ม 10%', v:0 },
@@ -814,6 +818,7 @@ async function stage1(p, io){
   if(p.sex === 'M') beats.push({ age:15, run: async () => {
     if(await yesno(p, io, { title:'เรียน รด. (นักศึกษาวิชาทหาร) ไหม', sub:'H+3 · ไม่ต้องเกณฑ์ทหาร', cost:15000 })){ p.rd = true; fx(p,{H:3}); if(chance(.1)){ fx(p,{H:-5}); note(p,'บาดเจ็บเล็กน้อยระหว่างฝึก'); } }
   }});
+  depthStage1(p, io, beats);
   const evs = drawEvents(p, S1_EVENTS, 2); const eAges = distinctAges(evs.length, 7, 17);
   evs.forEach((e, i) => beats.push(evBeat(p, io, e, eAges[i])));
   beats.push({ age: randi(9, 16), run: () => offerDeed(p, io) });
@@ -910,6 +915,7 @@ async function stage2(p, io){
     const yes = await yesno(p, io, { title:t, sub, noSub:m.noSub, cost:m.cost||0, yes:m.yes, no:m.no, loan: m.cost >= 1000000 ? 'bank' : false });
     if(yes) m.run(p); else if(m.runNo) m.runNo(p);
   }}));
+  depthStage2(p, io, beats);
   const evs = drawEvents(p, S2_EVENTS, 2); const eAges = distinctAges(evs.length, 18, 21);
   evs.forEach((e, i) => beats.push(evBeat(p, io, e, eAges[i])));
   if(p.sex === 'M' && !p.rd) beats.push({ age:21, run: async () => {
@@ -932,16 +938,18 @@ async function stage2(p, io){
 }
 
 // ---------- STAGE 3 อาชีพ ----------
-async function arrested(p, io, why){
+async function arrested(p, io, why, sev = 1){
   await say(p, io, { kind:'event', bg:'court', title:'ถูกจับ', text: why });
   const c = await choose(p, io, { kind:'fork', bg:'court', title:'จะสู้คดียังไง', choices:[
     { label:'สู้คดี จ้างทนาย', sub:`หลุดคดี ${clamp(Math.round(40+0.3*(p.C-50)),5,95)}%`, cost:300000, k:'fight' },
-    { label:'รับสารภาพ', sub:'ติดคุก 1 ปี J−20 C−10', k:'confess' },
+    { label:'รับสารภาพ', sub:`ติดคุก ${sev} ปี J−20 C−10`, k:'confess' },
     { label:'ใช้เส้นช่วย', sub:'ต้องมี C 60 ขึ้นไป · หลุด 70%', cost:100000, cond:p.C>=60, condText:'C ต้องถึง 60', k:'line' } ]});
-  const jail = (y, d) => { p.status.prison = y; p.unemployed = Math.max(p.unemployed, y); fx(p, d); p.Jbase = Math.max(0,p.Jbase-10); if(p.career==='gov'){ p.flags.noPension = true; p.career = 'factory'; p.cOut='mid'; p.cYears=0; } note(p, `ติดคุก ${y} ปี`); };
-  if(c.k==='fight'){ if(chance(clamp(40+0.3*(p.C-50),5,95)/100)) note(p,'ศาลยกฟ้อง คุณกลับไปทำงานเดิมได้'); else jail(3, {J:-30,C:-20}); }
-  if(c.k==='confess'){ jail(1, {J:-20,C:-10}); if(['gov','office'].includes(p.career)){ p.career='factory'; p.cOut='mid'; p.cYears=0; } }
-  if(c.k==='line'){ fx(p,{K:-10}); tagBad(p,'corrupt','ใช้เส้นช่วยคดี',100000); if(chance(.7)) note(p,'คดีเงียบหายไป'); else jail(5, {J:-30,C:-20}); }
+  let jailed = 0;
+  const jail = (y, d) => { jailed = y; p.flags.restricted = true; p.status.prison = y; p.unemployed = Math.max(p.unemployed, y); fx(p, d); p.Jbase = Math.max(0,p.Jbase-10); if(p.career==='gov'){ p.flags.noPension = true; p.career = 'factory'; p.cOut='mid'; p.cYears=0; } note(p, `ติดคุก ${y} ปี`); };
+  if(c.k==='fight'){ if(chance(clamp(40+0.3*(p.C-50),5,95)/100)) note(p,'ศาลยกฟ้อง คุณกลับไปทำงานเดิมได้'); else jail(3*sev, {J:-30,C:-20}); }
+  if(c.k==='confess'){ jail(sev, {J:-20,C:-10}); if(['gov','office'].includes(p.career)){ p.career='factory'; p.cOut='mid'; p.cYears=0; } }
+  if(c.k==='line'){ fx(p,{K:-10}); tagBad(p,'corrupt','ใช้เส้นช่วยคดี',100000); if(chance(.7)) note(p,'คดีเงียบหายไป'); else jail(5*sev, {J:-30,C:-20}); }
+  if(jailed){ log(p, `ติดคุก ${jailed} ปี`); await say(p, io, { kind:'event', bg:'prison', title:`ติดคุก ${jailed} ปี`, text:'ชุดสีฟ้า เลขประจำตัว และห้องขังรวมกับอีก 40 คน\nหลังพ้นโทษ งานราชการ บริษัท และงานต่างประเทศจะปิดประตูใส่คุณ' }); }
 }
 const C_MINORS = {
   farm: [
@@ -999,11 +1007,12 @@ async function enterCareer(p, io, opts = {}){
   while(true){
     const c = await choose(p, io, { kind:'main', bg:'city', title: opts.title || 'เลือกอาชีพ', text: opts.text || 'อาชีพกำหนดรายได้ทั้งชีวิตและสิทธิหลังเกษียณ', choices: careerChoices(p, exclude) });
     if(c.k === 'gov'){
-      const pr = clamp(20+0.5*(p.S-50)+0.3*(p.C-50)+(p.degree==='top'?10:0), 3, 95)/100;
-      if(!chance(pr)){ note(p,'สอบ ก.พ. ไม่ติด'); exclude = [...exclude, 'gov']; continue; }
+      const pr = clamp(20+0.5*(p.S-50)+0.3*(p.C-50)+(p.degree==='top'?10:0)-(p.flags.juvenile?20:0), 3, 95)/100;
+      if(!chance(pr)){ note(p, p.flags.juvenile ? 'สอบ ก.พ. ไม่ติด ประวัติสถานพินิจตอนเด็กทำให้ผ่านสัมภาษณ์ยาก' : 'สอบ ก.พ. ไม่ติด'); exclude = [...exclude, 'gov']; continue; }
     }
     p.career = c.k; p.cYears = 0; p.cOut = null; p.cStartAge = p.age; p.unemployed = 0; p.incomeBoost = 1; p.flags.cAdj = 0; p.flags.cBad = 0;
     const C = CAREERS[c.k]; fx(p, C.fx);
+    const sd = seedFor(p, c.k); if(sd){ p.flags.cAdj = sd.adj; p.flags.seedWhy = sd.why; note(p, `${sd.why}ช่วยให้คุณเริ่มต้นได้ดีกว่าคนอื่น (โอกาสผลดี +${sd.adj}%)`); } else p.flags.seedWhy = null;
     if(c.k === 'farm' && !(p.q >= 3 || p.tier === 4 || p.tier === 5)) p.flags.rentLand = true;
     if(c.k === 'abroad') p.flags.abroadEnd = p.age + 5;
     if(p.flags.stayAbroad && c.k !== 'abroad') p.incomeBoost *= 2, p.flags.stayAbroad = false;
@@ -1016,7 +1025,7 @@ async function careerOutcome(p, io){
   if(!p.career || p.cOut) return;
   const C = CAREERS[p.career];
   const o = roll3(p, C.odds, { g: p.flags.cAdj||0, b: p.flags.cBad||0 }); p.cOut = o;
-  await say(p, io, { kind:'result', bg:C.bg, title:`${C.name}: ผลลัพธ์${OUT_TH[o]}`, text:C.outText[o], outcome:o });
+  await say(p, io, { kind:'result', bg:C.bg, title:`${C.name}: ผลลัพธ์${OUT_TH[o]}`, text:C.outText[o] + (o==='good' && p.flags.seedWhy ? `\n${p.flags.seedWhy}ที่สะสมมาช่วยได้มาก` : ''), outcome:o });
   log(p, `${C.name} ผล${OUT_TH[o]}`);
   if(p.career==='farm' && o==='good') fx(p,{J:5});
   if(p.career==='factory' && o==='bad') p.unemployed = 2;
@@ -1319,6 +1328,7 @@ async function stage3(p, io){
     if(yes) await m.run(p, io);
   }}));
   beats.push({ age: p.age + 4, run: () => careerOutcome(p, io) });
+  depthStage3(p, io, beats);
   // minor ทั่วไป
   beats.push({ age: 28, run: async () => {
     if(!p.career) return;
@@ -1382,7 +1392,7 @@ async function runBeatsWithLater(p, io, beats, endAge){
 
 // ---------- STAGE 6 เกษียณ ----------
 const S6_EVENTS = [
-  { id:'stroke', title:'เส้นเลือดสมองแตก', bg:'hospital', text:()=>'คุณล้มฟุบข้างโต๊ะกินข้าว', w:p=>10+(p.H<40?10:0)+(p.flags.ot?5:0), run: async (p, io) => { fx(p,{H:-30}); if(p.H<=0) throw new Death('เส้นเลือดสมองแตก'); await seriousIllness(p, io, 30); } },
+  { id:'stroke', title:'เส้นเลือดสมองแตก', bg:'hospital', text:()=>'คุณล้มฟุบข้างโต๊ะกินข้าว', w:p=>10+(p.H<40?10:0)+(p.flags.ot?5:0)+(hasDz(p,'hyper')?10:0)+(hab(p).smoke?5:0), run: async (p, io) => { fx(p,{H:-30}); if(p.H<=0) throw new Death('เส้นเลือดสมองแตก'); await seriousIllness(p, io, 30); } },
   { id:'dementia', title:'สมองเสื่อม', bg:'home', text:()=>'คุณมองรูปเก่าแล้วจำหน้าคนในรูปไม่ได้', w:p=>8+5*Math.max(0,Math.floor((p.age-70)/5))-(p.J>60?3:0),
     run: async (p, io) => { fx(p,{J:-20}); stOn(p,'dementia');
       const hasKid = p.kids.some(k=>k.kv>=50);
@@ -1394,7 +1404,7 @@ const S6_EVENTS = [
       if(c.k==='kid') fx(p,{J:5}); if(c.k==='hire') p.flags.residenceCost = (p.flags.residenceCost||0)+15000; if(c.k==='home'){ p.flags.residenceCost=(p.flags.residenceCost||0)+35000; fx(p,{H:5,J:-5}); }
       if(c.k==='gov'){ if(chance(.3)) note(p,'ได้ที่ในสถานสงเคราะห์'); else { note(p,'ไม่ได้ที่ อยู่ลำพังต่อไป'); fx(p,{H:-5}); } }
     } },
-  { id:'abandon', title:'ลูกทอดทิ้ง', bg:'home', text:()=>'คุณยืนรอที่หน้าต่าง แต่วันนี้ลูกก็ไม่มาอีก', w:p=>p.kids.length? 8+(p.kids.some(k=>k.kv<40)?10:0)+(p.flags.gaveLand?15:0) : null,
+  { id:'abandon', title:'ลูกทอดทิ้ง', bg:'home', text:()=>'คุณยืนรอที่หน้าต่าง แต่วันนี้ลูกก็ไม่มาอีก', w:p=>p.kids.length? 8+(p.kids.some(k=>k.kv<40)?10:0)+(p.flags.gaveLand?15:0)+(p.tagsBad.some(t=>t.type==='abandon')?12:0) : null,
     run: async (p, io) => { fx(p,{J:-25}); p.kidMoney = 0; p.Jbase = Math.max(0,p.Jbase-5);
       const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะทำยังไงต่อ', choices:[
         { label:'ฟ้องเรียกค่าอุปการะเลี้ยงดู', sub:'50% ได้ 3,000/เดือน · J−5', cost:30000, k:'sue' }, { label:'ยื่นเข้าสถานสงเคราะห์ของรัฐ', sub:'ได้ที่ 30% H+3', k:'gov' }, { label:'ยอมรับและใช้ชีวิตลำพัง', sub:'J−5', k:'accept' } ]});
@@ -1416,7 +1426,7 @@ async function stage6(p, io){
   if(p.flags.kidSend) { p.kidMoney = 5000 * p.kids.length; notes.push(`ลูกส่งเงินให้ ฿${baht(p.kidMoney)}/เดือน`); }
   if(p.flags.retireInvest){ const r = rnd(); const m = r < .3 ? 3 : r < .85 ? 1.5 : 1; addMoney(p, p.flags.retireInvest*m); notes.push(`เงินลงทุนเพื่อเกษียณได้คืน ฿${baht(p.flags.retireInvest*m)}`); }
   p.retireIncome = pension; p.career = p.career; p.cOut = p.cOut;
-  p.lifespan = Math.max(61, Math.round(72 + (p.H - 50)/3 + randi(-6, 6)));
+  p.lifespan = Math.max(61, Math.round(72 + (p.H - 50)/3 + randi(-6, 6) + habitLifespanAdj(p)));
   if(p.spouse) p.spouse.income = p.spouse.income * .3;
   await say(p, io, { kind:'stage', bg:'home', title:'เกษียณ อายุ 60', text: notes.join('\n') + `\nเงินเก็บตอนนี้ ฿${baht(p.money)}${totalDebt(p) ? ` · หนี้ ฿${baht(totalDebt(p))}` : ''}` });
   const hasKids = p.kids.length > 0;
@@ -1430,7 +1440,10 @@ async function stage6(p, io){
   if(res==='gov' && !chance(.3)){ note(p,'สถานสงเคราะห์เต็ม คุณต้องอยู่คนเดียว'); res = 'alone'; }
   const avgKv = hasKids ? p.kids.reduce((s,k)=>s+k.kv,0)/p.kids.length : 50;
   let o;
-  if(res==='kid'){ fx(p,{J:10}); const g = avgKv/2, b = (100-avgKv)/3; const r = rnd()*100; o = r<g?'good':r<g+b?'bad':'mid'; fx(p, {good:{J:15,H:5},mid:{J:5},bad:{J:-15}}[o]); }
+  const abandonedParents = p.tagsBad.some(t => t.type==='abandon'), caredParents = !!p.flags.careParents;
+  if(res==='kid' && abandonedParents) note(p,'ลูกยังจำได้ว่าคุณส่งปู่ย่าไปบ้านพักแล้วไม่เคยไปเยี่ยม');
+  if(res==='kid' && caredParents) note(p,'ลูกโตมากับภาพที่คุณดูแลปู่ย่าจนวันสุดท้าย');
+  if(res==='kid'){ fx(p,{J:10}); const g = avgKv/2 + (caredParents?15:0) - (abandonedParents?15:0), b = (100-avgKv)/3 + (abandonedParents?15:0); const r = rnd()*100; o = r<g?'good':r<g+b?'bad':'mid'; fx(p, {good:{J:15,H:5},mid:{J:5},bad:{J:-15}}[o]); }
   if(res==='priv'){ p.flags.residenceCost = 25000; fx(p,{H:10,J:-5}); o = roll3(p,[30,55,15]); fx(p, {good:{H:10},mid:{H:3},bad:{J:-10}}[o]); }
   if(res==='gov'){ fx(p,{H:3,J:-10}); o = roll3(p,[15,55,30]); fx(p, {good:{J:5},mid:{},bad:{H:-5,J:-10}}[o]); }
   if(res==='alone'){ fx(p,{J:-5}); p.flags.alone = true; o = roll3(p,[20,50,30]); if(o==='good') fx(p,{J:10}); }
@@ -1619,6 +1632,274 @@ async function simulateLives(n, onDone){
   return scores;
 }
 function percentile(scores, s){ if(!scores || scores.length < 20){ const z = (s - 48)/10; return clamp(Math.round(100/(1+Math.exp(-1.7*z))), 1, 99); } let c = 0; for(const v of scores) if(v < s) c++; return clamp(Math.round(c/scores.length*100), 1, 99); }
+// ===== ความลึกของชีวิต: นิสัยสุขภาพ · ผลย้อนหลังจากวัยเด็ก · คุก · รวยมหาศาล =====
+
+// ---------- นิสัยสุขภาพ ----------
+function hab(p){ if(!p.hab) p.hab = { smoke:0, smokeFrom:0, smokeYrs:0, drink:0, drinkYrs:0, ex:0, exYrs:0, hFrac:0 }; return p.hab; }
+const DISEASES = {
+  hyper:   { name:'ความดันโลหิตสูง', chronic:true },
+  diabetes:{ name:'เบาหวาน', chronic:true },
+  lung:    { name:'มะเร็งปอด', chronic:false, lost:30 },
+  liver:   { name:'ตับแข็ง', chronic:false, lost:25 },
+  kidney:  { name:'ไตวายเรื้อรัง', chronic:true, lost:15 },
+  heart:   { name:'หัวใจขาดเลือดเฉียบพลัน', chronic:false, lost:30 },
+};
+function hasDz(p, k){ return !!(p.dz && p.dz[k]); }
+// เรียกทุกปีจาก years(): ผลสะสมของนิสัย + สุ่มโรค (คืนชื่อโรคที่เพิ่งเป็น)
+function habitYear(p){
+  const h = hab(p);
+  if(h.smoke) h.smokeYrs++;
+  if(h.drink === 2) h.drinkYrs++; else if(h.drink === 1) h.drinkYrs += .3;
+  if(h.ex) h.exYrs++;
+  let d = 0;
+  if(h.smoke && p.age > 30) d -= .3;
+  if(h.drink === 2 && p.age > 30) d -= .3;
+  if(p.flags.ot && p.age > 30 && p.age < 60) d -= .3;
+  if(h.ex && p.age > 25 && p.H < TIERS[p.tier].H + 10) d += .6;
+  for(const k in (p.dz || {})){ const z = p.dz[k]; if(DISEASES[k].chronic) d -= z.care === 'ignore' ? 1.2 : z.care === 'diet' ? .3 : .6; }
+  h.hFrac += d; const whole = h.hFrac > 0 ? Math.floor(h.hFrac) : Math.ceil(h.hFrac); p.H += whole; h.hFrac -= whole;
+  for(const k in (p.dz || {})) if(DISEASES[k].chronic) addMoney(p, p.dz[k].care === 'ignore' ? 0 : -3000);
+  if(p.age < 38) return null;
+  const lux = p.lifestyle === 2 ? 1 : 0;
+  const risk = {
+    hyper:    .004 + .004*(p.flags.ot?1:0) + .003*(h.drink===2?1:0) + .002*h.smoke + .002*lux - .003*h.ex,
+    diabetes: .0025 + .004*lux + .003*(h.ex?0:1) + .002*(h.drink>=1?1:0),
+    lung:     h.smokeYrs >= 10 && p.age >= 45 ? .0003*h.smokeYrs : 0,
+    liver:    h.drinkYrs >= 8 && p.age >= 40 ? .00025*h.drinkYrs : 0,
+    kidney:   ((hasDz(p,'diabetes') && p.age - p.dz.diabetes.age >= 6) || (hasDz(p,'hyper') && p.age - p.dz.hyper.age >= 8)) ? .008 * (Object.values(p.dz).some(z=>z.care==='ignore') ? 2 : 1) : 0,
+    heart:    p.age >= 45 ? .001 + .003*h.smoke + .003*(hasDz(p,'hyper')?1:0) + .002*(hasDz(p,'diabetes')?1:0) - .001*h.ex : 0,
+  };
+  for(const k of Object.keys(risk)){ if(hasDz(p, k)) continue; if(chance(Math.max(0, risk[k]))) return k; }
+  return null;
+}
+function dzCause(p, k){
+  const h = hab(p), bits = [];
+  if(k==='lung' || (k==='heart' && h.smokeYrs >= 5)) bits.push(`บุหรี่ที่สูบมาตั้งแต่อายุ ${h.smokeFrom} รวม ${h.smokeYrs} ปี`);
+  if(k==='liver' || (k==='hyper' && h.drink===2)) bits.push(`เหล้าที่ดื่มหนักมาราว ${Math.round(h.drinkYrs)} ปี`);
+  if((k==='hyper' || k==='heart') && p.flags.ot) bits.push('การทำงานหนักและนอนน้อยมาหลายปี');
+  if(k==='diabetes' && p.lifestyle===2) bits.push('การกินอยู่แบบหรูหรา');
+  if(k==='diabetes' && !h.ex) bits.push('การแทบไม่ได้ออกกำลังกาย');
+  if(k==='kidney') bits.push(`${hasDz(p,'diabetes')?'เบาหวาน':'ความดัน'}ที่เป็นมาหลายปี`);
+  return bits.length ? `ผลจาก${bits.join(' และ')}` : 'หมอบอกว่าเป็นไปตามวัยและกรรมพันธุ์';
+}
+async function diseaseOnset(p, io, k){
+  const D = DISEASES[k]; p.dz = p.dz || {}; p.dz[k] = { age: p.age, care:'med' };
+  log(p, `ตรวจพบ${D.name}`);
+  const cause = dzCause(p, k);
+  if(D.chronic && k !== 'kidney'){
+    const c = await choose(p, io, { kind:'fork', bg:'hospital', title:`ตรวจพบ${D.name}`, text:`${cause}\nโรคนี้อยู่กับคุณไปตลอดชีวิต`, choices:[
+      { label:'คุมอาหาร ออกกำลังกาย กินยาตามหมอ', sub:'J−3 · H ลดช้าที่สุด · เริ่มออกกำลังกาย', k:'diet' },
+      { label:'กินยาอย่างเดียว', sub:'ค่ายาปีละ 3,000', k:'med' },
+      { label:'ไม่สนใจ ใช้ชีวิตเหมือนเดิม', sub:'H ลดเร็ว · เสี่ยงไตวายสูง', k:'ignore' } ]});
+    p.dz[k].care = c.k;
+    if(c.k==='diet'){ fx(p,{J:-3}); hab(p).ex = 1; note(p,'คุณเริ่มเดินเร็วทุกเช้าและลดของหวาน'); }
+    if(c.k==='ignore') note(p,'คุณใช้ชีวิตเหมือนเดิม อาการยังไม่แสดงให้เห็นในตอนนี้');
+    return;
+  }
+  if(k === 'kidney'){
+    fx(p,{H:-D.lost});
+    const c = await choose(p, io, { kind:'fork', bg:'hospital', title:'ไตวายเรื้อรัง', text:`${cause}\nหมอบอกว่าต้องฟอกไตหรือหาไตใหม่`, choices:[
+      { label:'ฟอกไตทางช่องท้องตามสิทธิ์', sub:'J−10 · ต้องทำทุกวันไปตลอด', k:'dialysis' },
+      { label:'ผ่าตัดปลูกถ่ายไต รพ.เอกชน', sub:'สำเร็จ 70% · หายแล้วกลับมาใช้ชีวิตได้', cost:1500000, loan:false, k:'transplant' },
+      { label:'ไม่รักษา', sub:'J−5', k:'none' } ]});
+    if(c.k==='dialysis'){ fx(p,{J:-10}); p.Jbase = Math.max(0, p.Jbase - 5); }
+    if(c.k==='transplant'){ if(chance(.7)){ delete p.dz.kidney; fx(p,{H:15}); note(p,'ผ่าตัดสำเร็จ ไตใหม่ทำงานได้ดี'); } else { note(p,'ร่างกายไม่รับไตใหม่ ต้องกลับไปฟอกไต'); fx(p,{J:-10}); } }
+    if(c.k==='none'){ fx(p,{J:-5,H:-15}); p.dz.kidney.care = 'ignore'; }
+    if(p.H <= 0) throw new Death('ไตวายเรื้อรัง');
+    return;
+  }
+  fx(p,{H:-D.lost});
+  await say(p, io, { kind:'event', bg:'hospital', title: k==='heart' ? 'เจ็บหน้าอกจนล้มลง' : `ตรวจพบ${D.name}`, text:`${D.name} · ${cause}` });
+  if(p.H <= 0) throw new Death(D.name);
+  await seriousIllness(p, io, D.lost);
+  if(k==='lung' || k==='heart'){ const h = hab(p); if(h.smoke && await yesno(p, io, { title:'หมอสั่งให้เลิกบุหรี่ทันที', sub:'สำเร็จ 70% เพราะกลัวตาย', yes:'เลิก', no:'สูบต่อ' })){ if(chance(.7)){ h.smoke = 0; note(p,'คุณเลิกบุหรี่ได้สำเร็จ'); } else note(p,'เลิกได้ 3 เดือนแล้วกลับไปสูบอีก'); } }
+  if(k==='liver'){ const h = hab(p); if(h.drink){ h.drink = 0; note(p,'คุณต้องเลิกเหล้าตามคำสั่งหมอ'); } }
+}
+function healthDeathCause(p){
+  const dz = Object.keys(p.dz || {});
+  if(!dz.length) return 'สุขภาพทรุดลงจนร่างกายไปต่อไม่ไหว';
+  const k = dz.includes('kidney') ? 'kidney' : dz[dz.length-1];
+  return `โรคแทรกซ้อนจาก${DISEASES[k].name}`;
+}
+function habitLifespanAdj(p){ const h = hab(p); return -Math.round(h.smokeYrs/6) - Math.round(h.drinkYrs/8) + (h.exYrs >= 15 ? 3 : h.exYrs >= 5 ? 1 : 0); }
+
+// ---------- ตัวเลือกวัยเด็กที่ส่งผลภายหลัง ----------
+const SEED_TH = { reader:'นิสัยรักการอ่าน', athlete:'การเล่นกีฬามาตั้งแต่เด็ก', trader:'การช่วยค้าขายที่บ้านตั้งแต่เด็ก', creator:'การหัดทำคลิปมาตั้งแต่เด็ก' };
+function seedFor(p, career){
+  const s = p.seeds || {};
+  if(career==='biz' && s.trader) return { adj:12, why:SEED_TH.trader };
+  if(career==='influ' && s.creator) return { adj:12, why:SEED_TH.creator };
+  if(['office','gov'].includes(career) && s.reader) return { adj:6, why:SEED_TH.reader };
+  if(career==='factory' && s.athlete) return { adj:5, why:SEED_TH.athlete };
+  return null;
+}
+function addSeed(p, k){ p.seeds = p.seeds || {}; p.seeds[k] = true; }
+function depthStage1(p, io, beats){
+  beats.push({ age:10, run: async () => {
+    const c = await choose(p, io, { kind:'minor', bg:'school', title:'หลังเลิกเรียน คุณชอบทำอะไรที่สุด', text:'สิ่งที่ทำตอนเด็กติดตัวไปจนโต', choices:[
+      { label:'อ่านหนังสือ / การ์ตูนความรู้', sub:'S+5 · ช่วยงานออฟฟิศและสอบราชการ', k:'reader' },
+      { label:'เล่นกีฬากับเพื่อน', sub:'H+5 · ติดนิสัยออกกำลังกาย', k:'athlete' },
+      { label:'ช่วยพ่อแม่ขายของ', sub:'C+3 ฿+3,000 · ช่วยถ้าทำธุรกิจ', k:'trader' },
+      { label:'เล่นเกม ดูยูทูบ หัดตัดคลิป', sub:'J+5 · ช่วยถ้าเป็นอินฟลูฯ', k:'creator' } ]});
+    addSeed(p, c.k);
+    if(c.k==='reader') fx(p,{S:5}); if(c.k==='athlete'){ fx(p,{H:5}); hab(p).ex = 1; } if(c.k==='trader') fx(p,{C:3,m:3000}); if(c.k==='creator') fx(p,{J:5});
+  }});
+  // เพื่อนสนิทวัยเด็ก
+  beats.push({ age:12, run: async () => {
+    const sx = chance(.5) ? 'M' : 'F'; const mu = p.religion==='อิสลาม';
+    const pool = (sx==='M' ? (mu?NAMES_MU_M:NAMES_M) : (mu?NAMES_MU_F:NAMES_F)).filter(n => n !== p.name); const name = pickOne(pool);
+    p.friend = { name, bond:0, fate: wpick([['rich',30],['ok',45],['poor',25]], x=>x[1])[0] };
+    const c = await choose(p, io, { kind:'fork', bg:'school', title:`${name} เพื่อนสนิทของคุณโดนรุ่นพี่รีดไถเงินค่าขนม`, choices:[
+      { label:'เข้าไปช่วยเพื่อน', sub:'H−3 · 30% โดนรุ่นพี่หมายหัว', k:'help' },
+      { label:'แบ่งเงินค่าขนมให้เพื่อน', sub:'฿−2,000', k:'share' },
+      { label:'ทำเป็นไม่เห็น', sub:'ไม่มีผลทันที', k:'ignore' } ]});
+    if(c.k==='help'){ p.friend.bond = 2; fx(p,{H:-3,K:3}); if(chance(.3)){ fx(p,{J:-5}); note(p,'รุ่นพี่หมายหัวคุณไปทั้งเทอม แต่เพื่อนไม่เคยลืม'); } else note(p,`${name}ซึ้งใจมาก คุณสองคนสนิทกันขึ้นอีก`); }
+    if(c.k==='share'){ p.friend.bond = 1; fx(p,{m:-2000,K:1}); }
+    if(c.k==='ignore'){ p.friend.bond = 0; note(p,`${name}เริ่มห่างจากคุณไป`); }
+  }});
+  // บุหรี่ครั้งแรก
+  beats.push({ age:15, run: async () => {
+    if(await yesno(p, io, { title:'เพื่อนในกลุ่มยื่นบุหรี่มาให้ลอง', sub:'J+3 C+2 · อาจติดไปตลอดชีวิต', noSub:'C−2', yes:'ลองสูบ', no:'ไม่เอา' })){
+      fx(p,{J:3,C:2}); if(chance(.6)){ const h = hab(p); h.smoke = 1; h.smokeFrom = p.age; note(p,'จากมวนแรก กลายเป็นวันละครึ่งซอง'); } else note(p,'สูบแล้วไอจนน้ำตาไหล คุณไม่แตะอีกเลย');
+    } else fx(p,{C:-2});
+  }});
+}
+// เหตุการณ์วัยเด็กเพิ่ม: เดินยา (ทางไปสถานพินิจ)
+const S1_EXTRA = [
+  { id:'drugrun', title:'รุ่นพี่ชวนส่งของ', bg:'home', text:()=>'รุ่นพี่ข้างบ้านให้เงิน 2,000 ต่อรอบ แค่เอาห่อเล็ก ๆ ไปส่ง', w:p=>p.age>=13 ? (p.q<=1?6:2)+(p.flags.parentsDivorced?3:0) : 3,
+    run: async (p, io) => {
+      const c = await choose(p, io, { kind:'fork', bg:'home', title:'จะรับงานนี้ไหม', choices:[
+        { label:'รับงาน', sub:'฿+20,000 · 35% โดนจับ', k:'yes' }, { label:'ปฏิเสธ', sub:'C−3', k:'no' }, { label:'บอกผู้ใหญ่', sub:'K+5 · J−5', k:'tell' } ]});
+      if(c.k==='yes'){ fx(p,{m:20000,K:-10}); tagBad(p,'harm','รับจ้างส่งยาเสพติด',20000);
+        if(chance(.35)){ fx(p,{S:-10,C:-10,J:-15}); p.flags.juvenile = true; log(p,'เข้าสถานพินิจ 1 ปี'); await say(p, io, { kind:'event', bg:'prison', title:'ถูกจับ ส่งสถานพินิจ 1 ปี', text:'ตำรวจล่อซื้อ คุณถูกส่งตัวเข้าสถานพินิจและคุ้มครองเด็ก\nประวัตินี้จะตามไปตอนสอบเข้าราชการ' }); }
+        else note(p,'ส่งของได้หลายรอบโดยไม่มีใครรู้'); }
+      if(c.k==='no') fx(p,{C:-3});
+      if(c.k==='tell'){ fx(p,{K:5,J:-5}); tagGood(p,'community','แจ้งผู้ใหญ่เรื่องยาเสพติด'); }
+    } },
+];
+
+// ---------- วัยมหาวิทยาลัย / เริ่มงาน: เหล้า ----------
+function depthStage2(p, io, beats){
+  beats.push({ age:20, run: async () => {
+    const c = await choose(p, io, { kind:'minor', bg:'city', title:'งานเลี้ยงรุ่น ทุกคนชนแก้วกันไม่หยุด', text:'นิสัยการดื่มมักติดตัวไปจนทำงาน', choices:[
+      { label:'ดื่มหนัก ไปต่อทุกร้าน', sub:'C+6 J+3 · เสี่ยงตับและเมาแล้วขับ', k:2 },
+      { label:'ดื่มพอเป็นพิธี', sub:'C+3', k:1 },
+      { label:'ไม่ดื่มเลย', sub:'C−2', k:0 } ]});
+    hab(p).drink = c.k; fx(p, [{C:-2},{C:3},{C:6,J:3}][c.k]);
+  }});
+}
+
+// ---------- วัยทำงาน ----------
+function depthStage3(p, io, beats){
+  // ดูแลสุขภาพ 2 ครั้ง
+  [31, 44].forEach(age => beats.push({ age, run: async () => {
+    if(p.status.prison) return;
+    const h = hab(p); const was = h.ex;
+    const c = await choose(p, io, { kind:'life', bg:'city', title:`อายุ ${p.age} แล้ว ดูแลสุขภาพยังไง`, text: was ? 'คุณออกกำลังกายเป็นประจำมาตลอด' : 'งานยุ่งจนแทบไม่ได้ขยับตัว', choices:[
+      { label:'ออกกำลังกายสม่ำเสมอ', sub: was ? 'ทำต่อเหมือนเดิม · J+2' : 'J−3 · ฿6,000/ปี ค่าฟิตเนส', k:'ex' },
+      { label:'ตามสะดวก เดินบ้างไม่เดินบ้าง', sub:'ไม่มีผลทันที', k:'meh' },
+      { label:'ไม่มีเวลาเลย', sub:'J+2', k:'no' } ]});
+    if(c.k==='ex'){ if(was) fx(p,{J:2}); else { fx(p,{J:-3}); p.annual.push({ from:p.age, to:p.age+10, amt:6000 }); } h.ex = 1; }
+    else { h.ex = 0; if(c.k==='no') fx(p,{J:2}); }
+    if(h.smoke && await yesno(p, io, { title:'อยากเลิกบุหรี่ไหม', sub:'สำเร็จ 35% · J−5 ช่วงเลิก', yes:'ลองเลิก', no:'สูบต่อ' })){ fx(p,{J:-5}); if(chance(.35)){ h.smoke = 0; note(p,`เลิกบุหรี่ได้หลังสูบมา ${h.smokeYrs} ปี`); } else note(p,'เลิกได้ไม่ถึงเดือนก็กลับไปสูบ'); }
+    if(h.drink===2 && await yesno(p, io, { title:'ลดเหล้าลงไหม', sub:'สำเร็จ 50% · C−3', yes:'ลด', no:'ดื่มต่อ' })){ if(chance(.5)){ h.drink = 1; fx(p,{C:-3}); note(p,'ดื่มน้อยลงเหลือแค่งานสังคม'); } else note(p,'ลดได้ไม่นานก็กลับไปเหมือนเดิม'); }
+  }}));
+  // เพื่อนวัยเด็กกลับมา
+  if(p.friend) beats.push({ age: randi(32, 46), run: () => friendReturns(p, io) });
+  // ธุรกิจโตระดับประเทศ
+  beats.push({ age:43, run: () => bizScale(p, io) });
+  beats.push({ age:37, run: () => influBrand(p, io) });
+}
+async function friendReturns(p, io){
+  const f = p.friend; if(!f || p.status.prison) return;
+  const past = f.bond === 2 ? `\nเพราะวันที่คุณเข้าไปช่วยตอน ป.6 ${f.name}ไม่เคยลืม` : '';
+  if(f.fate === 'rich'){
+    if(f.bond >= 1){
+      const c = await choose(p, io, { kind:'event', bg:'office', title:`${f.name} เพื่อนสมัยเด็กโทรมา`, text:`${f.name}เป็นเจ้าของบริษัทแล้ว และอยากชวนคุณมาร่วมงาน${past}`, choices:[
+        { label:'ไปทำงานกับเพื่อน', sub:'รายได้ +40% C+10 · เปลี่ยนเป็นพนักงานออฟฟิศ', cond: p.age < 55, condText:'อายุมากเกินไป', k:'job' },
+        { label:'ร่วมลงทุนกับเพื่อน', sub:'50% ได้คืน ×3', cost:300000, k:'invest' },
+        { label:'ขอบคุณ แต่ทำงานที่เดิม', sub:'C+5', k:'no' } ]});
+      if(c.k==='job'){ p.career = 'office'; p.cOut = 'good'; p.cYears = 0; p.unemployed = 0; p.incomeBoost *= 1.4; fx(p,{C:10,J:5}); log(p,`ไปทำงานกับ${f.name}`); }
+      if(c.k==='invest'){ if(chance(.5)){ fx(p,{m:900000}); note(p,'ธุรกิจของเพื่อนไปได้สวย คุณได้เงินคืน 3 เท่า'); } else note(p,'ธุรกิจเพื่อนไม่รุ่ง เงินลงทุนหายไป แต่ยังเป็นเพื่อนกัน'); }
+      if(c.k==='no') fx(p,{C:5});
+    } else { fx(p,{J:-3}); await say(p, io, { kind:'event', bg:'city', title:`เจอ${f.name}ในข่าว`, text:`เพื่อนสมัยเด็กที่คุณเคยทำเป็นไม่เห็นตอนเขาโดนรังแก ตอนนี้เป็นเจ้าของบริษัทใหญ่\nคุณส่งข้อความไปทัก แต่เขาแค่กดอ่าน` }); }
+    return;
+  }
+  if(f.fate === 'poor'){
+    const c = await choose(p, io, { kind:'event', bg:'city', title:`${f.name} เพื่อนสมัยเด็กมาขอยืมเงิน`, text:`${f.name}ตกงานและลูกป่วย ขอยืม 100,000 บาท${past}`, choices:[
+      { label:'ให้ยืม', sub: f.bond===2 ? '80% ได้คืน · K+5' : '40% ได้คืน · K+5', cost:100000, k:'lend' },
+      { label:'ให้เปล่า 30,000', sub:'K+8', cost:30000, k:'give' },
+      { label:'ปฏิเสธ', sub:'J−3', k:'no' } ]});
+    if(c.k==='lend'){ fx(p,{K:5}); tagGood(p,'community',`ช่วยเหลือ${f.name}ตอนลำบาก`); if(chance(f.bond===2?.8:.4)){ fx(p,{m:100000}); note(p,`${f.name}ทยอยใช้คืนจนครบ`); } else note(p,`${f.name}ไม่เคยใช้คืน และหายไปจากชีวิตคุณ`); }
+    if(c.k==='give'){ fx(p,{K:8}); tagGood(p,'community',`ช่วยเหลือ${f.name}ตอนลำบาก`); if(f.bond===2) p.guestsMult *= 1.05; }
+    if(c.k==='no') fx(p,{J:-3});
+    return;
+  }
+  if(f.bond >= 1){ fx(p,{J:5,C:3}); await say(p, io, { kind:'event', bg:'city', title:'งานเลี้ยงรุ่น', text:`${f.name}เป็นคนจัดงาน และลากคุณไปนั่งโต๊ะเดียวกัน คุยกันจนร้านปิด` }); }
+}
+
+// ---------- รวยมหาศาล ----------
+async function bizScale(p, io){
+  if(p.career !== 'biz' || p.cOut !== 'good' || p.status.prison || p.flags.scaled) return;
+  p.flags.scaled = true;
+  const ipo = clamp(Math.round(25 + 0.3*(p.S-50) + 0.3*(p.C-50) + (p.flags.branch?10:0) + (p.seeds?.trader?5:0)), 8, 70);
+  const c = await choose(p, io, { kind:'fork', bg:'office', title:'บริษัทของคุณโตจนนักลงทุนรายใหญ่เริ่มสนใจ', text:'ทางเลือกนี้อาจเปลี่ยนคุณเป็นเศรษฐีระดับประเทศ', choices:[
+    { label:'เข้าตลาดหลักทรัพย์ (IPO)', sub:`สำเร็จ ${ipo}% · ถ้าสำเร็จ หุ้นที่ถือมีมูลค่าหลายร้อยล้านถึงหลักพันล้าน`, cost:5000000, k:'ipo' },
+    { label:'ขายกิจการให้ทุนใหญ่', sub:'ได้เงินก้อน 40–120 ล้าน · หยุดทำธุรกิจ', k:'sell' },
+    { label:'ทำต่อแบบเดิม', sub:'ไม่เสี่ยง', k:'keep' } ]});
+  if(c.k==='ipo'){
+    if(chance(ipo/100)){ const v = randi(30, 300) * 10000000 * .6; addMoney(p, Math.round(v)); p.incomeBoost *= 3; fx(p,{J:10,C:30}); p.flags.tycoon = true; log(p,'บริษัทเข้าตลาดหลักทรัพย์');
+      await say(p, io, { kind:'result', bg:'office', outcome:'good', title:'เคาะระฆังเปิดซื้อขายวันแรก', text:`หุ้นที่คุณถือมีมูลค่า ฿${baht(Math.round(v))}\nชื่อคุณขึ้นทำเนียบคนรวยของนิตยสารธุรกิจ` }); }
+    else { fx(p,{J:-10}); note(p,'ก.ล.ต. ไม่อนุมัติ นักลงทุนถอนตัว เงินเตรียมการ 5 ล้านหายไป'); }
+  }
+  if(c.k==='sell'){ const v = randi(40, 120) * 1000000; addMoney(p, v); p.incomeBoost *= .05; fx(p,{J:5}); p.flags.soldBiz = true; log(p,'ขายกิจการ'); note(p, `ขายกิจการได้ ฿${baht(v)} คุณไม่ต้องทำงานอีกเลยถ้าไม่อยากทำ`); }
+}
+async function influBrand(p, io){
+  if(p.career !== 'influ' || p.cOut !== 'good' || p.status.prison || p.flags.brand) return;
+  p.flags.brand = true;
+  if(!await yesno(p, io, { kind:'fork', bg:'stream', title:'แฟนคลับเรียกร้องให้ออกแบรนด์ของตัวเอง', sub:'สำเร็จ 35% · ถ้าปัง ได้ 50–200 ล้าน', cost:2000000, yes:'ออกแบรนด์', no:'รับรีวิวต่อไป' })) return;
+  if(chance(.35)){ const v = randi(50, 200) * 1000000; addMoney(p, v); fx(p,{J:10,C:10}); p.flags.tycoon = true; note(p, `สินค้าขายหมดทุกล็อต แบรนด์ทำเงินให้คุณ ฿${baht(v)}`); }
+  else { fx(p,{J:-8}); note(p,'สินค้าค้างสต็อก แฟนคลับบ่นว่าแพงเกินไป'); }
+}
+
+// ---------- เส้นทางสู่คุก (วัยทำงาน) ----------
+const S3_EXTRA = [
+  { id:'drunkdrive', title:'เมาแล้วขับ', bg:'road', text:()=>'งานเลี้ยงเลิกตีหนึ่ง คุณดื่มไปเยอะ กุญแจรถอยู่ในมือ', w:p=>hab(p).drink===2?12:hab(p).drink===1?3:null,
+    run: async (p, io) => {
+      const c = await choose(p, io, { kind:'fork', bg:'road', title:'จะกลับบ้านยังไง', choices:[
+        { label:'ขับกลับเอง ใกล้แค่นี้', sub:'ประหยัด', k:'drive' }, { label:'เรียกแท็กซี่ ทิ้งรถไว้', sub:'฿−800', k:'taxi' } ]});
+      if(c.k==='taxi'){ fx(p,{m:-800}); note(p,'กลับถึงบ้านปลอดภัย'); return; }
+      const r = rnd();
+      if(r < .6){ note(p,'ถึงบ้านได้ แต่จำทางกลับไม่ได้เลย'); fx(p,{K:-2}); }
+      else if(r < .85){ fx(p,{m:-20000,C:-3}); note(p,'โดนด่านตรวจ ปรับ ฿20,000 และถูกคุมประพฤติ'); }
+      else { fx(p,{K:-15,H:-10}); tagBad(p,'harm','เมาแล้วขับชนคนบาดเจ็บ',0); await arrested(p, io, 'คุณขับรถชนมอเตอร์ไซค์ คนขี่บาดเจ็บสาหัส', 1); }
+    } },
+  { id:'taxaudit', title:'สรรพากรเรียกตรวจบัญชี', bg:'bank', text:()=>'จดหมายจากกรมสรรพากรขอดูบัญชีย้อนหลัง 5 ปี', w:p=>p.career==='biz'?10:p.career==='influ'?6:null,
+    run: async (p, io) => {
+      const back = Math.round(Math.max(50000, p.money*.1));
+      const c = await choose(p, io, { kind:'fork', bg:'bank', title:'จะจัดการยังไง', choices:[
+        { label:'จ่ายภาษีย้อนหลังตามจริง', sub:`฿−${baht(back)}`, k:'pay' },
+        { label:'จ้างคนทำบัญชีตกแต่งตัวเลข', sub:'70% ผ่าน · 30% โดนคดี', cost:100000, k:'fake' },
+        { label:'ติดสินบนเจ้าหน้าที่', sub:'80% ผ่าน · 20% โดนคดี', cost:200000, k:'bribe' } ]});
+      if(c.k==='pay'){ fx(p,{m:-back}); note(p,'จ่ายครบ เรื่องจบ'); }
+      if(c.k==='fake'){ fx(p,{K:-10}); tagBad(p,'corrupt','ตกแต่งบัญชีเลี่ยงภาษี',back); if(chance(.3)) await arrested(p, io, 'ตรวจพบเอกสารปลอมเพื่อหลีกเลี่ยงภาษี', 1); else note(p,'ผ่านไปได้ ไม่มีใครถามต่อ'); }
+      if(c.k==='bribe'){ fx(p,{K:-15}); tagBad(p,'corrupt','ติดสินบนเจ้าหน้าที่สรรพากร',200000); if(chance(.2)) await arrested(p, io, 'เจ้าหน้าที่คนนั้นโดนสอบ และซัดทอดมาถึงคุณ', 1); else note(p,'เรื่องเงียบไป'); }
+    } },
+  { id:'ponzi', title:'ชวนเป็นแม่ข่าย', bg:'city', text:()=>'คนรู้จักชวนเป็นแม่ข่ายระบบลงทุนผลตอบแทนเดือนละ 10%', w:p=>p.C>=40?7:4,
+    run: async (p, io) => {
+      const c = await choose(p, io, { kind:'fork', bg:'city', title:'จะเข้าร่วมไหม', choices:[
+        { label:'เป็นแม่ข่าย ชวนคนรู้จักลงเงิน', sub:'฿+1,500,000 · 40% ระบบล่มแล้วโดนคดี', k:'boss' },
+        { label:'ลงเงินเองเฉย ๆ', sub:'60% เงินหาย', cost:100000, k:'join' },
+        { label:'ปฏิเสธ และเตือนคนอื่น', sub:'K+5 C−2', k:'warn' } ]});
+      if(c.k==='boss'){ fx(p,{m:1500000,K:-25}); tagBad(p,'harm','เป็นแม่ข่ายแชร์ลูกโซ่',1500000);
+        if(chance(.4)){ fx(p,{m:-1000000}); await arrested(p, io, 'ระบบล่ม ผู้เสียหายหลายร้อยคนแจ้งความข้อหาฉ้อโกงประชาชน', 2); } else note(p,'คุณถอนตัวทันก่อนระบบล่ม คนที่คุณชวนมาเสียเงินแทน'); }
+      if(c.k==='join'){ if(chance(.6)) note(p,'ระบบปิดตัว เงินหายทั้งหมด'); else { fx(p,{m:180000}); note(p,'ถอนออกมาทัน ได้กำไรเล็กน้อย'); } }
+      if(c.k==='warn'){ fx(p,{K:5,C:-2}); tagGood(p,'community','เตือนคนอื่นเรื่องแชร์ลูกโซ่'); }
+    } },
+];
+
+S1_EVENTS.push(...S1_EXTRA);
+S3_EVENTS.push(...S3_EXTRA);
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
@@ -1741,6 +2022,7 @@ const SCENES = {
   hospital(t, st){ interior('#e6f3f7', '#b9cdd4', 80); for(let i=0;i<2;i++){ R(20+i*90, 60, 60, 10, P8.w); R(20+i*90, 56, 12, 6, '#9cd7ff'); R(24+i*90, 70, 2, 12, P8.l); R(76+i*90, 70, 2, 12, P8.l); R(86+i*90, 24, 1, 36, P8.l); R(82+i*90, 24, 8, 10, 'rgba(180,220,255,.8)'); } R(80, 6, 30, 8, P8.G); R(93, 7, 4, 6, P8.w); R(91, 9, 8, 2, P8.w); personCtx(t, st, 40, 64, 'hospital', { still:true }); },
   flood(t, st){ interior('#d1c4a5', '#8a7a5a', 80); R(150, 20, 30, 24, '#9fdcff'); R(30, 56, 24, 18, P8.d); R(32, 58, 20, 12, P8.n); const wl = 82 + Math.round(Math.sin(t*2)*1.5); R(0, wl-14, W, Hh, 'rgba(110,80,40,.75)'); for(let x=0;x<W;x+=10) R((x + t*10)%W, wl-14, 5, 1, P8.cream); R(120, wl-16, 8, 3, P8.r); personCtx(t, st, 90, 98, 'none'); },
   south(t, st){ far('south', t, false); ground(70, '#c9b37a', '#a8925a'); for(let i=0;i<6;i++) R(30 + Math.sin(t+i)*3, 10 + i*8, 6-i/2, 6, `rgba(90,90,90,${0.6 - i*0.08})`); personCtx(t, st, 80, 98, 'none'); },
+  prison(t, st){ interior('#5f6470', '#4a4e58', 80); R(20, 14, 34, 22, '#3a3e48'); for(let i=0;i<5;i++) R(22+i*7, 14, 2, 22, P8.l); R(64, 50, 54, 10, '#7d8290'); R(64, 46, 54, 4, '#9aa0ac'); personCtx(t, { ...st, ctx:'none' }, 140, 96, 'none'); for(let x=0;x<W;x+=12) R(x, 0, 3, Hh, '#2b2e36'); R(0, 0, W, 4, '#2b2e36'); R(0, 54, W, 3, '#2b2e36'); },
   court(t, st){ interior('#6b4a2b', '#4a3220', 80); R(50, 30, 92, 30, '#3d2814'); R(46, 26, 100, 4, P8.gold); R(88, 10, 16, 16, P8.gold); R(92, 14, 8, 8, P8.r); for(let i=0;i<3;i++) person(70+i*20, 50, { age:55, sex: i===1?'M':'F', q:2 }, 'black', t, { still:true }); personCtx(t, st, 90, 100, 'none'); },
   bank(t, st){ interior('#dfe7e5', '#9aa8a5', 78); R(20, 50, 152, 28, P8.teal); R(20, 30, 152, 2, P8.l); for(let i=0;i<4;i++) R(30+i*38, 32, 30, 18, 'rgba(200,240,255,.6)'); R(170, 14, 14, 10, P8.k); R(172, 16, 10, 6, P8.G); personCtx(t, st, 90, 100, 'none'); },
   oldhome(t, st){ far(TIERS[st.tier].far, t, false); ground(70, '#8fd16a', P8.G); R(110, 44, 50, 4, P8.r); R(112, 48, 2, 24, P8.b); R(156, 48, 2, 24, P8.b); R(108, 40, 54, 4, P8.gold); R(20, 86, 40, 4, P8.b); tree(180, 80, 'round'); personCtx(t, st, 70, 96, 'none'); },
