@@ -521,6 +521,7 @@ async function years(p, io, n, opts = {}){
     if(p.age > 70) p.H -= 2; else if(p.age > 50) p.H -= 1; else if(p.age > 40 && p.age % 2) p.H -= 1;
     if(p.status.chronic){ p.H -= 1; addMoney(p, -6000); }
     const newDz = habitYear(p);
+    crimeYear(p, notes);
     // ความเครียดจากหนี้และเงินขาดมือ
     if(p.age >= 22){ const td = totalDebt(p), inc = Math.max(1, hhIncome(p)); if(td > inc * 36) p.J -= 3; else if(td > inc * 12) p.J -= 1.5; if(p.money < 5000 && p.age < 60 && !td) p.J -= .5; if(td > inc * 36 && p.age > 40) p.H -= .5; }
     if(p.status.bullied && p.age <= 18) p.J -= 3;
@@ -596,6 +597,7 @@ async function years(p, io, n, opts = {}){
     if(p.H <= 0){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death(healthDeathCause(p)); }
     if(newDz){ await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await diseaseOnset(p, io, newDz); }
     if(p._bizCrash){ p._bizCrash = false; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); p.cOut = 'bad'; if(p.career === 'biz'){ await say(p, io, { kind:'event', bg:'shop', title:'กิจการล้ม', text:'หนี้การค้าค้างจ่าย ลูกค้าหายไปพร้อมกัน ธนาคารเรียกคืนวงเงิน' }); await bizFail(p, io); } else await layoffFork(p, io, false, true); }
+    if(p._crimeBust){ p._crimeBust = false; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await crimeBust(p, io); }
     if(p._secCase){ p._secCase = false; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await secCase(p, io); }
     if(p.lifespan && p.age >= p.lifespan){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('จากไปอย่างสงบตามอายุขัย'); }
     // เหตุการณ์ตามกำหนด (พ่อแม่เสียชีวิต)
@@ -1051,9 +1053,10 @@ function careerChoices(p, exclude = []){
     if(C.maxAge && p.age > C.maxAge){ cond = false; condText = 'อายุเกิน 40'; }
     if(p.flags.restricted && ['gov','office','abroad'].includes(k)){ cond = false; condText = 'มีประวัติติดคุก'; } if(p.flags.bkRecord && p.age < p.flags.bkRecord && ['gov','abroad'].includes(k)){ cond = false; condText = 'มีประวัติล้มละลาย'; }
     if(p.status.bankrupt && k==='abroad'){ cond = false; condText = 'ล้มละลาย ไปต่างประเทศไม่ได้'; }
+    if(k==='crime' && cond && !crimeEntry(p)){ cond = false; condText = 'ไม่มีคนพาเข้าวงการ'; }
     let cost = C.cost; if(k==='biz' && p.flags.bizFree) cost = 0;
     const inc = `฿${bahtS(C.start)}→${bahtS(C.caps.good)}/เดือน`;
-    let sub = inc + (k==='gov' ? ` · สอบติด ${clamp(Math.round(20+0.5*(p.S-50)+0.3*(p.C-50)+(p.degree==='top'?10:0)),3,95)}%` : '') + (k==='farm' && !land ? ' · ต้องเช่าที่ (−20%)' : '');
+    let sub = k==='crime' ? `${inc} · ทุกปีเสี่ยงติดคุกหรือถูกเก็บ · บาปสะสมทุกปี` : inc + (k==='gov' ? ` · สอบติด ${clamp(Math.round(20+0.5*(p.S-50)+0.3*(p.C-50)+(p.degree==='top'?10:0)),3,95)}%` : '') + (k==='farm' && !land ? ' · ต้องเช่าที่ (−20%)' : '');
     return { label:C.name, sub, cost, cond, condText, k };
   });
 }
@@ -1073,6 +1076,7 @@ async function enterCareer(p, io, opts = {}){
     if(p.flags.stayAbroad && c.k !== 'abroad') p.incomeBoost *= 2, p.flags.stayAbroad = false;
     if(c.k === 'biz' && opts.capital !== undefined && opts.capital < 500000) p.flags.cBad = (p.flags.cBad||0) + 10;
     log(p, `เริ่มอาชีพ${C.name}`);
+    if(c.k === 'crime'){ p.flags.crimeRank = p.flags.crimeRank || 0; addHeat(p, 10); crimeBeats(p, io); }
     return c.k;
   }
 }
@@ -1089,6 +1093,8 @@ async function careerOutcome(p, io){
   if(p.career==='biz' && o==='bad') await bizFail(p, io);
   if(p.career==='influ' && o==='good') fx(p,{C:30});
   if(p.career==='influ' && o==='bad') await layoffFork(p, io, false, true);
+  if(p.career==='crime' && o==='good') p.flags.crimeRank = Math.max(1, p.flags.crimeRank || 0);
+  if(p.career==='crime' && o==='bad'){ p.cOut = 'mid'; await crimeBust(p, io); }
 }
 async function bizFail(p, io){
   const c = await choose(p, io, { kind:'fork', bg:'shop', title:'ธุรกิจเจ๊ง จะไปต่อยังไง', choices:[
@@ -2218,7 +2224,7 @@ const STORIES = [
   { t:(o,c)=>/ชนแก้ว/.test(o.title), f:(X,p,o,c)=>[`คืนนั้นจบที่ร้านที่สาม คุณจำทางกลับหอไม่ได้`, `คุณจิบพอเป็นพิธี แล้วเป็นคนขับรถไปส่งเพื่อนทุกคน`, `คุณนั่งดื่มน้ำเปล่า แล้วเป็นคนเดียวที่จำได้ว่าคืนนั้นเกิดอะไรขึ้น`][2 - c.k] },
   { t:(o,c)=>/เลือกอาชีพ|ต้องเลือกทางใหม่|เปลี่ยนอาชีพ/.test(o.title), f:(X,p,o,c)=>{
     const m = memory(p);
-    const s = { farm:`คุณกลับไปทำ${X.shop.includes('นา')||X.shop.includes('สวน')?X.shop:'ไร่นาที่'+X.prov} ตื่นตีสี่ทุกวันเหมือนที่พ่อเคยทำ`, factory:'บัตรพนักงานห้อยคอใบแรกมาพร้อมกะดึกและเสียงเครื่องจักร', gov:`${X.carer}เอารูปคุณในชุดข้าราชการไปให้ญาติดูทั้งตำบล`, office:'คุณซื้อเสื้อเชิ้ตห้าตัวสำหรับห้าวันทำงาน แล้วเริ่มนั่งรถไฟฟ้าไปออฟฟิศ', biz:`คุณเปิดร้านแรก${s0(p)} ป้ายร้านทำเองกับมือ`, abroad:'คุณกอดลาครอบครัวที่สนามบิน ในกระเป๋ามีพริกแห้งกับรูปถ่ายครอบครัว', influ:`คุณตั้งกล้องในห้องเช่า แล้วพูดว่า "สวัสดีครับทุกคน" เป็นครั้งแรก` }[p.career];
+    const s = { farm:`คุณกลับไปทำ${X.shop.includes('นา')||X.shop.includes('สวน')?X.shop:'ไร่นาที่'+X.prov} ตื่นตีสี่ทุกวันเหมือนที่พ่อเคยทำ`, factory:'บัตรพนักงานห้อยคอใบแรกมาพร้อมกะดึกและเสียงเครื่องจักร', gov:`${X.carer}เอารูปคุณในชุดข้าราชการไปให้ญาติดูทั้งตำบล`, office:'คุณซื้อเสื้อเชิ้ตห้าตัวสำหรับห้าวันทำงาน แล้วเริ่มนั่งรถไฟฟ้าไปออฟฟิศ', biz:`คุณเปิดร้านแรก${s0(p)} ป้ายร้านทำเองกับมือ`, abroad:'คุณกอดลาครอบครัวที่สนามบิน ในกระเป๋ามีพริกแห้งกับรูปถ่ายครอบครัว', influ:`คุณตั้งกล้องในห้องเช่า แล้วพูดว่า "สวัสดีครับทุกคน" เป็นครั้งแรก`, crime:`รุ่นพี่ยื่นโทรศัพท์เครื่องใหม่กับซองเงินสดให้ แล้วบอกว่า "จากนี้ห้ามถามว่าของในรถคืออะไร"` }[p.career];
     const mm = rnd() < .5 ? fresh(p, m) : ''; return s ? (mm ? `${s} · ${mm}` : s) : '';
   } },
   // ===== วัยทำงาน =====
@@ -2259,7 +2265,7 @@ function placeNow(p, X){
   if(p.age >= 60) return pk([`ระหว่างนั่งเล่นหน้า${X.homeNow}`, 'หลังสวดมนต์ก่อนนอน', 'ตอนหลานโทรมาหา'], p);
   if(p.age < 22 && !p.career) return pk(['ในห้องพักหอที่มีพัดลมตัวเดียว', 'หลังเลิกเรียน', `ระหว่างนั่งรถกลับ${X.prov}ช่วงปิดเทอม`], p);
   if(!p.career || p.unemployed) return pk([`ระหว่างนอนมองเพดาน${X.homeNow}`, 'ระหว่างนั่งรอสัมภาษณ์งาน'], p);
-  const work = { farm:'หลังกลับจากนา', factory:'หลังเลิกกะ', gov:'หลังเลิกราชการ', office:'ระหว่างนั่งรถกลับจากออฟฟิศ', biz:'หลังปิดร้าน', abroad:'ในห้องพักคนงานที่ต่างประเทศ', influ:'หลังไลฟ์จบ' }[p.career] || 'หลังเลิกงาน';
+  const work = { farm:'หลังกลับจากนา', factory:'หลังเลิกกะ', gov:'หลังเลิกราชการ', office:'ระหว่างนั่งรถกลับจากออฟฟิศ', biz:'หลังปิดร้าน', abroad:'ในห้องพักคนงานที่ต่างประเทศ', influ:'หลังไลฟ์จบ', crime:'หลังเก็บเงินรอบดึก' }[p.career] || 'หลังเลิกงาน';
   return pk([work, `คืนนั้นใน${X.homeNow}`, `ระหว่างโทรคุยกับ${p.skipGen ? (p.sex==='M'?'ยาย':'ย่า') : 'แม่'}ที่${X.prov}`], p);
 }
 // เลี่ยงประโยคซ้ำ: แต่ละประโยคประกอบใช้ได้ไม่เกิน 2 ครั้งต่อชีวิต และไม่ติดกัน
@@ -2765,7 +2771,12 @@ function archetype(r, p){
   const W = r.Pw, J = r.Jbar, H = r.Hbar, C = p.C, S = p.S, K = r.K, E = r.estate;
   const hi = { W: W >= 80, J: J >= 62, H: H >= 68, C: C >= 70, S: S >= 75 };
   const n = Object.values(hi).filter(Boolean).length;
-  if(hi.W && hi.J && hi.H && (hi.C || hi.S)) return { t:'ชีวิตครบสูตร', d:'รวย มีความสุข สุขภาพดี และคนรอบตัวนับถือ ชีวิตแบบนี้มีไม่กี่คนในหกสิบห้าล้าน', rare:true };
+  if(hi.W && hi.J && hi.H && (hi.C || hi.S) && K > -20) return { t:'ชีวิตครบสูตร', d:'รวย มีความสุข สุขภาพดี และคนรอบตัวนับถือ ชีวิตแบบนี้มีไม่กี่คนในหกสิบห้าล้าน', rare:true };
+  // ---- สายมืด ----
+  if(p.flags.crimeRank >= 2 && !p.status.prison && E > 10000000) return { t:`เจ้าพ่อแห่ง${p.prov}`, d:'คนทั้งจังหวัดรู้จักชื่อคุณ แต่ไม่มีใครกล้าพูดถึงมันดัง ๆ' };
+  if(p.career === 'crime' && /ยิง|เก็บ/.test(r.cause || '')) return { t:'ตายตามทางที่เลือก', d:'ในวงการนี้ ไม่ค่อยมีใครได้แก่ตาย' };
+  if(p.flags.exCrime && K > -20) return { t:'คนกลับใจ', d:'เคยเดินในทางมืด แต่หันหลังกลับมาได้ก่อนสายเกินไป' };
+  if((p.flags.crimeJailed || 0) >= 2) return { t:'เข้าออกคุกจนชิน', d:'ชีวิตครึ่งหนึ่งอยู่หลังกำแพง อีกครึ่งรอวันกลับเข้าไป' };
   // ---- ทางที่ขาดหรือพัง ----
   const debtBig = E < -1500000, sad = J < 45, broken = H < 45 || (r.age < 60 && /โรค|ป่วย|สุขภาพ|ไต|ตับ|มะเร็ง|หัวใจ|เส้นเลือด/.test(r.cause || ''));
   const jailed = !!p.flags.restricted, bk = p.log.some(l => /ล้มละลาย|ศาลปลดคุณ/.test(l.text));
@@ -2815,6 +2826,110 @@ S3_EVENTS.push(
     if(c.k==='hide'){ p.incomeBoost *= .5; fx(p,{J:-10}); tell(p,'ช่องเงียบไปหกเดือน แฟนคลับครึ่งหนึ่งไม่ได้กลับมา'); }
   } },
 );
+// ===== เส้นทางสายมืด: ลูกน้อง → หัวหน้า → เจ้าพ่อ · คุก · ค่ากรรม =====
+CAREERS.crime = { name:'สายมืด', cost:0, start:25000, caps:{ good:900000, mid:90000, bad:0 }, grow:.3, sig:.45, sens:.2,
+  fx:{ J:-3, C:5, K:-10 }, odds:[25,45,30], ret:'allow', bg:'city',
+  outText:{ good:'ขึ้นเป็นมือขวาของเจ้าพ่อ คุมพื้นที่ได้ทั้งอำเภอ', mid:'เป็นลูกน้องที่เจ้านายไว้ใจ มีส่วนแบ่งทุกเดือน', bad:'ตำรวจล่อซื้อ คุณถูกจับคาที่' } };
+CRYPTO_AMT.crime = 300000; CAREER_BANK.crime = .2;
+const RANK_TH = ['เด็กเดินงาน', 'หัวหน้าสาย', 'เจ้าพ่อ'];
+function heat(p){ return p.flags.heat || 0; }
+function addHeat(p, d){ p.flags.heat = clamp(heat(p) + d, 0, 100); }
+// เรียกทุกปีจาก years(): บาปสะสม ความร้อนแรง และโอกาสโดนจับหรือถูกเก็บ
+function crimeYear(p, notes){
+  if(p.career !== 'crime' || p.status.prison || p.age >= 60) { if(heat(p) > 0) addHeat(p, -3); return; }
+  const rank = p.flags.crimeRank || 0;
+  p.K = clamp(p.K - (2 + rank), -100, 100);
+  addHeat(p, 4 + rank * 3);
+  if(chance(connRisk(p, heat(p) / 300))) { p._crimeBust = true; return; }
+  if(chance(clamp(.006 + .006 * rank - .0002 * (p.C - 50), .003, .03))) { p.bars = p.bars; throw new Death(pickOne(['ถูกยิงเสียชีวิตจากความขัดแย้งในวงการ', 'ถูกลอบยิงขณะขับรถกลับบ้าน', 'ถูกคู่แข่งเก็บกลางงานเลี้ยง'])); }
+  if(chance(.08)) notes.push(pickOne(['มีรถคันเดิมจอดหน้าบ้านติดกันสามคืน', 'ลูกน้องคนหนึ่งหายตัวไปโดยไม่มีใครถาม', 'นักข่าวท้องถิ่นเริ่มโทรมาถามเรื่องบ่อนในพื้นที่']));
+}
+async function crimeBust(p, io){
+  const rank = p.flags.crimeRank || 0;
+  p.flags.heat = 20;
+  await say(p, io, { kind:'event', bg:'court', title:'ตำรวจบุกค้น', text:`หมายจับมาถึงตอนตีห้า ${['บ้านเช่าที่ใช้เก็บของ', 'บ่อนที่คุณดูแล', 'คฤหาสน์ของคุณ'][rank]}ถูกล้อมทุกทาง` });
+  await arrested(p, io, ['ข้อหาจำหน่ายยาเสพติดรายย่อย', 'ข้อหาเปิดบ่อนการพนันและฟอกเงิน', 'ข้อหาอั้งยี่ ซ่องโจร และฟอกเงิน'][rank], 2 + rank);
+  if(p.status.prison){ p.money = Math.round(p.money * (rank >= 2 ? .3 : .6)); note(p, 'ทรัพย์สินส่วนหนึ่งถูกยึดตามกฎหมายฟอกเงิน'); p.flags.crimeJailed = (p.flags.crimeJailed || 0) + 1; }
+}
+// ทางเลือกย่อยของสายมืด (ระบบเดิมเรียกตอนเริ่มอาชีพ)
+C_MINORS.crime = [
+  { title:'รับงานทวงหนี้นอกระบบให้เจ้านายไหม', sub:'฿+200,000 · ความร้อนแรง +10 · H−5', run:p=>{ fx(p,{m:200000,H:-5,K:-8}); addHeat(p,10); tagBad(p,'harm','ทวงหนี้ด้วยความรุนแรง',200000); } },
+  { title:'จ่ายส่วยรายเดือนให้คนในเครื่องแบบไหม', sub:'ความร้อนแรง −25 · C+5', cost:150000, run:p=>{ addHeat(p,-25); fx(p,{C:5,K:-5}); tagBad(p,'corrupt','จ่ายส่วยเจ้าหน้าที่',150000); } },
+  { title:'เปิดธุรกิจบังหน้าไว้ฟอกเงินไหม', sub:'ความร้อนแรง −15 · มีรายได้สุจริตสำรอง', cost:500000, run:p=>{ addHeat(p,-15); p.flags.frontBiz = true; fx(p,{C:3}); } },
+];
+function crimeBeats(p, io){
+  const beats = { push: b => (p.flags.later = p.flags.later || []).push({ age: b.age, fn: b.run }) };
+  // ขยับขึ้น
+  beats.push({ age: p.age + 6, run: async () => {
+    if(p.career !== 'crime' || p.status.prison || p.flags.crimeRank >= 1) return;
+    const c = await choose(p, io, { kind:'fork', bg:'city', title:'หัวหน้าสายของคุณถูกจับ', text:'เจ้านายถามว่าใครจะคุมพื้นที่ต่อ', choices:[
+      { label:'รับตำแหน่งหัวหน้าสาย', sub:'รายได้ ×2 · ความร้อนแรงขึ้นเร็ว · บาปหนักขึ้น', k:'up' },
+      { label:'ขอทำงานเดิมต่อ', sub:'ไม่มีผล', k:'stay' },
+      { label:'ถือโอกาสล้างมือ', sub:'กลับไปหางานสุจริต · J+5', k:'quit' } ], noStory:true });
+    if(c.k==='up'){ p.flags.crimeRank = 1; p.incomeBoost *= 2; fx(p,{C:10,K:-5}); tell(p, 'ลูกน้องสิบคนเริ่มเรียกคุณว่า "พี่" และเงินสดเริ่มมาเป็นถุง'); }
+    if(c.k==='stay') tell(p, 'คุณก้มหน้าทำงานเดิม แต่ทุกคนรู้ว่าตำแหน่งนั้นว่างอยู่');
+    if(c.k==='quit') await leaveCrime(p, io);
+  }});
+  beats.push({ age: Math.max(p.age + 12, 40), run: async () => {
+    if(p.career !== 'crime' || p.status.prison || p.flags.crimeRank !== 1) return;
+    const c = await choose(p, io, { kind:'fork', bg:'city', title:'เจ้าพ่อคนเก่าเสียชีวิต', text:'สองฝ่ายในองค์กรกำลังแย่งพื้นที่ คุณมีลูกน้องมากที่สุด', choices:[
+      { label:'ยึดอำนาจ ขึ้นเป็นเจ้าพ่อ', sub:`ต้องมี C 60 · สำเร็จ ${Math.round(clamp(.35 + .006*(p.C-50), .1, .8)*100)}% · พลาดอาจถูกเก็บ`, cond:p.C>=60, condText:'เส้นสายยังไม่พอ', k:'boss' },
+      { label:'เป็นมือขวาให้อีกฝ่าย', sub:'ปลอดภัยกว่า · C+5', k:'side' },
+      { label:'ล้างมือ ขายพื้นที่ทิ้ง', sub:'฿+2,000,000 · กลับไปใช้ชีวิตปกติ', k:'sell' } ], noStory:true });
+    if(c.k==='boss'){ if(chance(clamp(.35 + .006*(p.C-50), .1, .8))){ p.flags.crimeRank = 2; p.cOut = 'good'; p.incomeBoost *= 2.5; fx(p,{C:15,J:5,K:-15}); tagBad(p,'harm','ขึ้นเป็นเจ้าพ่อด้วยความรุนแรง',0); tell(p, `ชื่อของคุณกลายเป็นที่รู้กันทั่ว${p.prov} นักการเมืองท้องถิ่นเริ่มแวะมากินข้าวที่บ้าน`); } else { fx(p,{H:-30}); tell(p, 'ฝ่ายตรงข้ามรู้แผนก่อน คุณโดนยิงสามนัดแต่รอดมาได้'); if(p.H <= 0) throw new Death('ถูกยิงระหว่างแย่งอำนาจ'); await seriousIllness(p, io, 30); } }
+    if(c.k==='side'){ fx(p,{C:5}); tell(p, 'คุณยกมือไหว้เจ้าพ่อคนใหม่ แล้วรับส่วนแบ่งที่น้อยลงแต่ปลอดภัยกว่า'); }
+    if(c.k==='sell'){ fx(p,{m:2000000}); await leaveCrime(p, io); }
+  }});
+  // ทุก ๆ ช่วง มีโอกาสคิดเรื่องกลับตัว
+  beats.push({ age: 48, run: async () => {
+    if(p.career !== 'crime' || p.status.prison) return;
+    const k0 = p.kids[0];
+    if(await yesno(p, io, { kind:'fork', bg:'temple', title: k0 ? `${k0.name}ถามว่าพ่อแม่ทำงานอะไร` : 'คืนหนึ่งคุณนอนไม่หลับ', text:'คุณนึกถึงชื่อคนที่หายไปตลอดหลายปีที่ผ่านมา', sub:'ล้างมือ · หางานสุจริต', yes:'ล้างมือ', no:'ไปต่อ' })) await leaveCrime(p, io);
+    else tell(p, 'คุณบอกตัวเองว่าอีกไม่กี่ปีค่อยเลิก แล้วนับเงินต่อ');
+  }});
+}
+async function leaveCrime(p, io){
+  p.flags.exCrime = true; p.flags.crimeRank = 0; p.incomeBoost = 1;
+  fx(p,{J:5,K:5}); tell(p, 'คุณขายโทรศัพท์เครื่องเก่าทิ้ง เปลี่ยนเบอร์ และย้ายไปอยู่ที่ที่ไม่มีใครรู้จัก');
+  await enterCareer(p, io, { title:'เริ่มชีวิตใหม่หลังล้างมือ', exclude:['crime'] });
+  if(chance(.25)){ p.flags.revenge = p.age + randi(2, 6); }
+}
+// ทำบุญล้างบาปแบบเจ้าพ่อ
+S3_EVENTS.push(
+  { id:'crime_merit', title:'ทำบุญใหญ่ที่วัด', bg:'temple', text:()=>'เจ้าอาวาสชวนคุณเป็นประธานทอดผ้าป่าสร้างโบสถ์', w:p=>p.career==='crime'?14:null, run: async (p, io) => {
+    const c = await askT(p, io, 'จะทำบุญแค่ไหน', 'ทั้งหมู่บ้านรู้ว่าเงินมาจากไหน แต่ไม่มีใครพูด', [
+      { label:'บริจาคสร้างโบสถ์ทั้งหลัง', sub:'฿−3,000,000 · C+10 · บาปไม่ได้ลดเท่าที่หวัง', cost:3000000, k:'big' },
+      { label:'ใส่ซองหนึ่งแสน', sub:'C+3', cost:100000, k:'small' } ], 'temple');
+    if(c.k==='big'){ fx(p,{C:10,K:4,J:5}); tell(p, 'ชื่อคุณถูกสลักบนแผ่นหินหน้าโบสถ์ คนในหมู่บ้านไหว้คุณทั้งที่ไม่สบตา'); }
+    else { fx(p,{C:3,K:1}); tell(p, 'เสียงพิธีกรประกาศชื่อคุณผ่านลำโพง คนในศาลาปรบมือตามมารยาท'); }
+  } },
+  { id:'crime_rival', title:'แก๊งคู่แข่งรุกพื้นที่', bg:'road', text:()=>'ร้านในเครือของคุณถูกเผาสองร้านในคืนเดียว', w:p=>p.career==='crime'?14:null, run: async (p, io) => {
+    const c = await askT(p, io, 'จะตอบโต้ยังไง', '', [
+      { label:'เอาคืนให้หนักกว่า', sub:'C+5 · ความร้อนแรง +25 · 20% บาดเจ็บสาหัส', k:'hit' }, { label:'เจรจาแบ่งพื้นที่', sub:`฿−500,000 · ${Math.round(clamp(.5 + .006*(p.C-50), .2, .9)*100)}% สำเร็จ`, cost:500000, k:'talk' }, { label:'ถอยออกจากพื้นที่นั้น', sub:'รายได้ −30% · J−5', k:'back' } ]);
+    if(c.k==='hit'){ fx(p,{C:5,K:-10}); addHeat(p,25); tagBad(p,'harm','ล้างแค้นแก๊งคู่แข่ง',0); tell(p,'คืนต่อมามีข่าวในหนังสือพิมพ์ท้องถิ่น ไม่มีชื่อคุณในข่าว แต่ทุกคนรู้'); if(chance(.2)){ fx(p,{H:-25}); if(p.H<=0) throw new Death('ถูกยิงในการปะทะระหว่างแก๊ง'); await seriousIllness(p, io, 25); } }
+    if(c.k==='talk'){ if(chance(clamp(.5 + .006*(p.C-50), .2, .9))) tell(p,'คุณนั่งโต๊ะจีนกับหัวหน้าอีกฝ่าย แบ่งเขตกันด้วยการชนแก้ว'); else { fx(p,{H:-10}); tell(p,'การเจรจาล่ม คุณรีบหนีออกทางหลังร้าน'); } }
+    if(c.k==='back'){ p.incomeBoost *= .7; fx(p,{J:-5}); tell(p,'คุณยอมยกพื้นที่ให้ ลูกน้องครึ่งหนึ่งย้ายไปอยู่กับอีกฝ่าย'); }
+  } },
+  { id:'crime_revenge', title:'อดีตตามมาหา', bg:'road', text:()=>'คนจากวงการเก่ามาดักรอหน้าบ้านใหม่ของคุณ', w:p=>p.flags.revenge && p.age >= p.flags.revenge ? 30 : null, run: async (p, io) => {
+    p.flags.revenge = 0;
+    const c = await askT(p, io, 'เขาบอกว่าคุณยังติดหนี้บุญคุณเจ้านายเก่า', '', [
+      { label:'จ่ายให้จบ', sub:'฿−1,000,000', k:'pay' }, { label:'แจ้งตำรวจ', sub:'40% เขาถูกจับ · 60% เรื่องยืดเยื้อ', k:'police' }, { label:'ย้ายบ้านหนีอีกครั้ง', sub:'J−10 C−5', k:'run' } ]);
+    if(c.k==='pay'){ fx(p,{m:-1000000}); tell(p,'คุณโอนเงินก้อนสุดท้ายให้วงการเก่า แล้วลบเบอร์นั้นทิ้ง'); }
+    if(c.k==='police'){ if(chance(.4)){ fx(p,{K:3}); tell(p,'ตำรวจจับคนที่มาดักรอได้ คุณนอนหลับเต็มอิ่มเป็นครั้งแรกในรอบหลายเดือน'); } else { fx(p,{J:-10,H:-5}); tell(p,'คดียืดเยื้อ รถคันเดิมยังมาจอดหน้าบ้านเป็นระยะ'); } }
+    if(c.k==='run'){ fx(p,{J:-10,C:-5}); tell(p,'คุณย้ายบ้านกลางดึกเป็นครั้งที่สามในชีวิต'); }
+  } },
+);
+// ทางเข้าสายมืดตั้งแต่วัยรุ่น
+S2_EVENTS.push(
+  { id:'gang_invite', title:'รุ่นพี่ชวนเข้าแก๊ง', bg:'road', text:()=>'รุ่นพี่ในหมู่บ้านขับรถกระบะใหม่ ใส่สร้อยทองเส้นใหญ่', w:p=>(p.flags.juvenile?20:0) + (p.q<=1?6:2) + (p.flags.parentsDivorced?3:0), run: async (p, io) => {
+    const c = await askT(p, io, 'เขาบอกว่าทำงานกับเขาเดือนเดียวได้เท่าคนอื่นทำทั้งปี', '', [
+      { label:'ลองทำงานให้ก่อน', sub:'฿+80,000 · เปิดทางสายมืดตอนเลือกอาชีพ · บาป', k:'yes' }, { label:'ปฏิเสธ', sub:'C−2', k:'no' } ], 'road');
+    if(c.k==='yes'){ fx(p,{m:80000,C:4,K:-6}); p.flags.gangLink = true; tagBad(p,'harm','เริ่มทำงานให้แก๊ง',80000); tell(p,'งานแรกคือขับรถไปส่งกล่องที่ปั๊มน้ำมันนอกเมือง คุณไม่ได้ถามว่าในกล่องมีอะไร'); }
+    else { fx(p,{C:-2}); tell(p,'คุณส่ายหน้า รุ่นพี่หัวเราะแล้วบอกว่า "เปลี่ยนใจเมื่อไหร่ก็โทรมา"'); }
+  } },
+);
+// อาชีพสายมืดต้องมีคนพาเข้า
+function crimeEntry(p){ return !!(p.flags.gangLink || p.flags.juvenile || (p.flags.restricted && !p.status.prison) || p.C >= 60); }
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
