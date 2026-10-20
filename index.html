@@ -411,7 +411,8 @@ function fxText(d, hideK = true){
   return out.join(' ');
 }
 function totalDebt(p){ return p.debt.f + p.debt.k + p.debt.i; }
-function formalLimit(p){ return p.q <= 1 ? 200000 : 50000000; }
+function formalLimit(p){ if(p.flags.bkRecord && p.age < p.flags.bkRecord) return 0; return p.q <= 1 ? 200000 : 50000000; }
+const bkRec = p => (p.flags.bkRecord && p.age < p.flags.bkRecord) ? .15 : 1;
 function addMoney(p, amt){
   p.money += amt;
   if(p.money < 0){
@@ -544,7 +545,9 @@ async function years(p, io, n, opts = {}){
         const vf = volF(p);
         let m = curIncome(p) * skillMult(p) * Math.max(0, 1 + C.sig*vf*gauss()) * (rec ? 1 - .3*C.sens*vf : 1);
         if(p.career === 'farm' && chance(.12*vf)){ m *= .3; if(!opts.quiet) notes.push(pickOne(['ปีนี้ฝนทิ้งช่วง ผลผลิตเสียหายเกือบทั้งหมด','น้ำท่วมสวนจนต้นไม้ยืนตาย','ราคาพืชผลดิ่งจนขายไม่คุ้มค่าเก็บเกี่ยว'])); }
-        if((p.career === 'biz' || p.career === 'influ') && p.cOut !== 'bad' && chance(.07*vf)){ m = -curIncome(p) * .5; if(!opts.quiet) notes.push(p.career === 'biz' ? 'ปีนี้ธุรกิจขาดทุน ต้องควักเงินเก็บมาหมุน' : 'ปีนี้โดนแบนช่องและสปอนเซอร์ถอนตัว'); }
+        if((p.career === 'biz' || p.career === 'influ') && p.cOut === 'good' && chance(.04*vf)){ p.cOut = 'mid'; if(!opts.quiet) notes.push(p.career === 'biz' ? 'คู่แข่งรายใหญ่เข้ามาตัดราคา กิจการหดเหลือขนาดกลาง' : 'กระแสเปลี่ยน แพลตฟอร์มเปลี่ยนอัลกอริทึม ยอดวิวหายไปครึ่งหนึ่ง'); }
+        else if((p.career === 'biz' || p.career === 'influ') && p.cOut === 'mid' && p.cYears > 5 && chance(.025*vf)) p._bizCrash = true;
+        if((p.career === 'biz' || p.career === 'influ') && p.cOut !== 'bad' && chance(.10*vf)){ m = -curIncome(p) * .5; if(!opts.quiet) notes.push(p.career === 'biz' ? 'ปีนี้ธุรกิจขาดทุน ต้องควักเงินเก็บมาหมุน' : 'ปีนี้โดนแบนช่องและสปอนเซอร์ถอนตัว'); }
         if(p.career === 'farm' && p.cOut === 'bad' && chance(1/3)) m = -0.2*C.start;
         if(p.career === 'farm' && p.flags.rentLand) m *= .8;
         income = m * 12;
@@ -573,6 +576,7 @@ async function years(p, io, n, opts = {}){
       if(!bk){ p.debt.f *= 1 + (p.flags.restructured ? .03 : .07); p.debt.k *= 1.01; p.debt.i *= 1.20; }
       if(p.age >= 22) {
         if(p.age >= 60 && p.money + net < 0){ net = -p.money; p.J = clamp(p.J - 10, 0, 100); if(!p.flags.broke){ p.flags.broke = true; note(p, 'เงินเก็บหมดแล้ว ต้องอยู่ด้วยเบี้ยยังชีพ ความสุขลดลงทุกปีที่ขาด'); } }
+        if(bk){ p.J = clamp(p.J - 4, 0, 100); p.H = clamp(p.H - 1, 0, 100); }
         if(bk && p.money + net < 0){ net = -p.money; p.J = clamp(p.J - 3, 0, 100); } // ล้มละลาย: กู้เพิ่มไม่ได้ ต้องอยู่อย่างประหยัด
         addMoney(p, net);
         investYear(p, notes);
@@ -591,6 +595,7 @@ async function years(p, io, n, opts = {}){
     if(p.K < -30 && chance(.15) && !opts.quiet) notes.push(pickOne(OMENS));
     if(p.H <= 0){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death(healthDeathCause(p)); }
     if(newDz){ await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await diseaseOnset(p, io, newDz); }
+    if(p._bizCrash){ p._bizCrash = false; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); p.cOut = 'bad'; if(p.career === 'biz'){ await say(p, io, { kind:'event', bg:'shop', title:'กิจการล้ม', text:'หนี้การค้าค้างจ่าย ลูกค้าหายไปพร้อมกัน ธนาคารเรียกคืนวงเงิน' }); await bizFail(p, io); } else await layoffFork(p, io, false, true); }
     if(p._secCase){ p._secCase = false; await showSkip(p, io, startAge, bars.splice(0), notes.splice(0), opts); await secCase(p, io); }
     if(p.lifespan && p.age >= p.lifespan){ p.bars = bars; await showSkip(p, io, startAge, bars, notes, opts); throw new Death('จากไปอย่างสงบตามอายุขัย'); }
     // เหตุการณ์ตามกำหนด (พ่อแม่เสียชีวิต)
@@ -672,13 +677,13 @@ async function debtSpiral(p, io){
   const c = await choose(p, io, { kind:'fork', bg:'bank', title:'หนี้ล้นตัว', text:`ดอกเบี้ยแต่ละปีมากกว่าเงินที่เก็บได้ 2 ปีติดกัน หนี้ตอนนี้ ฿${baht(td)}`, choices: [
     { label:'เข้าคลินิกแก้หนี้ / ปรับโครงสร้างหนี้', sub:`หนี้ในระบบเหลือดอก 3%/ปี · ย้ายหนี้นอกระบบเข้าโครงการรัฐได้ไม่เกิน ฿200,000 · C−3`, cost:0, k:'clinic' },
     { label:'ขายทรัพย์สิน', sub: p.house ? `ขายบ้านได้ 60% ของมูลค่า${p.car ? ' ขายรถได้ 40%' : ''} · เอาไปใช้หนี้ดอกแพงก่อน · J−10` : p.car ? 'ขายรถได้ 40% ของราคา · J−10' : 'ไม่มีทรัพย์สินให้ขาย', cost:0, cond: !!(p.house || p.car), condText:'ไม่มีบ้านหรือรถ', k:'sell' },
-    { label:'ยื่นล้มละลาย', sub:'ยึดบ้านและรถขายใช้หนี้ · ดอกเบี้ยหยุดทันที · ครบ 3 ปีหนี้ที่เหลือถูกล้างหมด · ระหว่างนั้นกู้เพิ่มไม่ได้ · C−15 J−15', cost:0, cond: td > 1000000, condText:'ต้องมีหนี้เกิน 1 ล้านบาท', k:'bk' },
+    { label:'ยื่นล้มละลาย', sub:'ยึดบ้าน รถ และเงินเก็บทั้งหมด · ครบ 3 ปีหนี้ที่เหลือถูกล้าง · ประวัติเสียทั้งชีวิต กู้ไม่ได้ 10 ปี · C−30 J−20 H−10 · ครอบครัวอับอาย', cost:0, cond: td > 1000000 && !p.flags.bkOnce, condText: p.flags.bkOnce ? 'เคยล้มละลายไปแล้ว ศาลไม่รับซ้ำ' : 'ต้องมีหนี้เกิน 1 ล้านบาท', k:'bk' },
     { label:'หนีหนี้', sub:'ไม่เสียอะไรทันที · หนี้ยังโตต่อและตกเป็นภาระตอนตาย', cost:0, k:'flee' },
   ]});
   p.flags.spiralCool = p.age + 4;
   if(c.k === 'clinic'){ p.flags.restructured = true; const mv = Math.min(p.debt.i, 200000); p.debt.i -= mv; p.debt.f += mv; fx(p,{ C:-3 }); note(p, mv ? `เข้าคลินิกแก้หนี้ ดอกเบี้ยในระบบเหลือ 3% และย้ายหนี้นอกระบบ ฿${baht(mv)} เข้าโครงการรัฐ` : 'เข้าคลินิกแก้หนี้ ดอกเบี้ยลดเหลือ 3% ต่อปี'); if(p.debt.i > 0) note(p, `ยังเหลือหนี้นอกระบบ ฿${baht(p.debt.i)} ดอก 20% ต่อปี`); }
   if(c.k === 'sell'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } addMoney(p, got); for(const k of ['i','f','k']){ const pay=Math.min(p.money,p.debt[k]); p.debt[k]-=pay; p.money-=pay; } fx(p,{ J:-10 }); note(p,`ขายทรัพย์สินได้ ฿${baht(got)} นำไปใช้หนี้`); }
-  if(c.k === 'bk'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } got += Math.max(0, p.money); p.money = 0; for(const k of ['i','f','k']){ const pay=Math.min(got,p.debt[k]); p.debt[k]-=pay; got-=pay; } p.status.bankrupt = 3; p.flags.spiralCool = p.age + 6; fx(p,{ C:-15, J:-15 }); note(p, `เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขาย หนี้ที่เหลือ ฿${baht(totalDebt(p))} หยุดคิดดอกเบี้ย`); if(p.career==='gov'){ p.career='factory'; p.cOut='mid'; p.cYears=0; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } note(p,'อีก 3 ปีหนี้ที่เหลือจะถูกล้าง'); }
+  if(c.k === 'bk'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } got += Math.max(0, p.money); p.money = 0; for(const k of ['i','f','k']){ const pay=Math.min(got,p.debt[k]); p.debt[k]-=pay; got-=pay; } p.status.bankrupt = 3; p.flags.bkOnce = true; p.flags.bkRecord = p.age + 13; p.flags.spiralCool = p.age + 6; fx(p,{ C:-30, J:-20, H:-10 }); p.Jbase = Math.max(0, p.Jbase - 10); p.guestsMult *= .75; p.kids.forEach(k => k.kv -= 10); p.incomeBoost *= .85; if(p.spouse && !p.spouse.separated && chance(.35)){ p.flags.fightW = (p.flags.fightW||0) + 15; note(p, `${p.spouse.name}เก็บของกลับไปอยู่บ้านพ่อแม่สักพัก`); } if(['office','gov','abroad'].includes(p.career)){ p.career = p.degree ? 'office' : 'factory'; } note(p, `เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขาย หนี้ที่เหลือ ฿${baht(totalDebt(p))} หยุดคิดดอกเบี้ย`); if(p.career==='gov'){ p.career='factory'; p.cOut='mid'; p.cYears=0; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } note(p,'อีก 3 ปีหนี้ที่เหลือจะถูกล้าง'); }
   if(c.k === 'flee'){ p.flags.spiralCool = p.age + 8; fx(p,{ K:-10 }); tagBad(p,'debtflee','หนีหนี้', td); p.flags.fled = true; note(p,'คุณเลือกหนีหนี้ หนี้ยังโตต่อเงียบ ๆ'); }
 }
 async function offerDeed(p, io){
@@ -1044,7 +1049,7 @@ function careerChoices(p, exclude = []){
     let cond = !exclude.includes(k), condText = 'เพิ่งออกจากอาชีพนี้';
     if(C.needDegree && !p.degree){ cond = false; condText = 'ต้องจบปริญญา'; }
     if(C.maxAge && p.age > C.maxAge){ cond = false; condText = 'อายุเกิน 40'; }
-    if(p.flags.restricted && ['gov','office','abroad'].includes(k)){ cond = false; condText = 'มีประวัติติดคุก'; }
+    if(p.flags.restricted && ['gov','office','abroad'].includes(k)){ cond = false; condText = 'มีประวัติติดคุก'; } if(p.flags.bkRecord && p.age < p.flags.bkRecord && ['gov','abroad'].includes(k)){ cond = false; condText = 'มีประวัติล้มละลาย'; }
     if(p.status.bankrupt && k==='abroad'){ cond = false; condText = 'ล้มละลาย ไปต่างประเทศไม่ได้'; }
     let cost = C.cost; if(k==='biz' && p.flags.bizFree) cost = 0;
     const inc = `฿${bahtS(C.start)}→${bahtS(C.caps.good)}/เดือน`;
@@ -2043,7 +2048,7 @@ const CAREER_BANK = { gov:1, office:.95, factory:.9, biz:.8, farm:.75, influ:.7,
 function loanOdds(p, price){
   const hh = Math.max(1, hhIncome(p)); const pay = price * .9 * .0065; const r = pay / hh;
   const base = r <= .3 ? .95 : r <= .45 ? .7 : r <= .6 ? .35 : r <= .8 ? .1 : .02;
-  return clamp(base * (CAREER_BANK[p.career] || .6) * (p.status.bankrupt ? 0 : 1) * (p.flags.fled ? .3 : 1), 0, .97);
+  return clamp(base * (CAREER_BANK[p.career] || .6) * (p.status.bankrupt ? 0 : 1) * bkRec(p) * (p.flags.fled ? .3 : 1), 0, .97);
 }
 function setHouse(p, h, price, loan){
   const hh = Math.max(1, hhIncome(p));
@@ -2089,7 +2094,7 @@ async function carChoice(p, io){
   const opts = CARS.map(c => {
     const down = Math.round(c.price * .15), pay = Math.round(c.price * .85 * 1.21 / 84 / 100) * 100;
     const payCash = p.money >= c.price;
-    const r = pay / hh; const odds = payCash ? 1 : clamp((r <= .15 ? .95 : r <= .25 ? .75 : r <= .4 ? .35 : .05) * (CAREER_BANK[p.career] || .6) * (p.status.bankrupt ? 0 : 1), 0, .97);
+    const r = pay / hh; const odds = payCash ? 1 : clamp((r <= .15 ? .95 : r <= .25 ? .75 : r <= .4 ? .35 : .05) * (CAREER_BANK[p.career] || .6) * (p.status.bankrupt ? 0 : 1) * bkRec(p), 0, .97);
     return { label:c.name, sub: payCash ? `฿${baht(c.price)} · จ่ายสดได้` : `฿${baht(c.price)} · ผ่อน ~${baht(pay)}/เดือน 7 ปี · ไฟแนนซ์ผ่าน ${Math.round(odds*100)}%`, cost: payCash ? c.price : down, loan:false,
       cond: p.money >= down, condText:`ต้องมีเงินดาวน์ ฿${baht(down)}`, k:c.id, car:c, payCash, pay, odds };
   });
@@ -2787,6 +2792,29 @@ function archetype(r, p){
   if(r.age < 45) return { t:'ชีวิตที่จบเร็วเกินไป', d:'ยังมีอีกหลายทางที่ไม่ได้เดิน' };
   return { t:'คนธรรมดาคนหนึ่ง', d:'เกิด เรียน ทำงาน และจากไป เหมือนอีกหลายล้านคน' };
 }
+
+// ---------- ความเสี่ยงระหว่างทางของธุรกิจและอินฟลูฯ ----------
+S3_EVENTS.push(
+  { id:'badclient', title:'ลูกค้ารายใหญ่เบี้ยวเงิน', bg:'shop', text:()=>'บริษัทคู่ค้าที่สั่งของล็อตใหญ่ปิดตัวกะทันหัน', w:p=>p.career==='biz'?12:null, run: async (p, io) => {
+    const loss = Math.round(Math.max(200000, curIncome(p) * 4));
+    const c = await askT(p, io, `ลูกหนี้การค้าค้างจ่าย ฿${baht(loss)}`, 'เงินหมุนในกิจการเริ่มติดขัด', [
+      { label:'ฟ้องเรียกเงินคืน', sub:`฿−50,000 ค่าทนาย · ${Math.round(clamp(.35 + .004*(p.C-50), .1, .7)*100)}% ได้คืนครึ่งหนึ่ง`, cost:50000, k:'sue' },
+      { label:'ตัดเป็นหนี้สูญ แล้วเดินหน้าต่อ', sub:`฿−${baht(loss)} · J−5`, k:'eat' },
+      { label:'กู้นอกระบบมาหมุนก่อน', sub:'ไม่เสียเงินตอนนี้ · หนี้นอกระบบเท่ายอดที่ขาด', k:'loan' } ], 'shop');
+    if(c.k==='sue'){ fx(p,{m:-loss}); if(chance(clamp(.35 + .004*(p.C-50), .1, .7))){ fx(p,{m:Math.round(loss/2)}); tell(p,'คดีจบด้วยการประนีประนอม ได้เงินคืนมาครึ่งหนึ่งหลังรอสองปี'); } else tell(p,'ศาลตัดสินให้ชนะ แต่บริษัทนั้นไม่มีทรัพย์สินเหลือให้ยึด'); }
+    if(c.k==='eat'){ fx(p,{m:-loss,J:-5}); tell(p,'คุณขีดฆ่าชื่อลูกค้ารายนั้นออกจากสมุดบัญชี แล้วเริ่มหาลูกค้าใหม่ตั้งแต่ศูนย์'); }
+    if(c.k==='loan'){ p.debt.i += loss; tell(p,'คุณรับเงินสดจากเจ้าหนี้นอกระบบในรถกระบะ ดอกร้อยละยี่สิบต่อปีเริ่มเดินตั้งแต่วันนั้น'); }
+  } },
+  { id:'lawsuit_influ', title:'โดนฟ้องหมิ่นประมาท', bg:'court', text:()=>'คลิปที่คุณวิจารณ์ร้านอาหารชื่อดังกลายเป็นคดี', w:p=>p.career==='influ'?12:null, run: async (p, io) => {
+    const c = await askT(p, io, 'ร้านเรียกค่าเสียหาย 2 ล้านบาท', 'สปอนเซอร์บางรายเริ่มถามว่าจะเคลียร์ยังไง', [
+      { label:'ขอโทษออกคลิปและจ่ายชดเชย', sub:'฿−300,000 · C−5', k:'sorry' },
+      { label:'สู้คดี', sub:`฿−150,000 ค่าทนาย · ${Math.round(clamp(.45 + .004*(p.C-50) + .003*(p.S-50), .15, .8)*100)}% ชนะ · แพ้จ่าย 2 ล้าน`, cost:150000, k:'fight' },
+      { label:'ปิดช่องหนีกระแส', sub:'รายได้หายครึ่งหนึ่ง · J−10', k:'hide' } ], 'court');
+    if(c.k==='sorry'){ fx(p,{m:-300000,C:-5}); tell(p,'คุณก้มหัวขอโทษในคลิปความยาวสามนาที คอมเมนต์แบ่งเป็นสองฝั่งทันที'); }
+    if(c.k==='fight'){ if(chance(clamp(.45 + .004*(p.C-50) + .003*(p.S-50), .15, .8))){ fx(p,{C:5}); tell(p,'ศาลยกฟ้อง คลิปเดิมยอดวิวพุ่งอีกรอบ'); } else { fx(p,{m:-2000000,J:-10}); tell(p,'ศาลสั่งจ่ายเต็มจำนวน คุณต้องขายรถและถอนเงินเก็บเกือบทั้งหมด'); } }
+    if(c.k==='hide'){ p.incomeBoost *= .5; fx(p,{J:-10}); tell(p,'ช่องเงียบไปหกเดือน แฟนคลับครึ่งหนึ่งไม่ได้กลับมา'); }
+  } },
+);
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
