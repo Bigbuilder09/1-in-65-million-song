@@ -1481,6 +1481,7 @@ async function stage6(p, io){
   const evs = drawEvents(p, S6_EVENTS, 2); const ages = distinctAges(evs.length, 63, Math.max(64, p.lifespan + 4));
   evs.forEach((e, i) => beats.push({ age:ages[i], run: () => runEvent(p, io, e) }));
   beats.push({ age: 65, run: () => offerDeed(p, io) });
+  thaiBeats(6, p, io, beats);
   beats.push({ age: 70, run: () => lifestyleChoice(p, io) });
   for(let a = 65; a < 120; a += 5) beats.push({ age:a, run: async () => { p.C = Math.max(0, p.C - 2); } });
   await runBeatsWithLater(p, io, beats, 125);
@@ -1584,7 +1585,7 @@ async function stage7(p, io){
   goodScore = Math.min(15, goodScore);
   ledger.sort((a,b) => a.age - b.age);
   const guests = Math.max(3, Math.round(p.C * 5 * mult));
-  const envelopes = Math.round(guests * 300 * envRate);
+  const envelopes = Math.round(guests * 300 * envRate) + (p.flags.cremationFund ? 200000 : 0);
   estate += envelopes;
   const heirsEstate = Math.max(0, estate);
   const Jbar = p.samples.J.length ? p.samples.J.reduce((s,v)=>s+v,0)/p.samples.J.length : p.J;
@@ -1744,6 +1745,7 @@ function seedFor(p, career){
 }
 function addSeed(p, k){ p.seeds = p.seeds || {}; p.seeds[k] = true; }
 function depthStage1(p, io, beats){
+  thaiBeats(1, p, io, beats);
   beats.push({ age:10, run: async () => {
     const c = await choose(p, io, { kind:'minor', bg:'school', title:'หลังเลิกเรียน คุณชอบทำอะไรที่สุด', text:'สิ่งที่ทำตอนเด็กติดตัวไปจนโต', choices:[
       { label:'อ่านหนังสือ / การ์ตูนความรู้', sub:'S+5 · ช่วยงานออฟฟิศและสอบราชการ', k:'reader' },
@@ -1789,6 +1791,7 @@ const S1_EXTRA = [
 
 // ---------- วัยมหาวิทยาลัย / เริ่มงาน: เหล้า ----------
 function depthStage2(p, io, beats){
+  thaiBeats(2, p, io, beats);
   beats.push({ age:20, run: async () => {
     const c = await choose(p, io, { kind:'minor', bg:'city', title:'งานเลี้ยงรุ่น ทุกคนชนแก้วกันไม่หยุด', text:'นิสัยการดื่มมักติดตัวไปจนทำงาน', choices:[
       { label:'ดื่มหนัก ไปต่อทุกร้าน', sub:'C+6 J+3 · เสี่ยงตับและเมาแล้วขับ', k:2 },
@@ -1800,6 +1803,7 @@ function depthStage2(p, io, beats){
 
 // ---------- วัยทำงาน ----------
 function depthStage3(p, io, beats){
+  thaiBeats(3, p, io, beats);
   // ดูแลสุขภาพ 2 ครั้ง
   [31, 44].forEach(age => beats.push({ age, run: async () => {
     if(p.status.prison) return;
@@ -2399,6 +2403,217 @@ function investBeats(p, io, beats){
   [25, 40].forEach(age => beats.push({ age, run: () => investChoice(p, io) }));
   beats.push({ age: 58, run: () => investChoice(p, io, true) });
 }
+// ===== ความเป็นไทย: เทศกาล ประเพณี และชีวิตประจำวันแบบไทย =====
+function tell(p, text){ p.pend.push({ text, story:true }); }
+const isBuddhist = p => p.religion !== 'อิสลาม';
+const isMuslim = p => p.religion === 'อิสลาม';
+function thaiChinese(p){ if(p.flags.tc === undefined) p.flags.tc = p.tier <= 3 && p.qBirth >= 2 && chance(.3); return p.flags.tc; }
+const askT = (p, io, title, text, choices, bg = 'home') => choose(p, io, { kind:'thai', bg, title, text, choices, noStory:true });
+
+// ---------- วัยเด็ก ----------
+const THAI_KID = [
+  { id:'songkran', title:'สงกรานต์ปีนี้', bg:'home', w:p=>isBuddhist(p)?10:3, run: async (p, io) => {
+    const X = ctxOf(p);
+    const c = await askT(p, io, 'สงกรานต์ปีนี้จะทำอะไร', `ทั้ง${X.prov}ปิดถนนเล่นน้ำ ส่วนญาติผู้ใหญ่รออยู่ที่บ้าน`, [
+      { label:'เล่นน้ำกับเพื่อนทั้งวัน', sub:'J+6 · 15% ป่วย', k:'play' },
+      { label:'ไปรดน้ำดำหัวผู้ใหญ่ในหมู่บ้าน', sub:'C+3 K+2 · ได้เงินขวัญถุง', k:'elder' },
+      { label:'ช่วยที่บ้านขายน้ำแข็งและแป้งดินสอพอง', sub:'฿+3,000 · C+1', k:'sell' } ]);
+    if(c.k==='play'){ fx(p,{J:6}); tell(p, `คุณกับเพื่อนแบกปืนฉีดน้ำไปยืนริมถนน ฉีดใส่ทุกคันที่ขับผ่าน${X.play}`); if(chance(.15)){ fx(p,{H:-5}); note(p,'ตากน้ำทั้งวันจนเป็นไข้ไปสามวัน'); } }
+    if(c.k==='elder'){ fx(p,{C:3,K:2,m:500}); tell(p, 'คุณประคองขันเงินเดินไปทีละบ้าน ผู้ใหญ่ผูกข้อมือและอวยพรให้เรียนเก่ง'); note(p,'ได้เงินขวัญถุงรวม ฿500'); }
+    if(c.k==='sell'){ fx(p,{m:3000,C:1}); if(p.seeds?.trader) fx(p,{m:2000}); tell(p, `คุณตั้งโต๊ะหน้า${X.home} ขายน้ำแข็งถังละสิบบาท หมดตั้งแต่บ่ายสอง`); }
+  } },
+  { id:'krathong', title:'คืนลอยกระทง', bg:'home', w:p=>isBuddhist(p)?8:2, run: async (p, io) => {
+    const X = ctxOf(p);
+    const c = await askT(p, io, 'คืนวันเพ็ญเดือนสิบสอง', 'ทุกบ้านเตรียมกระทงไปลอยที่แหล่งน้ำใกล้บ้าน', [
+      { label:'นั่งพับใบตองทำกระทงเองกับยาย', sub:'J+3 K+1', k:'self' },
+      { label:'ซื้อกระทงโฟมสีสวยที่ตลาด', sub:'J+3 · ฿−50', k:'foam' },
+      { label:'ไปดูประกวดนางนพมาศที่วัด', sub:'C+2 J+2', k:'watch' } ]);
+    if(c.k==='self'){ fx(p,{J:3,K:1}); tell(p, 'นิ้วคุณเปื้อนยางกล้วยทั้งคืน กระทงเบี้ยวไปทางหนึ่ง แต่มันลอยได้'); }
+    if(c.k==='foam'){ fx(p,{J:3,m:-50}); tell(p, 'กระทงโฟมของคุณลอยไปติดกอผักตบ พรุ่งนี้เช้ามีคนต้องมาเก็บ'); }
+    if(c.k==='watch'){ fx(p,{C:2,J:2}); tell(p, `ลานวัดใน${X.prov}สว่างด้วยหลอดไฟสี เสียงพิธีกรประกาศชื่อผู้เข้าประกวดดังทั่วงาน`); }
+  } },
+  { id:'raya', title:'วันฮารีรายอ', bg:'home', w:p=>isMuslim(p)?14:null, run: async (p, io) => {
+    const c = await askT(p, io, 'หลังจบเดือนรอมฎอน', 'คุณถือศีลอดได้ครบเดือนเป็นปีแรก', [
+      { label:'ไปขอขมาญาติผู้ใหญ่ทุกบ้าน', sub:'C+3 K+3', k:'visit' }, { label:'ช่วยแม่ทำขนมแจกเพื่อนบ้าน', sub:'J+4 K+2', k:'cook' } ]);
+    if(c.k==='visit'){ fx(p,{C:3,K:3,m:300}); tell(p, 'คุณใส่ชุดใหม่ เดินจับมือขอขมาญาติทีละคน ได้เงินใส่ซองติดมือกลับบ้าน'); }
+    else { fx(p,{J:4,K:2}); tell(p, 'กลิ่นตูปะและแกงไก่ลอยไปทั้งหมู่บ้าน คุณถือปิ่นโตไปส่งบ้านข้าง ๆ ทั้งเช้า'); }
+  } },
+  { id:'cny', title:'ตรุษจีนที่บ้านอากง', bg:'home', w:p=>thaiChinese(p)?14:null, run: async (p, io) => {
+    const c = await askT(p, io, 'วันไหว้ตรุษจีน', 'อากงอาม่ารอแจกอั่งเปาอยู่ที่บ้านใหญ่', [
+      { label:'ไหว้ผู้ใหญ่ครบทุกคน พูดคำอวยพรภาษาจีน', sub:'C+4 · อั่งเปาเยอะ', k:'bow' }, { label:'แอบไปเล่นกับลูกพี่ลูกน้อง', sub:'J+4', k:'play' } ]);
+    if(c.k==='bow'){ fx(p,{C:4,m:3000}); tell(p, 'คุณท่อง "ซินเจียยู่อี่ ซินนี้ฮวดไช้" จนคล่อง อาม่ายิ้มแล้วยัดซองแดงใส่มือ'); note(p,'ได้อั่งเปารวม ฿3,000'); }
+    else { fx(p,{J:4,m:800}); tell(p, 'คุณกับลูกพี่ลูกน้องจุดประทัดหลังบ้านจนโดนอาแปะดุ'); }
+  } },
+  { id:'scout', title:'เข้าค่ายลูกเสือ', bg:'school', w:p=>8, run: async (p, io) => {
+    const c = await askT(p, io, 'ค่ายลูกเสือ-เนตรนารี 3 วัน 2 คืน', 'คืนสุดท้ายมีรอบกองไฟและการเดินฐานกลางคืน', [
+      { label:'อาสาเป็นหัวหน้าหมู่', sub:'C+4 S+2 · J−2', k:'lead' }, { label:'เล่นละครรอบกองไฟ', sub:'J+5 C+2', k:'show' }, { label:'แกล้งป่วยขอนอนเต็นท์', sub:'H+1 J−1', k:'skip' } ], 'school');
+    if(c.k==='lead'){ fx(p,{C:4,S:2,J:-2}); tell(p, 'คุณถือธงหมู่เดินนำเพื่อนผ่านฐานผีกลางป่า ทั้งที่ตัวเองก็กลัวจนตัวสั่น'); }
+    if(c.k==='show'){ fx(p,{J:5,C:2}); tell(p, 'ละครตลกของหมู่คุณทำให้ครูหัวเราะจนน้ำตาไหล'); }
+    if(c.k==='skip'){ fx(p,{H:1,J:-1}); tell(p, 'คุณนอนฟังเสียงเพลงรอบกองไฟจากในเต็นท์ แล้วรู้สึกว่าพลาดอะไรบางอย่าง'); }
+  } },
+  { id:'waikru', title:'วันไหว้ครู', bg:'school', w:p=>8, run: async (p, io) => {
+    const c = await askT(p, io, 'ห้องคุณต้องส่งพานไหว้ครูเข้าประกวด', 'ครูประจำชั้นให้เลือกว่าใครจะรับผิดชอบ', [
+      { label:'รับทำพานดอกไม้เอง', sub:'S+2 J+3 · ฿−200', k:'make' }, { label:'เป็นตัวแทนถือพานขึ้นเวที', sub:'C+3', k:'carry' }, { label:'ช่วยเก็บดอกเข็มกับหญ้าแพรก', sub:'K+1', k:'help' } ], 'school');
+    if(c.k==='make'){ fx(p,{S:2,J:3,m:-200}); tell(p, 'คุณนั่งร้อยดอกดาวเรืองกับดอกเข็มจนดึก พานรูปหนังสือได้รางวัลที่สอง'); }
+    if(c.k==='carry'){ fx(p,{C:3}); tell(p, 'คุณคลานเข่าถือพานขึ้นไปกราบครูต่อหน้าทั้งโรงเรียน มือสั่นจนดอกไม้แทบหล่น'); }
+    if(c.k==='help'){ fx(p,{K:1}); tell(p, 'คุณกับเพื่อนเดินเก็บหญ้าแพรกริมรั้วโรงเรียนตั้งแต่เช้า'); }
+  } },
+  { id:'bangfai', title:'บุญบั้งไฟ', bg:'farm', w:p=>p.tier===5?12:null, run: async (p, io) => {
+    const c = await askT(p, io, 'บุญบั้งไฟประจำหมู่บ้าน', 'ผู้ใหญ่ทั้งหมู่บ้านรวมเงินทำบั้งไฟขอฝน', [
+      { label:'ช่วยพ่อตำดินประสิวทำบั้งไฟ', sub:'C+3 · 5% บาดเจ็บ', k:'make' }, { label:'ไปเต้นรำในขบวนแห่', sub:'J+5', k:'dance' }, { label:'ลุ้นพนันว่าบั้งไฟใครขึ้นสูงสุด', sub:'50% ฿+500 · 50% ฿−500 · K−1', k:'bet' } ], 'farm');
+    if(c.k==='make'){ fx(p,{C:3}); tell(p, 'บั้งไฟของหมู่บ้านคุณพุ่งขึ้นฟ้าหายเข้าไปในเมฆ ทุกคนโห่ร้องลั่นทุ่ง'); if(chance(.05)){ fx(p,{H:-10}); note(p,'สะเก็ดไฟลวกแขนจนเป็นแผลเป็น'); } }
+    if(c.k==='dance'){ fx(p,{J:5}); tell(p, 'เสียงพิณกับกลองยาวดังทั้งวัน คุณเต้นตามขบวนจนเท้าพอง'); }
+    if(c.k==='bet'){ fx(p,{K:-1}); if(chance(.5)){ fx(p,{m:500}); tell(p,'บั้งไฟที่คุณเชียร์ขึ้นสูงสุด คุณได้เงินจากผู้ใหญ่ที่แทงไว้'); } else { fx(p,{m:-500}); tell(p,'บั้งไฟที่คุณเชียร์ระเบิดคาฐาน ผู้ใหญ่ทั้งวงหัวเราะ'); } }
+  } },
+  { id:'flooded_soi', title:'น้ำท่วมซอยหลังฝนตก', bg:'city', w:p=>p.tier===1?10:null, run: async (p, io) => {
+    const c = await askT(p, io, 'ฝนตกชั่วโมงเดียว ซอยหน้าบ้านกลายเป็นคลอง', 'รถติดยาวจนพ่อแม่มารับไม่ได้', [
+      { label:'ลุยน้ำกลับบ้านกับเพื่อน', sub:'J+3 · 20% ป่วย', k:'wade' }, { label:'นั่งรอที่ร้านเกมหน้าโรงเรียน', sub:'฿−100', k:'wait' } ], 'city');
+    if(c.k==='wade'){ fx(p,{J:3}); tell(p, 'น้ำสูงถึงเข่า คุณถือรองเท้านักเรียนไว้ในมือแล้วเดินผ่านรถที่จอดนิ่งเป็นแถว'); if(chance(.2)){ fx(p,{H:-5}); note(p,'เท้าเปื่อยและเป็นไข้'); } }
+    else { fx(p,{m:-100}); tell(p, 'คุณนั่งเล่นเกมรอจนสามทุ่ม พ่อมาถึงพร้อมเสื้อเปียกครึ่งตัว'); }
+  } },
+];
+
+// ---------- วัยหนุ่มสาว ----------
+const THAI_YOUNG = [
+  { id:'sotus2', title:'คืนรับขวัญน้องใหม่', bg:'uni', w:p=>p.degree?8:null, run: async (p, io) => {
+    const c = await askT(p, io, 'รุ่นพี่ชวนไปบายศรีสู่ขวัญและว้ากเชียร์', '', [ { label:'ไปทุกคืน', sub:'C+6 · J−3 · S−2', k:'all' }, { label:'ไปแค่วันบายศรี', sub:'C+2 J+2', k:'one' } ], 'uni');
+    if(c.k==='all'){ fx(p,{C:6,J:-3,S:-2}); tell(p, 'คุณร้องเพลงเชียร์ของคณะได้ครบทุกเพลงภายในสองสัปดาห์ เสียงแหบไปทั้งเทอม'); }
+    else { fx(p,{C:2,J:2}); tell(p, 'รุ่นพี่ผูกด้ายขาวที่ข้อมือ แล้วอวยพรให้เรียนจบไว ๆ'); }
+  } },
+  { id:'pha_pa', title:'ผ้าป่าศิษย์เก่า', bg:'school', w:p=>6, run: async (p, io) => {
+    const c = await askT(p, io, 'กลุ่มไลน์ศิษย์เก่าชวนทอดผ้าป่าให้โรงเรียนเดิม', 'โรงเรียนที่คุณจบมาหลังคารั่วหลายห้อง', [
+      { label:'ร่วมทำบุญและไปช่วยงาน', sub:'฿−2,000 · K+3 C+3', k:'go' }, { label:'โอนเงินทำบุญอย่างเดียว', sub:'฿−500 · K+1', k:'pay' }, { label:'ปิดแจ้งเตือนกลุ่ม', sub:'ไม่มีผล', k:'mute' } ], 'school');
+    if(c.k==='go'){ fx(p,{m:-2000,K:3,C:3}); tell(p, 'คุณได้เจอครูประจำชั้นที่ผมขาวทั้งหัว ครูยังจำชื่อเล่นคุณได้'); }
+    if(c.k==='pay'){ fx(p,{m:-500,K:1}); tell(p, 'คุณโอนเงินพร้อมส่งสติกเกอร์สาธุลงกลุ่ม'); }
+    if(c.k==='mute'){ tell(p, 'กลุ่มไลน์ยังเด้งขึ้นมาบนจอทุกคืน แต่คุณไม่ได้เปิดอ่าน'); }
+  } },
+];
+
+// ---------- วัยทำงาน ----------
+const THAI_ADULT = [
+  { id:'homecoming', title:'กลับบ้านช่วงสงกรานต์', bg:'road', w:p=>p.tier<=3 && p.tier!==1 ? 6 : 10, run: async (p, io) => {
+    const X = ctxOf(p);
+    const c = await askT(p, io, 'หยุดยาวสงกรานต์ ถนนทุกสายมุ่งกลับต่างจังหวัด', `แม่โทรมาถามว่าปีนี้จะกลับ${X.prov}ไหม`, [
+      { label:'ขับรถกลับบ้าน ฝ่ารถติด', sub:'J+6 K+2 · H−2 · ฿−3,000', k:'drive' },
+      { label:'ทำงานต่อ รับค่าแรงสามเท่า', sub:'฿+8,000 · J−5', k:'work' },
+      { label:'ส่งเงินกลับไปแทน', sub:'฿−5,000 · K+1', k:'send' } ], 'road');
+    if(c.k==='drive'){ fx(p,{J:6,K:2,H:-2,m:-3000}); tell(p, `รถติดบนถนนมิตรภาพสิบสองชั่วโมง แต่พอถึง${X.home} แม่ตั้งสำรับรออยู่แล้ว`); }
+    if(c.k==='work'){ fx(p,{m:8000,J:-5}); tell(p, 'เมืองเงียบจนได้ยินเสียงนก คุณวิดีโอคอลกลับบ้านขณะทุกคนกำลังรดน้ำดำหัวกัน'); }
+    if(c.k==='send'){ fx(p,{m:-5000,K:1}); tell(p, 'คุณโอนเงินกลับบ้าน แม่ส่งรูปขนมจีนน้ำยาหม้อใหญ่มาให้ดู'); }
+  } },
+  { id:'envelopes', title:'เดือนแห่งการใส่ซอง', bg:'wedding', w:p=>8+(p.C>50?4:0), run: async (p, io) => {
+    const c = await askT(p, io, 'เดือนนี้มีการ์ดแต่งงาน 4 ใบ งานบวช 1 งาน', 'ทุกงานคือคนที่ต้องเจอหน้ากันต่อ', [
+      { label:'ไปทุกงาน ใส่ซองงานละ 1,000', sub:'฿−5,000 · C+5', k:'all' }, { label:'ไปเฉพาะคนสนิท', sub:'฿−2,000 · C+1', k:'close' }, { label:'ฝากซองอย่างเดียว', sub:'฿−1,500 · C−1', k:'send' } ], 'wedding');
+    if(c.k==='all'){ fx(p,{m:-5000,C:5}); tell(p, 'คุณใส่ชุดเดิมไปทุกงาน ถ่ายรูปกับบ่าวสาวจนแก้มค้าง'); }
+    if(c.k==='close'){ fx(p,{m:-2000,C:1}); tell(p, 'คุณไปงานเพื่อนสนิทสองงาน อีกสามงานกดหัวใจในเฟซบุ๊กแทน'); }
+    if(c.k==='send'){ fx(p,{m:-1500,C:-1}); tell(p, 'คุณเขียนชื่อหน้าซองแล้วฝากเพื่อนไป เจ้าภาพเปิดซองแล้วจำชื่อคุณไม่ได้'); }
+  } },
+  { id:'kathin', title:'เป็นเจ้าภาพทอดกฐิน', bg:'temple', w:p=>isBuddhist(p)?6+(p.money>1000000?6:0):null, run: async (p, io) => {
+    const X = ctxOf(p);
+    const c = await askT(p, io, `ญาติที่${X.prov}ชวนเป็นเจ้าภาพกฐินวัดประจำหมู่บ้าน`, 'ชื่อเจ้าภาพจะถูกประกาศผ่านเครื่องขยายเสียงทั้งวัน', [
+      { label:'เป็นเจ้าภาพหลัก', sub:'฿−50,000 · K+6 C+6', k:'host' }, { label:'ร่วมทำบุญกองละ 1,000', sub:'฿−1,000 · K+2', k:'join' }, { label:'ไม่ร่วม', sub:'C−1', k:'no' } ], 'temple');
+    if(c.k==='host'){ fx(p,{m:-50000,K:6,C:6}); tag(p,'community','เป็นเจ้าภาพทอดกฐิน'); tell(p, `ขบวนแห่กฐินมีกลองยาวนำหน้า ผู้ใหญ่บ้านจับมือคุณแน่นแล้วเรียก "เถ้าแก่"`); }
+    if(c.k==='join'){ fx(p,{m:-1000,K:2}); tell(p, 'คุณเขียนชื่อครอบครัวลงในใบอนุโมทนาบัตร แล้วฝากญาติเอาไปถวายแทน'); }
+    if(c.k==='no') fx(p,{C:-1});
+  } },
+  { id:'hajj', title:'ไปทำฮัจญ์', bg:'home', w:p=>isMuslim(p) && p.age >= 40 ? 10 : null, run: async (p, io) => {
+    const c = await askT(p, io, 'คุณเก็บเงินมาหลายปีเพื่อไปทำฮัจญ์ที่นครมักกะฮ์', '', [
+      { label:'ไปปีนี้', sub:'฿−250,000 · K+8 J+8 C+5', k:'go' }, { label:'รอให้ลูกโตก่อน', sub:'ไม่มีผล', k:'wait' } ]);
+    if(c.k==='go'){ fx(p,{m:-250000,K:8,J:8,C:5}); tell(p, 'คุณกลับมาพร้อมผ้าโพกศีรษะสีขาว คนในหมู่บ้านเริ่มเรียกคุณว่า "ฮัจญี"'); }
+    else tell(p, 'คุณเก็บเงินก้อนนั้นไว้อีกปี แล้วบอกตัวเองว่าอินชาอัลลอฮ์');
+  } },
+  { id:'fortune', title:'ไปดูหมอก่อนตัดสินใจ', bg:'temple', w:p=>8, run: async (p, io) => {
+    const c = await askT(p, io, 'เพื่อนพาไปหาหมอดูชื่อดัง', 'หมอดูบอกว่าดวงคุณปีนี้ตกต้องสะเดาะเคราะห์', [
+      { label:'ทำบุญสะเดาะเคราะห์ตามที่หมอบอก', sub:'฿−3,000 · J+5', k:'do' }, { label:'เปลี่ยนชื่อใหม่ให้เป็นมงคล', sub:'฿−1,500 · J+3 · ต้องแก้เอกสารทุกอย่าง', k:'name' }, { label:'ฟังขำ ๆ แล้วกลับบ้าน', sub:'฿−300', k:'laugh' } ], 'temple');
+    if(c.k==='do'){ fx(p,{m:-3000,J:5}); tell(p, 'คุณปล่อยปลาไหลลงคลองเก้าตัว แล้วรู้สึกว่าเรื่องร้ายผ่านไปได้'); }
+    if(c.k==='name'){ fx(p,{m:-1500,J:3}); tell(p, 'คุณได้ชื่อใหม่ห้าพยางค์ที่ไม่มีใครเรียก ทุกคนยังเรียกชื่อเล่นเหมือนเดิม'); }
+    if(c.k==='laugh'){ fx(p,{m:-300}); tell(p, 'คุณจ่ายค่าครู 300 บาท แล้วเล่าเรื่องนี้ให้เพื่อนฟังขำ ๆ ทั้งทาง'); }
+  } },
+  { id:'share_circle', title:'วงแชร์แม่ค้าในตลาด', bg:'city', w:p=>['farm','factory','biz'].includes(p.career)?9:3, run: async (p, io) => {
+    const c = await askT(p, io, 'แม่ค้าในตลาดชวนเล่นแชร์มือละ 5,000 สิบมือ', 'เปียได้ก่อนได้เงินก้อน แต่ถ้าท้าวแชร์หนีก็จบ', [
+      { label:'เล่นและประมูลเอาก่อน', sub:'฿+40,000 ตอนนี้ · ต้องส่งต่ออีก 9 เดือน · 15% ท้าวหนี', k:'early' },
+      { label:'เล่นแล้วรอรับท้ายวง', sub:'ได้กำไร ฿8,000 · 15% ท้าวหนี', k:'late' }, { label:'ไม่เล่น', sub:'ไม่มีผล', k:'no' } ], 'city');
+    if(c.k==='no'){ tell(p, 'คุณยิ้มแล้วปฏิเสธ แม่ค้าเปลี่ยนเรื่องไปคุยเรื่องราคาผักแทน'); return; }
+    const run = chance(.15);
+    if(c.k==='early'){ fx(p,{m:40000-45000}); tell(p, 'คุณประมูลแชร์ได้ในมือแรก เอาเงินไปหมุนก่อน แล้วส่งต่อทุกสิ้นเดือน'); if(run) note(p,'ท้าวแชร์หนีไปกลางวง แต่คุณได้เงินก้อนไปก่อนแล้ว'); }
+    if(c.k==='late'){ if(run){ fx(p,{m:-30000,J:-8}); tell(p,'เช้าวันหนึ่งแผงของท้าวแชร์ว่างเปล่า เบอร์โทรติดต่อไม่ได้อีกเลย'); } else { fx(p,{m:8000}); tell(p,'คุณได้เงินก้อนท้ายวงพร้อมดอกที่คนอื่นประมูลไว้'); } }
+  } },
+  { id:'checkpoint', title:'ด่านตรวจหน้าปากซอย', bg:'road', w:p=>p.car?8:3, run: async (p, io) => {
+    const c = await askT(p, io, 'คุณลืมต่อภาษีรถ เจ้าหน้าที่ที่ด่านโบกให้จอด', 'เขาบอกว่า "จะเอาใบสั่ง หรือจะจบตรงนี้"', [
+      { label:'ขอใบสั่ง ไปจ่ายที่สถานีเอง', sub:'฿−1,000 · J−2 · K+2', k:'ticket' }, { label:'ยื่นแบงก์ห้าร้อยให้แล้วไป', sub:'฿−500 · K−2', k:'pay' } ], 'road');
+    if(c.k==='ticket'){ fx(p,{m:-1000,J:-2,K:2}); tell(p, 'คุณเสียเวลาครึ่งวันที่สถานีตำรวจ แต่ได้ใบเสร็จถูกต้องกลับมา'); }
+    else { fx(p,{m:-500,K:-2}); tagBad(p,'corrupt','จ่ายเงินใต้โต๊ะที่ด่าน',500); tell(p, 'แบงก์ห้าร้อยหายเข้าไปในสมุดใบสั่ง แล้วด่านก็เปิดทางให้'); }
+  } },
+  { id:'rubber', title:'ราคายางตก', bg:'farm', w:p=>p.career==='farm' && (p.tier===4||p.tier===6) ? 12 : null, run: async (p, io) => {
+    const c = await askT(p, io, 'ราคายางพาราเหลือกิโลละไม่ถึงครึ่งของปีที่แล้ว', 'เถ้าแก่รับซื้อบอกว่าโรงงานจีนลดการสั่ง', [
+      { label:'กรีดต่อแม้ขาดทุน', sub:'รายได้ปีนี้ −30%', k:'keep' }, { label:'โค่นยางบางส่วนปลูกทุเรียน', sub:'฿−100,000 · 35% ปีหน้าได้กำไร', k:'durian' }, { label:'ไปรวมกลุ่มเรียกร้องราคา', sub:'C+5 · J−3', k:'protest' } ], 'farm');
+    if(c.k==='keep'){ p.unemployed = Math.max(p.unemployed, 0); fx(p,{m:-Math.round(curIncome(p)*12*.3)}); tell(p, 'คุณออกกรีดยางตั้งแต่ตีสองเหมือนเดิม ถ้วยน้ำยางเต็ม แต่เงินในมือน้อยลงทุกเดือน'); }
+    if(c.k==='durian'){ fx(p,{m:-100000}); if(chance(.35)){ p.incomeBoost *= 1.5; tell(p,'ทุเรียนรุ่นแรกออกลูกสวย เถ้าแก่จากจีนมาเหมาทั้งสวน'); } else tell(p,'ต้นทุเรียนครึ่งหนึ่งตายตอนหน้าแล้ง ที่เหลือยังต้องรออีกหลายปี'); }
+    if(c.k==='protest'){ fx(p,{C:5,J:-3}); tell(p, 'คุณนั่งรถกระบะไปรวมตัวกับชาวสวนจากทั้งจังหวัด เสียงโทรโข่งดังไปทั้งวัน'); }
+  } },
+  { id:'cremation_fund', title:'สมาคมฌาปนกิจสงเคราะห์', bg:'temple', w:p=>p.age>=40?8:null, run: async (p, io) => {
+    const c = await askT(p, io, 'ผู้ใหญ่บ้านชวนสมัครสมาคมฌาปนกิจสงเคราะห์', 'จ่ายเงินทุกครั้งที่มีสมาชิกเสียชีวิต แล้วครอบครัวจะได้เงินก้อนตอนคุณจากไป', [
+      { label:'สมัคร', sub:'฿−3,000/ปี · งานศพได้เงินช่วย ฿200,000', k:'yes' }, { label:'ไม่สมัคร', sub:'ไม่มีผล', k:'no' } ], 'temple');
+    if(c.k==='yes'){ p.annual.push({ from:p.age, to:120, amt:3000 }); p.flags.cremationFund = true; tell(p, 'คุณกรอกใบสมัครที่ศาลาวัด ใส่ชื่อลูกเป็นผู้รับผลประโยชน์'); }
+    else tell(p, 'คุณบอกว่าขอคิดดูก่อน แล้วก็ลืมไป');
+  } },
+  { id:'mookata', title:'ปาร์ตี้หมูกระทะ', bg:'city', w:p=>6, run: async (p, io) => {
+    const c = await askT(p, io, 'เพื่อนร่วมงานนัดกินหมูกระทะหลังเลิกงาน', '', [
+      { label:'ไป ชวนคนอื่นเพิ่ม', sub:'J+4 C+3 · ฿−400', k:'go' }, { label:'กลับบ้านพักผ่อน', sub:'H+1', k:'home' } ], 'city');
+    if(c.k==='go'){ fx(p,{J:4,C:3,m:-400}); tell(p, 'ควันหมูกระทะลอยเต็มร้าน เสียงหัวเราะดังกว่าเพลงลูกทุ่งที่เปิดอยู่'); }
+    else { fx(p,{H:1}); tell(p, 'คุณกลับไปนอนดูละครหลังข่าวจนหลับคาโซฟา'); }
+  } },
+];
+// ลูกชาย: งานบวช
+const THAI_KIDS = [
+  { id:'ordain', title:'ลูกชายถึงวัยบวช', bg:'temple', w:p=>isBuddhist(p) && p.kids.some(k=>k.sex==='M') ? 12 : null, run: async (p, io) => {
+    const k = p.kids.find(k=>k.sex==='M');
+    const c = await askT(p, io, `${k.name}อายุครบบวชแล้ว`, 'ญาติทุกฝ่ายรอดูว่าจะจัดงานแบบไหน', [
+      { label:'จัดงานบวชใหญ่ มีมหรสพและโต๊ะจีน', sub:'฿−300,000 · C+8 J+5', k:'big' }, { label:'บวชเรียบง่ายที่วัดใกล้บ้าน', sub:'฿−30,000 · K+4 · ค่าลูก+5', k:'simple' }, { label:'ให้ลูกตัดสินใจเอง', sub:'50% ลูกไม่บวช', k:'free' } ], 'temple');
+    if(c.k==='big'){ fx(p,{m:-300000,C:8,J:5}); tell(p, `ขบวนแห่นาค${k.name}มีกลองยาวสามวง หมอลำซิ่งเล่นถึงตีสอง`); }
+    if(c.k==='simple'){ fx(p,{m:-30000,K:4}); k.kv += 5; tell(p, `${k.name}โกนหัวที่ลานวัดตอนเช้า คุณเป็นคนอุ้มผ้าไตรให้ลูกด้วยมือตัวเอง`); }
+    if(c.k==='free'){ if(chance(.5)){ fx(p,{m:-30000,K:3}); tell(p, `${k.name}เลือกบวชเองหนึ่งพรรษา แล้วกลับมาพูดน้อยลงและฟังมากขึ้น`); } else { fx(p,{J:-2}); tell(p, `${k.name}ขอไม่บวช ญาติผู้ใหญ่บางคนบ่น แต่คุณยอมรับ`); } }
+  } },
+  { id:'graduation', title:'วันรับปริญญาของลูก', bg:'uni', w:p=>p.kids.length?8:null, run: async (p, io) => {
+    const k = p.kids[0];
+    const c = await askT(p, io, `${k.name}รับปริญญา`, 'หน้าหอประชุมเต็มไปด้วยช่อดอกไม้และตุ๊กตาหมี', [
+      { label:'เหมาช่างภาพถ่ายรูปทั้งวัน พาญาติมากันเต็มรถตู้', sub:'฿−15,000 · J+8 ค่าลูก+5', k:'big' }, { label:'ไปเองกับครอบครัวเล็ก ๆ', sub:'J+5', k:'small' } ], 'uni');
+    if(c.k==='big'){ fx(p,{m:-15000,J:8}); k.kv += 5; tell(p, `ญาติจากต่างจังหวัดยืนเรียงแถวถ่ายรูปกับ${k.name}จนแดดร่ม รูปนั้นถูกใส่กรอบแขวนกลางบ้าน`); }
+    else { fx(p,{J:5}); tell(p, `คุณยืนรอ${k.name}ใต้ต้นไม้หน้าหอประชุม พอลูกเดินมาในชุดครุยคุณก็พูดอะไรไม่ออก`); }
+  } },
+];
+
+// ---------- วัยเกษียณ ----------
+const THAI_OLD = [
+  { id:'dumhua', title:'สงกรานต์ ลูกหลานกลับมารดน้ำดำหัว', bg:'home', w:p=>p.kids.length?12:null, run: async (p, io) => {
+    const avg = p.kids.reduce((s,k)=>s+k.kv,0) / p.kids.length;
+    if(avg >= 50){ fx(p,{J:10}); tell(p, `ลูกหลานกลับมากันครบ ${p.kids.map(k=>k.name).join(' ')} รินน้ำอบลงบนฝ่ามือคุณทีละคน แล้วขอพรเหมือนตอนเด็ก`); }
+    else { fx(p,{J:-6}); tell(p, 'คุณเตรียมขันเงินกับผ้าขาวม้าไว้ตั้งแต่เช้า แต่ปีนี้มีแค่ข้อความ "สุขสันต์วันสงกรานต์" ส่งมาทางไลน์'); }
+    await say(p, io, { kind:'event', bg:'home', title:'สงกรานต์ปีนี้', text:'' });
+  } },
+  { id:'sixcycle', title:'ทำบุญอายุครบ 6 รอบ', bg:'temple', w:p=>p.age>=70 && p.age<=74 ? 10 : null, run: async (p, io) => {
+    const c = await askT(p, io, 'อายุครบ 72 ปี ครบหกรอบนักษัตร', 'ลูกหลานถามว่าอยากทำบุญแบบไหน', [
+      { label:'นิมนต์พระมาที่บ้าน เลี้ยงคนทั้งหมู่บ้าน', sub:'฿−80,000 · J+8 C+5 K+3', k:'big' }, { label:'ไปทำบุญที่วัดเงียบ ๆ', sub:'K+3 J+3', k:'small' } ], 'temple');
+    if(c.k==='big'){ fx(p,{m:-80000,J:8,C:5,K:3}); tell(p, 'เต็นท์หน้าบ้านกางเต็มลาน คนที่ไม่ได้เจอกันยี่สิบปีเดินเข้ามาไหว้คุณทีละคน'); }
+    else { fx(p,{K:3,J:3}); tell(p, 'คุณตักบาตรพระเก้ารูปตอนเช้า แล้วนั่งฟังเทศน์จนเพล'); }
+  } },
+  { id:'hajj_old', title:'คำขอสุดท้ายก่อนลาจาก', bg:'home', w:p=>isMuslim(p)?8:null, run: async (p, io) => {
+    fx(p,{K:3,J:3}); tell(p, 'คุณขอให้ลูกหลานพาไปละหมาดวันศุกร์ที่มัสยิดกลางทุกสัปดาห์ ตราบที่ยังเดินไหว');
+    await say(p, io, { kind:'event', bg:'home', title:'วันศุกร์ที่มัสยิด', text:'' });
+  } },
+];
+function tag(p, t, l){ tagGood(p, t, l); }
+function pickThai(p, pool, n){ return drawEvents(p, pool, n); }
+function thaiBeats(stage, p, io, beats){
+  if(stage === 1){ pickThai(p, THAI_KID, 2).forEach((e, i) => beats.push({ age: [8, 13][i], run: () => e.run(p, io) })); }
+  if(stage === 2){ pickThai(p, THAI_YOUNG, 1).forEach(e => beats.push({ age: 19, run: () => e.run(p, io) })); }
+  if(stage === 3){
+    const evs = pickThai(p, THAI_ADULT, 3); const ages = distinctAges(evs.length, 26, 57);
+    evs.forEach((e, i) => beats.push({ age: ages[i], run: () => { if(p.status.prison) return; return e.run(p, io); } }));
+    beats.push({ age: 55, run: async () => { const k = pickThai(p, THAI_KIDS, 1)[0]; if(k && !p.status.prison) await k.run(p, io); } });
+  }
+  if(stage === 6){ pickThai(p, THAI_OLD, 1).forEach(e => beats.push({ age: randi(66, 74), run: () => e.run(p, io) })); }
+}
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
 const P8 = { k:'#000000', n:'#1D2B53', m:'#7E2553', g:'#008751', b:'#AB5236', d:'#5F574F', l:'#C2C3C7', w:'#FFF1E8', r:'#FF004D', o:'#FFA300', y:'#FFEC27', G:'#00E436', B:'#29ADFF', L:'#83769C', p:'#FF77A8', s:'#FFCCAA',
@@ -2599,6 +2814,8 @@ const sgn = s => s === '+' ? '+' : '−';
 const upd = s => s === '+' ? 'up' : 'dn';
 // แปลงตัวย่อ H J S C ฿ ค่าลูก ให้เป็นสัญลักษณ์
 function rich(s){
+  // บุญ/บาป (K) ซ่อนไว้จนตาย ไม่แสดงในตัวเลือก
+  s = String(s).replace(/(^|[\s·])K\s?[+−\-]\s?\d+/g, '$1').replace(/(\s*·\s*){2,}/g, ' · ').replace(/^\s*·\s*|\s*·\s*$/g, '').replace(/\s{2,}/g, ' ').trim();
   let h = esc(s); const tok = []; const put = html => { tok.push(html); return `\u0001${tok.length-1}\u0002`; };
   h = h.replace(/(^|[^A-Za-z])([HJSC])\s?([+−\-])\s?(\d+)/g, (m, pre, k, sg, n) => pre + put(`<span class="fx ${upd(sg)}">${ic(k)}${sgn(sg)}${n}</span>`));
   h = h.replace(/ค่าลูก\s?([+−\-])\s?(\d+)/g, (m, sg, n) => put(`<span class="fx ${upd(sg)}">${ic('kid')}${sgn(sg)}${n}</span>`));
@@ -2704,7 +2921,7 @@ function flushChips(){
 }
 
 // ---------- แผงตัดสินใจ ----------
-const KIND_TH = { main:'ตัดสินใจหลัก', minor:'ทางเลือกย่อย', fork:'ทางแยกบังคับ', event:'เหตุการณ์ไม่คาดคิด', deed:'โอกาสทำความดี', tempt:'สิ่งยั่วใจ', life:'ระดับการใช้ชีวิต', result:'ผลลัพธ์', birth:'เกิด', stage:'ช่วงชีวิต', cut:'ฉากพิเศษ', death:'ลาจาก', mourn:'ไว้อาลัย', funeral:'งานศพ' };
+const KIND_TH = { main:'ตัดสินใจหลัก', minor:'ทางเลือกย่อย', fork:'ทางแยกบังคับ', event:'เหตุการณ์ไม่คาดคิด', deed:'โอกาสทำความดี', tempt:'สิ่งยั่วใจ', thai:'วิถีไทย', life:'ระดับการใช้ชีวิต', result:'ผลลัพธ์', birth:'เกิด', stage:'ช่วงชีวิต', cut:'ฉากพิเศษ', death:'ลาจาก', mourn:'ไว้อาลัย', funeral:'งานศพ' };
 function eyebrow(o){ const p = CUR.p; const st = p ? STAGE_TH[p.stage] : ''; return `<div class="eyebrow">${esc(KIND_TH[o.kind] || 'ชีวิต')}<span>${esc(st)}${p ? ' · อายุ ' + p.age : ''}</span></div>`; }
 function pendHTML(pend){
   if(!pend || !pend.length) return '';
