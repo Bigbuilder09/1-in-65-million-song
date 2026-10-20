@@ -79,6 +79,11 @@ button{font:inherit;color:inherit}
 .head{border-left:4px solid var(--warn);background:rgba(255,207,77,.07);padding:8px 10px}
 .head b{font-family:var(--f-disp);display:block;color:var(--warn)}
 .head p{margin:2px 0 0;color:var(--dim);white-space:pre-line}
+.arch{border:2px solid var(--teal);background:rgba(63,209,196,.08);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.arch b{font-family:var(--f-disp);font-size:20px;color:var(--teal)}
+.arch span{color:var(--dim);font-size:14px}
+.arch.rare{border-color:var(--gold2);background:rgba(255,215,122,.1)}
+.arch.rare b{color:var(--gold2)}
 .story{margin:0;padding:8px 12px;border-left:3px solid var(--gold);background:rgba(232,176,74,.07);color:var(--ink);font-size:15px;line-height:1.65}
 .story + .pend{margin-top:-4px}
 .pend{display:flex;flex-direction:column;gap:4px;border:1px dashed var(--line);padding:8px 10px;background:rgba(0,0,0,.18)}
@@ -392,7 +397,7 @@ function newPlayer(o = {}){
 const STATNAME = { H:'สุขภาพ', J:'ความสุข', S:'ทักษะ', C:'เส้นสาย' };
 function fx(p, d){
   const shown = [];
-  for(const k of ['H','J','S','C']){ if(d[k]){ const before = p[k]; p[k] = clamp(p[k] + d[k], 0, 100); const real = p[k]-before; if(real) shown.push([k, real]); } }
+  for(const k of ['H','J','S','C']){ if(d[k]){ const before = p[k]; p[k] = clamp(p[k] + (k === 'H' ? d[k] : dimin(p[k], d[k])), 0, 100); const real = p[k]-before; if(real) shown.push([k, real]); } }
   if(d.K){ p.K = clamp(p.K + d.K, -100, 100); }
   if(d.m){ addMoney(p, d.m); shown.push(['฿', d.m]); }
   if(p.io && shown.length) p.io.chips(shown);
@@ -548,7 +553,7 @@ async function years(p, io, n, opts = {}){
       const spouse = (p.spouse && !p.spouse.separated) ? p.spouse.income * 12 * (rec ? .9 : 1) : 0;
       if(p.spouse && !p.spouse.separated) p.spouse.income *= 1.02;
       const hh = income + spouse;
-      net = hh * saveRate(p);
+      net = hh - Math.max(hh * (1 - saveRate(p)), livingFloor(p));
       if(hh > 0 && hh/12 < 10000) net += 4000; // บัตรสวัสดิการแห่งรัฐ
     } else { // เกษียณ
       const costM = 9000 * (p.flags.homeTown ? .8 : 1) + (p.flags.residenceCost || 0);
@@ -1629,6 +1634,7 @@ async function stage7(p, io){
     career: p.career ? CAREERS[p.career].name : (p.age < 22 ? 'ยังไม่ได้ทำงาน' : 'ว่างงาน'), age:p.age, cause:p.cause, guests, envelopes, estate, heirsEstate, kidDebt, ledger, goodScore, fruits, K:p.K,
     Jbar, Hbar, Pw, score, kvPenalty, epilogueJ, funeral:F.label, kids:p.kids.map(k=>({...k})), anyFruit: goodTypesFruited.size>0, tagsBad:p.tagsBad.length, tagsGood:p.tagsGood.length };
   result.qEnd = Math.max(result.qEnd, incomeToQ(heirsEstate/216/.12));
+  result.arch = archetype(result, p);
   if(io.funeral) await io.funeral(result, p);
   return result;
 }
@@ -2415,8 +2421,8 @@ function investYear(p, notes){
   const crash = chance(.06); // ปีวิกฤตของทั้งตลาด
   let r;
   if(k === 'bank') r = .015;
-  else if(k === 'fund') r = crash ? -.30 + .05*gauss() : .085 + .12*gauss();
-  else if(k === 'spec') r = crash ? -.6 + .1*gauss() : .14 + .42*gauss();
+  else if(k === 'fund') r = crash ? -.30 + .05*gauss() : .065 + .11*gauss();
+  else if(k === 'spec') r = crash ? -.6 + .1*gauss() : .07 + .38*gauss();
   else { r = .10 + .07*gauss(); if(chance(connRisk(p, .06))) p._secCase = true; }
   r = clamp(r, -.75, 1.5);
   const amt = Math.round(p.money * r);
@@ -2736,6 +2742,37 @@ async function freeTime(p, io){
   const lines = [];
   for(const i of picks){ const it = items[i]; spend(p, it.cost); it.run(); lines.push(it.st); log(p, it.label); }
   tell(p, lines.join(' · '));
+}
+// ===== ความสมดุล: ค่าครองชีพขั้นต่ำ · ผลตอบแทนลดหลั่นเมื่อค่าสูง · ฉายาชีวิตตอนจบ =====
+// ค่าครองชีพขั้นต่ำต่อผู้ใหญ่ 1 คนต่อเดือน ตามพื้นที่ (ไม่รวมค่าเลี้ยงลูกที่คิดแยก)
+const LIV = [0, 12000, 10000, 9000, 7500, 6500, 6500];
+function livingFloor(p){
+  const adults = 1 + ((p.spouse && !p.spouse.separated) ? 1 : 0);
+  return LIV[p.tier] * adults * [0.85, 1, 1.4][p.lifestyle] * (p.house && p.house.q >= 4 ? 1.2 : 1);
+}
+// ค่ายิ่งสูง ยิ่งเพิ่มยาก: 50 → เต็ม · 70 → ราว 0.7 · 85 → ราว 0.45 · 95 → 0.3
+function dimin(cur, d){ if(d <= 0) return d; const f = clamp((115 - cur) / 65, .3, 1); return Math.max(1, Math.round(d * f)); }
+
+// ฉายาชีวิต: บอกว่าชีวิตนี้ไปสุดทางไหน
+function archetype(r, p){
+  const W = r.Pw, J = r.Jbar, H = r.Hbar, C = p.C, S = p.S, K = r.K, E = r.estate;
+  const hi = { W: W >= 80, J: J >= 62, H: H >= 68, C: C >= 70, S: S >= 75 };
+  const n = Object.values(hi).filter(Boolean).length;
+  if(hi.W && hi.J && hi.H && (hi.C || hi.S)) return { t:'ชีวิตครบสูตร', d:'รวย มีความสุข สุขภาพดี และคนรอบตัวนับถือ ชีวิตแบบนี้มีไม่กี่คนในหกสิบห้าล้าน', rare:true };
+  if(hi.W && K <= -30) return { t:'รวยด้วยทางลัด', d:'คุณไปถึงยอดเขาด้วยทางที่ไม่อยากให้ลูกหลานเดินตาม' };
+  if(hi.W && J < 45) return { t:'เศรษฐีผู้เดียวดาย', d:'บัญชีเต็ม แต่บ้านเงียบ เงินซื้อได้เกือบทุกอย่าง ยกเว้นวันเวลาที่ผ่านไป' };
+  if(hi.C && E < 0) return { t:'เส้นใหญ่ กระเป๋าแห้ง', d:'รู้จักคนทั้งจังหวัด แต่ตายพร้อมหนี้ คนมางานศพเต็มวัด แต่ไม่มีใครใช้หนี้แทน' };
+  if(hi.J && W < 45) return { t:'จนแต่สุข', d:'ไม่เคยรวย แต่หัวเราะได้ทุกวัน ชีวิตนี้คุ้มในแบบที่ตัวเลขวัดไม่ได้' };
+  if(K >= 40 && W < 55) return { t:'นักบุญติดดิน', d:'ให้คนอื่นมากกว่าที่เก็บไว้ให้ตัวเอง ชื่อคุณอยู่ในบทสวดของใครหลายคน' };
+  if(S >= 82 && W < 55) return { t:'ผู้เชี่ยวชาญที่โลกมองข้าม', d:'เก่งจริง แต่ไม่เคยมีจังหวะให้ทักษะกลายเป็นเงินก้อนใหญ่' };
+  if(hi.W && hi.J) return { t:'ผู้ชนะเกมชีวิต', d:'ทั้งรวยและมีความสุข เหลือแค่สุขภาพที่ต้องจ่ายคืนบ้าง' };
+  if(hi.H && r.age >= 85) return { t:'อายุยืนร้อยปี', d:'ร่างกายแข็งแรงจนได้เห็นหลานเหลนเติบโต' };
+  if(E < 0 && J < 40) return { t:'ชีวิตที่หนักหนา', d:'แบกหนี้และความทุกข์มาตลอดทาง แต่คุณก็เดินมาจนสุดทาง' };
+  if(hi.C && hi.J) return { t:'ขวัญใจชุมชน', d:'ไปที่ไหนก็มีคนทัก งานบุญงานศพไม่เคยขาดชื่อคุณ' };
+  if(E < 0 && J >= 50) return { t:'หนี้ท่วมแต่ใจสู้', d:'ตัวเลขในบัญชีติดลบ แต่คุณไม่เคยหยุดหัวเราะ' };
+  if(n === 0 && J >= 42 && H >= 45 && E >= 0) return { t:'ชีวิตสมดุล', d:'ไม่มีอะไรสุดทาง แต่ก็ไม่มีอะไรขาด ชีวิตกลาง ๆ ที่หลายคนอยากได้' };
+  if(r.age < 45) return { t:'ชีวิตที่จบเร็วเกินไป', d:'ยังมีอีกหลายทางที่ไม่ได้เดิน' };
+  return { t:'คนธรรมดาคนหนึ่ง', d:'เกิด เรียน ทำงาน และจากไป เหมือนอีกหลายล้านคน' };
 }
 // ===== 8-BIT ART (วาดด้วยโค้ดทั้งหมด) =====
 const W = 192, Hh = 108;
@@ -3199,13 +3236,14 @@ async function makeCard(r, p, family){
   x.fillStyle = '#a9b0cf'; x.font = '500 22px "IBM Plex Sans Thai", "Chakra Petch", sans-serif';
   const lines = [`เกิดที่${r.prov} · ฐานะ${QS[r.q].name}`, `อาชีพ ${r.career}`, `อายุขัย ${r.age} ปี · แขกงานศพ ${r.guests.toLocaleString()} คน`];
   lines.forEach((l, i) => x.fillText(l, 300, 335 + i*34));
-  x.fillStyle = '#fff1e8'; x.font = '700 30px "Chakra Petch", sans-serif'; x.fillText('ชีวิตนี้ดีกว่าคนไทย', 300, 480);
-  x.fillStyle = '#ffd77a'; x.font = '700 96px "Chakra Petch", sans-serif'; x.fillText(`${r.pct}%`, 300, 580);
+  if(r.arch){ x.fillStyle = r.arch.rare ? '#ffec27' : '#3fd1c4'; x.font = '700 32px "Chakra Petch", sans-serif'; x.fillText(`「${r.arch.t}」`, 300, 455); }
+  x.fillStyle = '#fff1e8'; x.font = '700 26px "Chakra Petch", sans-serif'; x.fillText('ชีวิตนี้ดีกว่าคนไทย', 300, 505);
+  x.fillStyle = '#ffd77a'; x.font = '700 88px "Chakra Petch", sans-serif'; x.fillText(`${r.pct}%`, 300, 592);
   if(family && family.length > 1){ x.fillStyle = '#3fd1c4'; x.font = '600 22px "Chakra Petch", sans-serif'; x.fillText(`ตระกูลรุ่นที่ ${r.gen} · จาก ${QS[family[0].q].code} สู่ ${QS[r.q].code}`, 300, 625); }
   x.fillStyle = '#e8b04a'; x.font = '700 30px "Chakra Petch", sans-serif'; x.fillText('1 ใน 65 ล้าน', 300, 690);
   return c.toDataURL('image/png');
 }
-function shareText(r){ return `ฉันเกิดเป็น 1 ใน 65 ล้านคน ที่${r.prov} ฐานะ${QS[r.q].name} เป็น${r.career} อยู่ถึงอายุ ${r.age} ปี มีคนมางานศพ ${r.guests} คน\nชีวิตนี้ดีกว่าคนไทย ${r.pct}%${r.gen>1?` (ตระกูลรุ่นที่ ${r.gen})`:''}`; }
+function shareText(r){ return `ฉันเกิดเป็น 1 ใน 65 ล้านคน ที่${r.prov} ฐานะ${QS[r.q].name} เป็น${r.career} อยู่ถึงอายุ ${r.age} ปี มีคนมางานศพ ${r.guests} คน\nชีวิตนี้ดีกว่าคนไทย ${r.pct}%${r.gen>1?` (ตระกูลรุ่นที่ ${r.gen})`:''}${r.arch?`\nฉายา: ${r.arch.t}`:''}`; }
 async function copyText(t, btn){ try { await navigator.clipboard.writeText(t); btn.textContent = 'คัดลอกแล้ว'; } catch(e){ const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); btn.textContent = 'คัดลอกแล้ว'; }catch(_){ btn.textContent = 'คัดลอกไม่ได้'; } ta.remove(); } }
 
 async function summaryScreen(r, p){
@@ -3215,6 +3253,7 @@ async function summaryScreen(r, p){
   return new Promise(res => {
     const el = panel(`<div class="eyebrow">สรุปชีวิต<span>${esc(r.name)} · ${r.age} ปี</span></div>` +
       `<div class="score"><span class="n">${Math.round(r.score)}</span><span class="p">ชีวิตนี้ดีกว่าคนไทย <b style="color:var(--gold2)">${r.pct}%</b></span></div>` +
+      (r.arch ? `<div class="arch${r.arch.rare?' rare':''}"><b>${esc(r.arch.t)}</b><span>${esc(r.arch.d)}</span></div>` : '') +
       `<p class="help">${SIM_SCORES ? `เทียบกับชีวิตจำลอง ${SIM_SCORES.length} ชีวิตที่สุ่มเกิดตามสัดส่วนจริงและตัดสินใจแบบสุ่ม` : 'กำลังจำลองชีวิตเปรียบเทียบ ใช้ค่าประมาณไปก่อน'}</p>` +
       `<div class="parts">${parts.map(([n,v,m,w]) => `<div class="part"><span>${n}</span><span class="bar"><i style="width:${clamp(v/m*100,0,100)}%"></i></span><span>×${w}</span></div>`).join('')}${r.goodScore ? `<div class="part"><span>กรรมดีออกผล</span><span class="bar"><i style="width:${r.goodScore/15*100}%;background:var(--gold)"></i></span><span>+${r.goodScore}</span></div>` : ''}</div>` +
       `<div class="cardwrap"><img class="card" src="${img}" alt="การ์ดสรุปชีวิตของ ${esc(r.name)}"><div><p class="help">กดค้างที่การ์ดเพื่อบันทึกภาพ แล้วนำไปแชร์ได้</p><div class="row"><button class="go ghost" id="cpBtn">คัดลอกข้อความ</button></div></div></div>` +
