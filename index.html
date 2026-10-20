@@ -1,4 +1,18 @@
 <title>1 ใน 65 ล้าน</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1026">
+<meta name="description" content="เกมจำลองชีวิตคนไทยแบบพิกเซล 8-bit สุ่มเกิดเป็น 1 ใน 65 ล้านคน แล้วใช้ชีวิตให้ดีที่สุด">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="1 ใน 65 ล้าน">
+<meta property="og:title" content="1 ใน 65 ล้าน · คุณจะเกิดเป็นใคร ในประเทศไทย?">
+<meta property="og:description" content="เกมจำลองชีวิตคนไทยแบบ 8-bit สุ่มจังหวัด ฐานะ ครอบครัว แล้วดูว่าชีวิตจะไปได้ไกลแค่ไหน เล่นบนเบราว์เซอร์ได้เลย">
+<meta property="og:url" content="https://one-in-65m.pages.dev/">
+<meta property="og:image" content="https://one-in-65m.pages.dev/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="th_TH">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://one-in-65m.pages.dev/og.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -185,6 +199,39 @@ button{font:inherit;color:inherit}
 .legendgrid .ic{grid-row:1/3}
 .legendgrid b{font-family:var(--f-disp);font-size:14px}
 .legendgrid span{font-size:11.5px;color:var(--faint)}
+/* ---------- มือถือแนวตั้ง: HUD + จอเกมติดด้านบน แผงเลือกเลื่อนอยู่ข้างล่าง ---------- */
+@media (max-width:640px){
+  body{font-size:14.5px}
+  #app{padding-block:0 18px;padding-left:max(8px, env(safe-area-inset-left, 0px));padding-right:max(8px, env(safe-area-inset-right, 0px));gap:8px}
+  .hud{padding:5px 8px;gap:2px 8px;box-shadow:none;border-width:0 0 2px;margin-inline:-8px;padding-top:max(5px, env(safe-area-inset-top, 0px))}
+  .who{flex:1 1 100%;gap:8px}
+  .who b{font-size:15px}
+  .who .where{font-size:11.5px}
+  .stats{gap:2px 9px;flex-wrap:nowrap;width:100%;justify-content:space-between}
+  .stat{font-size:11px;gap:3px}
+  .stat img{width:12px;height:12px}
+  .stat .bar{width:22px;height:5px}
+  .main{gap:10px}
+  .main > section:first-child{background:var(--bg);padding-bottom:4px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:center}
+  .main > section:first-child .screen{grid-column:1 / -1}
+  .timeline{margin-right:14px}
+  .under{margin-top:6px!important}
+  #sndTxt{display:none}
+  .screen{box-shadow:none;border-width:2px}
+  .timeline{margin-top:6px;height:16px}
+  .under{margin-top:2px}
+  .simnote{display:none}
+  .under{justify-content:flex-end}
+  .linkbtn{padding:2px 8px;font-size:12px}
+  .panel{padding:12px 12px 14px;box-shadow:none;scroll-margin-top:calc(var(--stickH, 0px) + 6px)}
+  .panel h2{font-size:19px;line-height:1.35}
+  .ch{padding:9px 11px}
+}
+@media (max-width:640px) and (min-height:600px){
+  .hud{position:sticky;top:0;z-index:20}
+  .main > section:first-child{position:sticky;top:var(--hudH, 0px);z-index:10}
+}
+@media (hover:none) and (pointer:coarse){ .kbd{display:none} }
 @media (prefers-reduced-motion: reduce){ .chip,.led{animation:none} .ch,.stat{transition:none} }
 </style>
 <div id="app">
@@ -672,7 +719,7 @@ const S1_EVENTS = [
     } },
   { id:'olymp', title:'ได้รางวัลโอลิมปิกวิชาการ', bg:'school', text:()=>'คุณได้เหรียญจากการแข่งขันระดับประเทศ', w:p=>5+0.2*(p.S-30),
     run: async (p) => { fx(p,{S:10,C:10,m:20000}); note(p,'ได้ทุนรางวัล ฿20,000 และคนรู้จักเพิ่มขึ้น'); } },
-  { id:'divorce', title:'พ่อแม่หย่ากัน', bg:'home', text:()=>'บ้านเงียบลงหลังพ่อแม่ตัดสินใจแยกทาง', w:p=>15+(p.skipGen?5:0),
+  { id:'divorce', title:'พ่อแม่หย่ากัน', bg:'home', text:()=>'บ้านเงียบลงหลังพ่อแม่ตัดสินใจแยกทาง', w:p=>4+(p.skipGen?2:0)+(p.famDebt>0?2:0),
     run: async (p, io) => { fx(p,{J:-20}); p.flags.parentsDivorced = true;
       const c = await choose(p, io, { kind:'fork', bg:'home', title:'คุณจะอยู่กับใคร', choices:[
         { label:'อยู่กับแม่', sub:'เงินครอบครัว −30%', k:'m' }, { label:'อยู่กับพ่อ', sub:'เงินครอบครัว −20% · J−5', k:'f' }, { label:'ไปอยู่กับปู่ย่า', sub:'เงินครอบครัว −50% · J−5', k:'g' } ]});
@@ -691,6 +738,23 @@ const S1_EVENTS = [
     } },
   { id:'dengue', title:'ป่วยไข้เลือดออก', bg:'hospital', text:()=>'ยุงลายกัดจนคุณไข้ขึ้นสูงหลายวัน', w:p=>15+(p.tier>=5?5:0),
     run: async (p, io) => { fx(p,{H:-10,m:-5000}); if(chance(.03)){ note(p,'อาการรุนแรงจนต้องเข้าโรงพยาบาลด่วน'); fx(p,{H:-30}); if(p.H<=0) throw new Death('ไข้เลือดออกรุนแรง'); await seriousIllness(p, io, 30); } else note(p,'พักรักษาตัวหลายวันจนหายดี'); } },
+  { id:'sport', title:'ติดทีมกีฬาโรงเรียน', bg:'school', text:()=>'ครูพละเรียกชื่อคุณเข้าทีมโรงเรียน', w:p=>10+(p.H>70?4:0),
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'school', title:'จะเล่นกีฬาจริงจังแค่ไหน', choices:[
+        { label:'ซ้อมจริงจัง ลงแข่งทุกรายการ', sub:'H+8 S−3 · ลุ้นได้โควตานักกีฬา', k:'pro' }, { label:'เล่นสนุก ๆ กับเพื่อน', sub:'H+4 J+5', k:'fun' } ]});
+      if(c.k==='pro'){ fx(p,{H:8,S:-3}); if(chance(.25)){ fx(p,{C:10,J:5}); note(p,'ได้เหรียญระดับจังหวัด มีคนรู้จักคุณมากขึ้น'); } else note(p,'ซ้อมหนัก แข็งแรงขึ้น แต่ยังไม่ได้รางวัล'); }
+      else { fx(p,{H:4,J:5}); note(p,'ได้เพื่อนเพิ่มจากทีมกีฬา'); } } },
+  { id:'mobilegame', title:'ติดเกมมือถือ', bg:'home', text:()=>'คุณเล่นเกมจนดึกแทบทุกคืน', w:p=>12,
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'home', title:'ที่บ้านจะจัดการยังไง', choices:[
+        { label:'พ่อแม่ยึดมือถือช่วงสอบ', sub:'J−5 S+3', k:'take' }, { label:'ปล่อยเล่นต่อ', sub:'J+5 S−5', k:'free' }, { label:'หัดทำคลิปเกมลงเน็ต', sub:'S+3 C+3', k:'clip' } ]});
+      if(c.k==='take') fx(p,{J:-5,S:3}); if(c.k==='free') fx(p,{J:5,S:-5}); if(c.k==='clip'){ fx(p,{S:3,C:3}); note(p,'คลิปแรกมีคนดู 37 คน แต่คุณได้ลองทำอะไรใหม่'); } } },
+  { id:'novice', title:'บวชเณรภาคฤดูร้อน', bg:'temple', text:()=>'ปิดเทอมนี้ที่บ้านพาไปบวชเณรที่วัดใกล้บ้าน', w:p=>(p.religion==='พุทธ' && p.sex==='M')?8:null,
+    run: async (p) => { fx(p,{K:5,J:3,S:2}); note(p,'ได้ฝึกสมาธิและอยู่อย่างเรียบง่ายหนึ่งเดือน'); } },
+  { id:'tutor', title:'พ่อแม่อยากส่งเรียนพิเศษ', bg:'school', text:()=>'เพื่อนในห้องเกือบทุกคนเรียนพิเศษวันเสาร์', w:p=>8+(p.q>=2?6:0),
+    run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'school', title:'จะเรียนพิเศษไหม', choices:[
+        { label:'เรียนพิเศษทุกเสาร์อาทิตย์', sub:'S+8 J−3', cost:20000, k:'yes' }, { label:'อ่านหนังสือเองที่บ้าน', sub:'S+3 J+3', k:'no' } ]});
+      if(c.k==='yes') fx(p,{S:8,J:-3}); else fx(p,{S:3,J:3}); } },
+  { id:'sibling', title:'ได้น้องคนใหม่', bg:'home', text:()=>'บ้านมีสมาชิกเพิ่มอีกหนึ่งคน', w:p=>9,
+    run: async (p) => { const cut = Math.round(p.money*.1); p.money -= cut; fx(p,{J:5,K:2}); note(p, `คุณช่วยเลี้ยงน้อง แต่เงินในบ้านต้องแบ่งกัน ฿−${baht(cut)}`); } },
   { id:'unrest', title:'เหตุความไม่สงบใกล้บ้าน', bg:'south', text:()=>'เสียงระเบิดดังไม่ไกลจากหมู่บ้าน', w:p=>p.tier===6?8:null,
     run: async (p, io) => { fx(p,{J:-10}); if(chance(.02)){ fx(p,{H:-30}); if(p.H<=0) throw new Death('เหตุความไม่สงบ'); await seriousIllness(p, io, 30); } else note(p,'ทุกคนในบ้านปลอดภัย แต่คุณนอนไม่หลับไปหลายคืน'); } },
 ];
@@ -989,7 +1053,7 @@ async function layoffFork(p, io, comp = true, influ = false){
   if(c.k==='farm'){ p.career='farm'; p.cYears=0; p.cOut=null; fx(p,{J:5}); note(p,'กลับบ้านไปทำเกษตร'); }
 }
 const S3_EVENTS = [
-  { id:'layoff', title:'ถูกเลย์ออฟ', bg:'office', text:()=>'บริษัทประกาศลดคน ชื่อคุณอยู่ในรายชื่อ', w:p=>p.career==='gov'?null:10+(['office','factory'].includes(p.career)?10:0),
+  { id:'layoff', title:'ถูกเลย์ออฟ', bg:'office', text:()=>'บริษัทประกาศลดคน ชื่อคุณอยู่ในรายชื่อ', w:p=>['office','factory','abroad'].includes(p.career)?18:null,
     run: async (p, io) => layoffFork(p, io, ['office','factory'].includes(p.career)) },
   { id:'lotto', title:'ถูกหวย', bg:'city', text:()=>'คุณตรวจลอตเตอรี่แล้วตาโต', w:p=>4+(p.lottery?2:0),
     run: async (p, io) => { if(chance(.9)){ fx(p,{m:4000}); note(p,'ถูกเลขท้าย ได้ ฿4,000'); return; }
@@ -1139,12 +1203,12 @@ function addKid(p){ const k = makeKid(p); p.kids.push(k); p.annual.push({ from:p
 async function stage5(p, io, beats){
   p.stage = 5;
   const ivfP = p.age<=35?.4:p.age<=40?.25:.1;
-  const c = await choose(p, io, { kind:'main', bg:'baby', title:'เรื่องลูก', text:'ค่าเลี้ยงดูพื้นฐานถึงอายุ 18 ไม่รวมค่าโรงเรียน หักเป็นรายปี', choices:[
+  const c = await choose(p, io, { kind:'main', bg:'baby', title:'เรื่องลูก', text: p.spouse ? 'ค่าเลี้ยงดูพื้นฐานถึงอายุ 18 ไม่รวมค่าโรงเรียน หักเป็นรายปี' : 'ตอนนี้คุณยังไม่มีคู่ ทางเลือกเรื่องลูกจึงเหลือน้อยลง', choices:[
     { label:'ไม่มีลูก', sub:'ออมเพิ่ม 10%', k:'none' },
-    { label:'มีลูก 1 คน', sub:'J+15 · ค่าเลี้ยงดู ~28,000/ปี · ออมลด 5%', cond:p.age<=45, condText:'อายุเกิน 45', k:'one' },
-    { label:'มีลูก 2 คนขึ้นไป', sub:'J+20 H−5 · ~56,000/ปี · ออมลด 10%', cond:p.age<=42, condText:'อายุเกิน 42', k:'two' },
-    { label:'ทำ IVF', sub:`สำเร็จ ${Math.round(ivfP*100)}% ต่อรอบ`, cost:250000, k:'ivf' },
-    { label:'รับบุตรบุญธรรม', sub:'J+15 · ต้องมีคู่หรือรายได้ 20,000+', cost:50000, cond:!!p.spouse||curIncome(p)>=20000, condText:'ต้องมีคู่หรือรายได้ 20,000', k:'adopt' } ]});
+    { label:'มีลูก 1 คน', sub:'J+15 · ค่าเลี้ยงดู ~28,000/ปี · ออมลด 5%', cond:!!p.spouse && p.age<=45, condText: p.spouse ? 'อายุเกิน 45' : 'ต้องมีคู่ก่อน', k:'one' },
+    { label:'มีลูก 2 คนขึ้นไป', sub:'J+20 H−5 · ~56,000/ปี · ออมลด 10%', cond:!!p.spouse && p.age<=42, condText: p.spouse ? 'อายุเกิน 42' : 'ต้องมีคู่ก่อน', k:'two' },
+    { label:'ทำ IVF', sub:`สำเร็จ ${Math.round(ivfP*100)}% ต่อรอบ`, cost:250000, cond:!!p.spouse, condText:'ต้องมีคู่ก่อน', k:'ivf' },
+    { label:'รับบุตรบุญธรรม', sub: p.spouse ? 'J+15' : 'J+15 · คนโสดรับได้ ถ้ารายได้ 20,000 ขึ้นไป', cost:50000, cond:!!p.spouse||curIncome(p)>=20000, condText:'คนโสดต้องมีรายได้ 20,000 ขึ้นไป', k:'adopt' } ]});
   let mode = c.k;
   if(c.k==='none'){ p.flags.noKids = true; }
   if(c.k==='one'){ fx(p,{J:15}); addKid(p); }
@@ -1891,7 +1955,11 @@ function birthHTML(b){
 }
 function panel(html){ const el = $('#panel'); el.innerHTML = html; return el; }
 function focusFirst(el){ const b = el.querySelector('.ch:not(:disabled), .go'); if(b && !('ontouchstart' in window)) b.focus({ preventScroll:true }); }
-function scrollPanelIntoView(){ if(innerWidth < 880){ const r = $('#panel').getBoundingClientRect(); if(r.top < 0 || r.top > innerHeight*.7) $('#panel').scrollIntoView({ block:'start', behavior: REDUCED ? 'auto' : 'smooth' }); } }
+function stickyH(){ if(innerWidth > 640 || innerHeight < 600) return 0; const h = $('#hud'); const s = $('.main > section'); return (h.hidden ? 0 : h.offsetHeight) + s.offsetHeight; }
+function measureSticky(){ const h = $('#hud'); document.documentElement.style.setProperty('--hudH', (h.hidden ? 0 : h.offsetHeight) + 'px'); document.documentElement.style.setProperty('--stickH', stickyH() + 'px'); }
+try { new ResizeObserver(measureSticky).observe($('#hud')); new ResizeObserver(measureSticky).observe($('.main > section')); } catch(e) {}
+addEventListener('resize', measureSticky);
+function scrollPanelIntoView(){ if(innerWidth < 880){ measureSticky(); const top = stickyH(); const r = $('#panel').getBoundingClientRect(); if(r.top < top - 2 || r.top > Math.max(top + 40, innerHeight*.7)) window.scrollTo({ top: scrollY + r.top - top - 6, behavior: REDUCED ? 'auto' : 'smooth' }); } }
 function setKeys(fn){ CUR.keys = fn; }
 document.addEventListener('keydown', e => { if(!CUR.keys || $('#drawer').hidden === false) return; if(e.target && e.target.tagName === 'INPUT') return; CUR.keys(e); });
 
@@ -2074,7 +2142,7 @@ function titleScreen(){
     const el = panel(`<div class="title-art">1 ใน 65 ล้าน<small>A THAI LIFE, RANDOMLY ASSIGNED</small></div>` +
       `<p class="txt">คุณจะเกิดเป็นคนไทยหนึ่งคนจาก 65,852,335 คน จังหวัดสุ่มตามสัดส่วนประชากรจริง ฐานะสุ่มตามการกระจายรายได้จริง แล้วใช้ชีวิตตั้งแต่เรียนจนตาย</p>` +
       `<div class="legendgrid">${[['H','สุขภาพ','ถึง 0 คือเสียชีวิต'],['J','ความสุข',''],['S','ทักษะ','ใช้สอบเข้าและเพิ่มรายได้'],['C','เส้นสาย','และจำนวนแขกงานศพ'],['M','เงิน','ติดลบกลายเป็นหนี้'],['K','บุญ/บาป','ซ่อนไว้ เฉลยตอนตาย']].map(([k,n,d]) => `<div>${ic(k,'ic big')}<b>${n}</b><span>${d}</span></div>`).join('')}</div>` +
-      `<p class="help">กดตัวเลข 1–9 เพื่อเลือก · Enter เพื่อไปต่อ</p><button class="go" id="goBtn">เกิด</button>`);
+      `<p class="help kbd">กดตัวเลข 1–9 เพื่อเลือก · Enter เพื่อไปต่อ</p><button class="go" id="goBtn">เกิด</button>`);
     const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
   });
 }
