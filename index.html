@@ -643,7 +643,7 @@ function drawEvents(p, pool, n = 2){
 function evBeat(p, io, e, age){ return { age, run: async () => { await runEvent(p, io, e); } }; }
 async function runEvent(p, io, e){
   if(e.w && e.w(p) === null) return;
-  p.evHead = { title: typeof e.title === 'function' ? e.title(p) : e.title, text: e.text ? e.text(p) : '', bg: e.bg };
+  p.evHead = { title: typeof e.title === 'function' ? e.title(p) : e.title, text: e.text ? e.text(p) : '', bg: typeof e.bg === 'function' ? e.bg(p) : e.bg };
   log(p, p.evHead.title);
   await e.run(p, io);
   if(p.evHead){ const h = p.evHead; p.evHead = null; await say(p, io, { kind:'event', bg:h.bg, title:h.title, text:h.text }); }
@@ -1122,6 +1122,11 @@ async function layoffFork(p, io, comp = true, influ = false){
   if(c.k==='biz'){ p.career='biz'; p.cYears=0; p.cOut=null; if(sev < 500000) p.flags.cBad=(p.flags.cBad||0)+10; note(p,'เริ่มธุรกิจของตัวเอง'); }
   if(c.k==='farm'){ p.career='farm'; p.cYears=0; p.cOut=null; fx(p,{J:5}); note(p,'กลับบ้านไปทำเกษตร'); }
 }
+const PROMO_TH = p => ({
+  farm:['ผลผลิตขายได้ราคาดี','พ่อค้าคนกลางมาเหมาผลผลิตทั้งสวนในราคาสูงกว่าปีก่อน'], influ:['ยอดผู้ติดตามทะลุล้าน','คลิปหนึ่งของคุณถูกแชร์ไปทั่วประเทศ'],
+  abroad:['นายจ้างขึ้นค่าแรง','หัวหน้าคนงานชมว่าคุณขยันที่สุดในไซต์'], crime:['เจ้านายเพิ่มส่วนแบ่ง','งานของคุณเรียบร้อยจนเจ้านายไว้ใจมากขึ้น'],
+  biz:['ธุรกิจโต','ยอดขายปีนี้โตเกินเป้า'], factory:['ได้เป็นหัวหน้ากะ','ผู้จัดการเห็นว่าคุณคุมไลน์ผลิตได้ดี'],
+}[p.career] || ['ได้เลื่อนตำแหน่ง','ความพยายามหลายปีเริ่มออกผล']);
 const S3_EVENTS = [
   { id:'layoff', title:'ถูกเลย์ออฟ', bg:'office', text:()=>'บริษัทประกาศลดคน ชื่อคุณอยู่ในรายชื่อ', w:p=>['office','factory','abroad'].includes(p.career)?18:null,
     run: async (p, io) => layoffFork(p, io, ['office','factory'].includes(p.career)) },
@@ -1137,7 +1142,7 @@ const S3_EVENTS = [
     run: async p => { fx(p,{m:-100000,J:-5}); if(p.career==='farm'){ p.incomeBoost *= .7; note(p,'ผลผลิตเสียหาย รายได้ลด 30%'); if(p.flags.baac){ p.debt.f += 100000; note(p,'ผิดนัด ธ.ก.ส. หนี้เพิ่ม ฿100,000'); } } } },
   { id:'scam', title:'โดนแก๊งคอลเซ็นเตอร์', bg:'home', text:()=>'เสียงปลายสายบอกว่าบัญชีของคุณพัวพันคดียาเสพติด', w:p=>10+0.2*(50-p.S)+(p.age>=50?5:0)+(p.flags.scamW||0)+(p.lifestyle===2?5:0),
     run: async p => { const l = Math.min(500000, Math.round(p.money*.2)); fx(p,{m:-l,J:-10}); note(p,`ถูกหลอกโอนเงิน ฿${baht(l)}`); } },
-  { id:'promo', title:p=>p.career==='biz'?'ธุรกิจโต':'ได้เลื่อนตำแหน่ง', bg:'office', text:()=>'ความพยายามหลายปีเริ่มออกผล', w:p=>12+0.2*(p.S-50)+0.2*(p.C-50),
+  { id:'promo', title:p=>PROMO_TH(p)[0], bg:p=>(CAREERS[p.career]||{}).bg||'office', text:p=>PROMO_TH(p)[1], w:p=>12+0.2*(p.S-50)+0.2*(p.C-50),
     run: async p => { p.incomeBoost *= 1.25; fx(p,{J:10,C:5}); note(p,'รายได้เพิ่มขึ้น 25%'); } },
   { id:'unrest3', title:'เหตุความไม่สงบใกล้บ้าน', bg:'south', text:()=>'ร้านค้าในตลาดถูกลอบวางระเบิด', w:p=>p.tier===6?6:null,
     run: async p => { fx(p,{J:-10}); if(p.career==='biz') p.incomeBoost *= .8; } },
@@ -1256,7 +1261,7 @@ const S4_COUPLE = [
 ];
 const S4_SINGLE = [
   { id:'friends', title:'เพื่อนแต่งงานกันหมด', bg:'wedding', text:()=>'การ์ดแต่งงานวางเรียงเต็มโต๊ะ', w:()=>12, run: async p => fx(p,{J:-5,C:3}) },
-  { id:'promo4', title:'ทุ่มเทงานจนได้เลื่อนตำแหน่ง', bg:'office', text:()=>'ไม่มีใครรอที่บ้าน คุณจึงทุ่มให้งานเต็มที่', w:p=>10+0.2*(p.S-50), run: async p => { p.incomeBoost *= 1.15; } },
+  { id:'promo4', title:p=>PROMO_TH(p)[0], bg:p=>(CAREERS[p.career]||{}).bg||'office', text:()=>'ไม่มีใครรอที่บ้าน คุณจึงทุ่มให้งานเต็มที่', w:p=>10+0.2*(p.S-50), run: async p => { p.incomeBoost *= 1.15; } },
   { id:'parentsick', title:'พ่อแม่ป่วย ต้องดูแล', bg:'hospital', text:()=>'พ่อล้มป่วย ต้องมีคนดูแลตลอดเวลา', w:p=>12+(p.tier===5?10:0),
     run: async (p, io) => { const c = await choose(p, io, { kind:'fork', bg:'hospital', title:'ใครจะดูแลพ่อแม่', choices:[
         { label:'ดูแลเอง ลดเวลางาน', sub:'J+5 · รายได้ −20% 5 ปี H−3', k:'self' }, { label:'จ้างผู้ดูแลที่บ้าน', sub:'15,000/เดือน × 5 ปี', cost:900000, k:'hire' }, { label:'ส่งบ้านพักคนชราเอกชน', sub:'25,000/เดือน × 5 ปี · J−5', cost:1500000, k:'home' } ]});
@@ -1321,7 +1326,7 @@ async function stage5(p, io, beats){
     p.kids.forEach(k => k.kv = clamp(k.kv, 0, 100));
     if(p.kids.some(k=>k.kv>=60)) p.Jbase = Math.min(100, p.Jbase + 5);
     const t = p.kids.length ? { good:'ลูกโตมาเป็นเด็กดีและสนิทกับคุณ', mid:'ลูกโตมาตามวัย มีเรื่องให้ปวดหัวบ้าง', bad:'การเลี้ยงลูกหนักกว่าที่คิดไว้มาก' }[o] : { good:'ชีวิตไม่มีลูกให้อิสระเต็มที่', mid:'คุณไม่ค่อยคิดเรื่องนี้นัก', bad:'บางคืนคุณเสียดายที่ไม่มีลูก' }[o];
-    await say(p, io, { kind:'result', bg:'home', title:`เรื่องลูก: ผลลัพธ์${OUT_TH[o]}`, text:t, outcome:o });
+    await say(p, io, { kind:'result', bg:'home', title: p.kids.length ? `เรื่องลูก: ผลลัพธ์${OUT_TH[o]}` : `ชีวิตแบบไม่มีลูก: ผลลัพธ์${OUT_TH[o]}`, text:t, outcome:o });
   }});
   p.stage = 3;
   const pool = p.kids.length ? S5_KIDS : S5_NOKIDS;
