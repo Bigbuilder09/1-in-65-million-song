@@ -5250,8 +5250,20 @@ function rich(s){
 // Pixel fantasy scenery, using the same 192 x 108 drawing grid as the base game.
 function magicSky(t,dawn=false){dSky(t,dawn?'dusk':'night','mountain');for(let i=0;i<18;i++){const x=(i*29+Math.sin(t+i)*3+192)%192,y=10+(i*17)%72;dr(x,y,1,1,i%2?'#b6a4ff':'#80f6dd');}}
 function magicFigure(t,st,x=95,y=98){
- dPlayer(t,st,x,y,'none',{still:true});dp([[x-7,y-14],[x+6,y-14],[x+9,y],[x-9,y]],'#6550a0');dp([[x-6,y-24],[x+5,y-24],[x-1,y-38]],'#8e71c5');dr(x-8,y-25,15,2,'#b3a0dd');dl(x+7,y-12,x+16,y-21,DC.gold,1);dr(x+15,y-23,3,3,'#c4fff1');
- for(let i=0;i<4;i++){const a=t+i*1.6;dr(x+16+Math.cos(a)*5,y-22+Math.sin(a)*5,1,1,DC.light);}
+ // Anchor clothing, hat and wand to the same age-aware sprite coordinates.
+ const age=st.age??30, sex=st.sex??'M';
+ const tpl=age<3?TPL.baby:age<15?(sex==='F'?TPL.kidF:TPL.kidM):(sex==='F'?TPL.adultF:TPL.adultM);
+ const top=-tpl.length, headShift=age>=62?1:0, handY=top+(age<15?7:9);
+ G2.save();G2.translate(x-5,y);G2.scale(1.25,1.25);
+ // Cape is behind the sprite so the face and hands remain visible.
+ dp([[1,top+6],[7,top+6],[9,-2],[-1,-2]],'#49356f');
+ person(0,0,{...st,age},'none',t,{still:true,noCane:true,outfit:{t:'#8061b2',p:'#594184'}});
+ dp([[headShift,top+1],[headShift+7,top+1],[headShift+4,top-8]],'#9675cb');
+ dr(headShift-1,top+1,10,1,'#d6bb84');dr(headShift+1,top,6,1,'#62478f');
+ dr(3,top+(age<15?6:7),1,1,'#e8d39c');
+ dl(8,handY,13,handY-5,'#e2bc78',1);dr(12,handY-6,2,2,'#c4fff1');
+ for(let i=0;i<3;i++){const a=t+i*2.1;dr(13+Math.cos(a)*3,handY-5+Math.sin(a)*3,.5,.5,'#e2fff7');}
+ G2.restore();
 }
 function magicCastle(t){
  for(const [x,y,w,h] of [[26,45,26,43],[65,28,62,60],[142,45,25,43]]){dr(x,y,w,h,'#555374');dr(x+2,y+2,w-4,h-2,'#74718f');dp([[x-5,y],[x+w/2,y-24],[x+w+5,y]],'#584681');for(let wy=y+8;wy<y+h-8;wy+=13)for(let wx=x+6;wx<x+w-4;wx+=13){dr(wx,wy,5,8,'#e2c99c');dr(wx+2,wy,1,8,'#655378');}}
