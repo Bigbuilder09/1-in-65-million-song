@@ -956,6 +956,7 @@ async function stage1(p, io){
   p.stage = 1; famDebtTick(p);
   const setSchool = id => { p.school = id; fx(p, SCHOOL_FX[id].now); };
   await choose(p, io, { kind:'main', bg:'school', title:'เลือกโรงเรียน (ป.1–ม.6)', text:'ราคารวม 12 ปี ครอบครัวจ่ายจากเงินที่เตรียมไว้ให้คุณ', choices: [
+    { label:'โรงเรียนเวทมนตร์จันทราพฤกษ์ — เข้าฟรี', sub:'เส้นทางแฟนตาซี · เรียนฟรี อุปกรณ์ฟรี · อาชีพและฉากจบเฉพาะ', cost:0, story:'ประตูต้นไม้จันทราพฤกษ์เปิดออก คุณได้รับจดหมายตอบรับโดยไม่ต้องจ่ายค่าเรียน', run:()=>{ p.school='magic'; } },
     { label:'ร.ร.ประจำตำบล', sub:'เรียนฟรี + ค่าชุด 2,500/ปี · S+5', cost:0, run:()=>setSchool('rural') },
     { label:'ร.ร.รัฐชื่อดังในเมือง', sub:`ต้องสอบเข้า (ติด ${Math.round(30+0.5*(p.S-30))}%) · S+15 C+10 J−5`, cost:150000, defer:true, run: async () => {
         let pass = false;
@@ -969,6 +970,7 @@ async function stage1(p, io){
     { label:'โรงเรียนเอกชน', sub:'S+12 C+8', cost:600000, run:()=>{ p.schoolPaid=600000; setSchool('priv'); } },
     { label:'โรงเรียนอินเตอร์', sub:'S+15 C+20 J+5', cost:3000000, run:()=>{ p.schoolPaid=3000000; setSchool('inter'); } },
   ]});
+  if(p.school === 'magic'){ await magicSchool(p,io); return; }
   log(p, `เข้าเรียน${SCHOOLS.find(s=>s.id===p.school).name}`);
   const beats = [];
   const pool = S1_MINORS[p.school].slice(); const minors = []; while(minors.length < 3 && pool.length) minors.push(pool.splice(Math.floor(rnd()*pool.length), 1)[0]);
@@ -1237,7 +1239,7 @@ const C_MINORS = {
 };
 function careerChoices(p, exclude = []){
   const land = p.q >= 3 || p.tier === 4 || p.tier === 5;
-  return Object.entries(CAREERS).map(([k, C]) => {
+  return Object.entries(CAREERS).filter(([k,C])=>!C.magicOnly).map(([k, C]) => {
     let cond = !exclude.includes(k), condText = 'เพิ่งออกจากอาชีพนี้';
     if(k==='police' && !(p.degree==='cadet' && p.flags.policeQualified)){cond=false;condText='ต้องจบโรงเรียนนายร้อยตำรวจ';}
     if(k==='athlete' && !(p.flags.athleteQualified && p.H>=45)){cond=false;condText='ต้องจบเส้นทางกีฬา และมี H อย่างน้อย 45';}
@@ -1893,7 +1895,7 @@ async function stage7(p, io){
 async function live(p, io){
   Object.defineProperty(p, 'io', { value: io, enumerable:false, writable:true });
   try {
-    await birth(p, io); await stage1(p, io); await stage2(p, io); await stage3(p, io); await stage6(p, io);
+    await birth(p, io); await stage1(p, io); if(p.school==='magic') return await magicLife(p,io); await stage2(p, io); await stage3(p, io); await stage6(p, io);
   } catch(e){ if(!(e instanceof Death)) throw e; p.dead = true; p.cause = e.cause; }
   p.dead = true;
   return await stage7(p, io);
@@ -1935,6 +1937,131 @@ function makeChild(p, res, kidIdx){
     family: { parentName: p.name }, ancestors: [...p.ancestors],
     parentDeath: { age: p.age - kid.born, name: p.name, ageAtDeath: p.age, sex: p.sex, other: (p.spouse && !p.spouse.separated) ? p.spouse.sex : null, otherName: (p.spouse && !p.spouse.separated) ? p.spouse.name : null, share, inheritance, anc, familyFruit: !!res.fruits.family },
     extra: { flags: { ssTier: p.flags.ssTier || 0 } } });
+}
+
+// ===== เส้นทางโรงเรียนเวทมนตร์ =====
+const MAGIC_JOBS = {
+  mageGuard:{name:'ผู้พิทักษ์เวท',start:28000,bg:'magicGate'},
+  mageAlchemist:{name:'นักปรุงยาและรักษาคำสาป',start:26000,bg:'magicLab'},
+  mageExplorer:{name:'นักสำรวจมิติ',start:32000,bg:'magicGate'},
+  mageTeacher:{name:'อาจารย์เวทมนตร์',start:24000,bg:'magicSchool'},
+};
+for(const [key,j] of Object.entries(MAGIC_JOBS)) CAREERS[key]={...j,magicOnly:true,cost:0,caps:{good:120000,mid:90000,bad:45000},grow:.035,sig:0,sens:0,fx:{},odds:[30,50,20],ret:'allow'};
+// Each answer carries its own outcome; no unrelated narrative is picked.
+const magicOption=(label,text,d={},m={})=>({label,story:text,d,m});
+const MAGIC_SCHOOL = [
+ ['ไม้กายสิทธิ์เล่มแรก','magicSchool','ไม้สามชนิดตอบสนองเมื่อคุณก้าวเข้าห้องโถง',[
+  magicOption('ไม้จันทร์คุ้มครอง','แสงสีทองล้อมมือคุณ คุณเริ่มเรียนคาถาป้องกัน',{H:3},{trust:2}),
+  magicOption('ไม้ไผ่สื่อวิญญาณ','คุณได้ยินเสียงผู้พิทักษ์ป่าผ่านลำไม้ไผ่',{S:3},{knowledge:2}),
+  magicOption('ไม้มะเกลือเงาจันทร์','เงาของคุณขยับก่อนตัวคุณ อาจารย์เตือนให้ใช้ด้วยสติ',{S:4},{shadow:2})]],
+ ['บทเรียนแรก: คาถาลอยตัว','magicClass','เพื่อนเสียการควบคุมและลอยติดเพดาน',[
+  magicOption('ช่วยร่ายตาข่ายรับเพื่อน','คุณช่วยพาเพื่อนลงมาอย่างปลอดภัย เพื่อนจำความช่วยเหลือนี้ไว้',{C:3,K:3},{trust:2}),
+  magicOption('เรียกอาจารย์และกันพื้นที่','อาจารย์แก้คาถา คุณจดวิธีคลายเวทไว้ในสมุด',{S:4},{knowledge:2}),
+  magicOption('ลองคาถาขั้นสูงเอง','คุณพาเพื่อนลงได้แต่กระแทกโต๊ะ ห้องเรียนต้องซ่อม',{H:-3,S:3},{shadow:1})]],
+ ['สวนสมุนไพรหลังพระจันทร์ตก','magicForest','ต้นยาร้องเพลงจนสัตว์เวทหลงเข้ามาในโรงเรียน',[
+  magicOption('พาสัตว์กลับป่า','คุณวางผลไม้เป็นทาง สัตว์ตัวเล็กเดินตามอย่างไว้ใจ',{J:4},{trust:2}),
+  magicOption('ศึกษาทำนองของต้นยา','คุณค้นพบว่าเสียงเพลงเปลี่ยนตามแสงจันทร์',{S:4},{knowledge:3}),
+  magicOption('เก็บเกสรหายากไปขาย','คุณได้เงิน แต่ต้นยาหยุดร้องไปหลายคืน',{m:2500,K:-2},{shadow:2})]],
+ ['การแข่งขันประลองคาถา','magicArena','ทีมคู่แข่งท้าแข่งชิงตราดาวของโรงเรียน',[
+  magicOption('วางแผนร่วมกับทีม','เพื่อนแบ่งหน้าที่ป้องกันและโจมตี ทีมคุณผ่านรอบแรก',{C:4},{trust:3}),
+  magicOption('คิดคาถาใหม่ใช้ในการแข่ง','คาถาของคุณสร้างสะพานแสงข้ามสนาม อาจารย์ชมความคิดสร้างสรรค์',{S:5},{knowledge:3}),
+  magicOption('ใช้คาถาต้องห้ามลับ ๆ','คุณชนะรอบนี้ แต่รอยเงาบนไม้กายสิทธิ์เข้มขึ้น',{K:-5},{shadow:4})]],
+ ['ประตูห้องสมุดต้องห้าม','magicClass','หนังสือเก่าชวนให้คุณเปิดผนึกหลังเวลาเรียน',[
+  magicOption('ขออนุญาตศึกษากับอาจารย์','คุณได้อ่านสำเนาที่ปลอดภัยและเรียนรู้วิธีปิดผนึก',{S:4},{knowledge:3,trust:1}),
+  magicOption('ปิดห้องและแจ้งผู้ดูแล','ผู้ดูแลพบว่าผนึกกำลังร้าว โรงเรียนซ่อมได้ทัน',{K:4},{trust:3}),
+  magicOption('เปิดหนังสือรับพลังเงา','ความรู้ไหลเข้ามาอย่างรวดเร็ว แลกกับเสียงกระซิบที่ติดตามคุณ',{S:6,J:-3},{shadow:5})]],
+ ['สอบจบโรงเรียนเวทมนตร์','magicGate','ต้องนำลูกแก้วจากหอคอยกลับมาโดยไม่มีใครถูกทิ้งไว้',[
+  magicOption('ช่วยเพื่อนที่ติดอยู่ก่อน','คุณกลับช้ากว่าเวลา แต่สอบผ่านด้านความรับผิดชอบ',{C:4,K:4},{trust:4}),
+  magicOption('แก้ปริศนาสร้างทางลัด','คุณพาทั้งกลุ่มกลับมาทันเวลาและได้คำชมเรื่องการวางแผน',{S:5},{knowledge:4}),
+  magicOption('แย่งลูกแก้วแล้วกลับคนเดียว','คุณได้คะแนนความเร็วสูง แต่เพื่อนในกลุ่มไม่ไว้ใจคุณ',{C:-4,K:-4},{shadow:4})]],
+];
+const MAGIC_JOB_EVENTS = {
+ mageGuard:[
+ ['คำสาปที่ตลาดกลางคืน','magicGate','พ่อค้าแม่ค้าติดอยู่ในกำแพงเงา',[
+  magicOption('ตั้งโล่คุ้มกันแล้วอพยพคน','ทุกคนออกจากตลาดได้ก่อนผนึกปิด',{H:-2,K:4},{trust:4}),magicOption('หาต้นกำเนิดคำสาป','คุณพบเครื่องรางปลอมและทำลายวงจรเวท',{S:4},{knowledge:3}),magicOption('เรียกเงินก่อนช่วย','คุณได้เงินจากพ่อค้า แต่ผู้คนเริ่มกลัวคุณ',{m:18000,K:-6},{shadow:4})]],
+ ['ข้อเสนอจากสภาเงา','magicClass','ผู้มีอำนาจเสนอเงินเพื่อให้คุณปล่อยผู้ใช้คำสาป',[
+  magicOption('ปฏิเสธและส่งหลักฐาน','ชื่อเสียงของคุณทำให้ทีมไว้ใจมากขึ้น',{K:6,C:3},{trust:4}),magicOption('วางแผนจับทั้งเครือข่าย','คุณใช้หลักฐานเชื่อมโยงผู้สั่งการ',{S:4},{knowledge:3}),magicOption('รับเงินปิดคดี','คดีเงียบลง แต่สภาเงาถือความลับของคุณไว้',{m:50000,K:-8},{shadow:6})]],
+ ['ผู้พิทักษ์คนใหม่','magicArena','ลูกทีมคนหนึ่งผิดพลาดระหว่างฝึกภารกิจ',[
+  magicOption('ฝึกให้ใหม่อย่างใจเย็น','เขากลับมาป้องกันทีมได้ในภารกิจต่อมา',{C:4},{trust:4}),magicOption('สร้างสนามจำลอง','คุณลดความเสี่ยงของการฝึกด้วยภาพลวงตา',{S:5},{knowledge:4}),magicOption('ขับออกจากทีม','ทีมเงียบลงและทำงานด้วยความกลัว',{C:-3},{shadow:3})]]],
+ mageAlchemist:[
+ ['ยาถอนคำสาปขวดสุดท้าย','magicLab','มีทั้งคนไข้ยากจนและเศรษฐีรอรับยา',[
+  magicOption('ให้ผู้ป่วยอาการหนักที่สุด','คุณรักษาตามอาการ ชาวบ้านช่วยหาวัตถุดิบมาคืน',{K:5},{trust:4}),magicOption('เจือจางเป็นยาประคองทั้งสองคน','คุณซื้อเวลาเพื่อปรุงยาชุดใหม่ได้ทัน',{S:4},{knowledge:4}),magicOption('ขายให้ผู้เสนอราคาสูง','คุณได้เงิน แต่ผู้ป่วยอีกคนต้องไปรักษาที่อื่น',{m:30000,K:-4},{shadow:3})]],
+ ['สูตรยาแห่งความทรงจำ','magicLab','ยาใหม่ลบความทุกข์ได้ แต่เสี่ยงลบความทรงจำดีด้วย',[
+  magicOption('หยุดทดลองและหาทางที่ปลอดภัย','ผู้เข้าร่วมไม่ต้องเสี่ยงกับสูตรที่ยังไม่แน่นอน',{K:4},{trust:3}),magicOption('ศึกษาต่อในห้องทดลอง','คุณปรับสูตรจนแยกผลข้างเคียงได้',{S:5},{knowledge:5}),magicOption('ขายสูตรทันที','กำไรเข้าร้าน แต่เสียงร้องเรียนตามมา',{m:45000,K:-7},{shadow:5})]],
+ ['โรคระบาดในหมู่บ้านลอยฟ้า','magicForest','สมุนไพรหาได้เฉพาะรากต้นไม้เหนือเมฆ',[
+  magicOption('ร่วมทีมเก็บยาแจกฟรี','หมู่บ้านฟื้นตัวและจดชื่อคุณในหอระฆัง',{H:-3,K:5},{trust:5}),magicOption('เพาะต้นยาในเรือนกระจก','คุณสร้างแหล่งยาระยะยาวให้หมู่บ้าน',{S:5},{knowledge:5}),magicOption('ผูกขาดแหล่งยา','คุณร่ำรวยจากยาที่ทุกคนต้องใช้',{m:60000,K:-8},{shadow:6})]]],
+ mageExplorer:[
+ ['แผนที่มิติที่หายไป','magicGate','แผนที่มีช่องว่างที่เขียนเติมตัวเองทุกคืน',[
+  magicOption('เดินทางกับทีมสำรวจ','ทุกคนช่วยกันทำเครื่องหมายทางกลับ',{C:3},{trust:3}),magicOption('ถอดรหัสก่อนเปิดประตู','คุณพิกัดปลายทางได้อย่างแม่นยำ',{S:5},{knowledge:5}),magicOption('ใช้เลือดปลุกแผนที่','ทางลัดเปิดออก แต่ประตูจดจำตัวคุณ',{H:-4},{shadow:4})]],
+ ['สัตว์เฝ้ารอยแยก','magicForest','สัตว์เวทขวางทางไปยังผลึกหายาก',[
+  magicOption('คืนไข่ให้มัน','สัตว์เฝ้าประตูยอมให้ทีมผ่านอย่างสงบ',{K:5},{trust:4}),magicOption('ศึกษาสัญญาณเพื่อเจรจา','คุณค้นพบภาษาของผู้เฝ้ามิติ',{S:5},{knowledge:4}),magicOption('ขโมยผลึกแล้วหนี','คุณขายผลึกได้ แต่รอยแยกเริ่มไม่มั่นคง',{m:35000,K:-5},{shadow:5})]],
+ ['เพื่อนติดอยู่อีกฝั่ง','magicGate','ประตูจะเปิดได้เพียงครั้งเดียวก่อนพลังหมด',[
+  magicOption('ใช้พลังช่วยเพื่อนกลับ','ทีมกลับมาครบ แม้คุณต้องพักฟื้น',{H:-5,K:5},{trust:5}),magicOption('คำนวณเปิดทางคู่ขนาน','คุณสร้างเส้นทางกลับใหม่จากความรู้ที่ผ่านมา',{S:5},{knowledge:5}),magicOption('ขนสมบัติกลับก่อน','สมบัติเต็มเรือ แต่เพื่อนต้องรอทีมกู้ภัยอื่น',{m:70000,K:-8},{shadow:6})]]],
+ mageTeacher:[
+ ['เด็กที่ควบคุมพลังไม่ได้','magicClass','นักเรียนทำหน้าต่างแตกและกลัวว่าจะถูกไล่ออก',[
+  magicOption('สอนเป็นการส่วนตัว','เด็กเริ่มควบคุมพลังและกลับมาเรียนกับเพื่อน',{C:4,K:4},{trust:4}),magicOption('ออกแบบเครื่องช่วยฝึก','วงแหวนวัดพลังทำให้เด็กฝึกอย่างปลอดภัย',{S:5},{knowledge:4}),magicOption('ใช้คำสาปกดพลัง','ห้องสงบลง แต่เด็กไม่กล้าใช้เวทอีก',{K:-6},{shadow:5})]],
+ ['ตำราเวทสำหรับทุกคน','magicClass','สำนักพิมพ์อยากซื้อสิทธิ์ตำราที่คุณเขียน',[
+  magicOption('แจกตำราพื้นฐานฟรี','เด็กจากหมู่บ้านห่างไกลได้เริ่มเรียนเวท',{K:5},{trust:5}),magicOption('ขายฉบับขั้นสูงเพื่อทุนวิจัย','คุณมีเงินพัฒนาห้องเรียนและทำฉบับพื้นฐานให้อ่าน',{m:20000,S:3},{knowledge:4}),magicOption('ขายทุกบทให้สำนักลับ','เงินเข้าบัญชี แต่ตำราหายไปจากห้องสมุดสาธารณะ',{m:60000,K:-4},{shadow:4})]],
+ ['ตำแหน่งผู้อำนวยการ','magicSchool','สภาโรงเรียนเสนอให้คุณดูแลนักเรียนรุ่นใหม่',[
+  magicOption('เปิดรับเด็กโดยไม่ดูฐานะ','โรงเรียนมีนักเรียนหลากหลายและช่วยเหลือกัน',{C:5,K:4},{trust:5}),magicOption('ตั้งสถาบันวิจัยเวทปลอดภัย','ห้องเรียนกลายเป็นแหล่งค้นคว้าของหลายเมือง',{S:5},{knowledge:5}),magicOption('คัดเฉพาะผู้ภักดีต่อคุณ','คุณได้อำนาจมากขึ้น แต่โรงเรียนปิดกั้นคนที่เห็นต่าง',{K:-7},{shadow:6})]]],
+};
+const MAGIC_RANDOM = [
+ ['จดหมายจากดาวตก','magicForest','นกส่งสารคาบจดหมายที่อ่านได้เฉพาะใต้แสงดาว',[
+  magicOption('ตามไปช่วยเจ้าของจดหมาย','คุณช่วยนักเดินทางที่หลงมิติ',{J:3},{trust:2}),magicOption('ศึกษาหมึกดาว','คุณได้เทคนิคเขียนข้อความข้ามมิติ',{S:3},{knowledge:2}),magicOption('ขายให้ร้านของหายาก','ร้านจ่ายค่าจดหมายให้คุณ',{m:5000},{shadow:1})]],
+ ['วันหยุดในตลาดเวท','magicLab','ร้านค้าเปิดประมูลไข่มังกรและเครื่องราง',[
+  magicOption('ช่วยศูนย์ดูแลสัตว์','คุณใช้วันหยุดดูแลสัตว์ที่ถูกทิ้ง',{J:4},{trust:2}),magicOption('แลกเปลี่ยนความรู้กับช่างเวท','คุณเรียนรู้วิธีซ่อมเครื่องราง',{S:3},{knowledge:2}),magicOption('พักดื่มชาดอกจันทร์','คุณพักจากงานและนอนเต็มอิ่ม',{H:4,J:3},{})]],
+ ['เงาสะท้อนในกระจก','magicClass','กระจกแสดงตัวคุณในชีวิตที่เลือกต่างออกไป',[
+  magicOption('ยอมรับชีวิตที่เลือก','คุณวางความเสียดายลงและกลับไปหาคนรอบตัว',{J:5},{trust:1}),magicOption('จดสิ่งที่เรียนรู้','คุณเข้าใจขอบเขตของเวทพยากรณ์มากขึ้น',{S:3},{knowledge:2}),magicOption('แลกความทรงจำกับพลัง','คุณได้พลังเพิ่ม แต่ภาพวัยเด็กบางส่วนหายไป',{J:-3},{shadow:3})]],
+ ['เทศกาลโคมมนตรา','magicSchool','เมืองต้องการคนช่วยร่ายเวทให้โคมลอย',[
+  magicOption('ทำโคมให้เด็ก ๆ','แสงโคมลอยเต็มฟ้า เสียงหัวเราะดังทั่วลาน',{J:4,C:3},{trust:2}),magicOption('ทดลองโคมพลังแสงอาทิตย์','โคมของคุณสว่างต่อได้โดยไม่ต้องเติมพลัง',{S:3},{knowledge:2}),magicOption('แสดงมายากลรับค่าจ้าง','คุณเปิดหมวกแสดงและได้เงินกลับบ้าน',{m:8000,J:2},{})]],
+];
+async function magicEvent(p,io,event){
+ const [title,bg,text,options]=event;
+ const c=await choose(p,io,{kind:'fork',bg,title,text,noStory:true,choices:options.map((o,i)=>({...o,k:i,sub:[fxText(o.d),...Object.entries(o.m).map(([k,v])=>({trust:'ความไว้ใจ',knowledge:'ความรู้เวท',shadow:'พลังเงา'}[k])+' +'+v)].filter(Boolean).join(' · '),cost:0}))});
+ fx(p,c.d);for(const [k,v] of Object.entries(c.m))p.magic[k]=(p.magic[k]||0)+v;
+ log(p,title+' — '+c.label);await say(p,io,{kind:'result',bg,title:'ผลจากการเลือก: '+c.label,text:c.story});
+}
+async function magicAdvance(p,io,age){
+ while(p.age<age){p.age++;if(p.career){const income=personalMonthlyIncome(p);addMoney(p,Math.round(income*12*.2));p.lastSalary=income;p.cYears++;}
+ p.samples.H.push(p.H);p.samples.J.push(p.J);
+ if(p.parentDeath&&!p.parentDeath.paid&&p.age>=p.parentDeath.age){const d=p.parentDeath;d.done=true;d.paid=true;addMoney(p,d.share);p.flags.parentsGone=true;note(p,inheritanceText(d));await say(p,io,{kind:'event',bg:'magicForest',title:'จดหมายจากครอบครัว',text:d.name+'จากไปแล้ว คุณกลับไปอำลาและรับข่าวการจัดการมรดก'});}}
+ if(io.update)io.update(p);
+}
+async function magicSchool(p,io){
+ p.magic={trust:0,knowledge:0,shadow:0};p.schoolPaid=0;log(p,'เข้าโรงเรียนเวทมนตร์จันทราพฤกษ์ (เรียนฟรี)');
+ await say(p,io,{kind:'stage',bg:'magicSchool',title:'โรงเรียนเวทมนตร์จันทราพฤกษ์',text:'ประตูใต้ต้นไม้ใหญ่เปิดรับคุณ โรงเรียนออกค่าเรียน อุปกรณ์ และหอพักให้ทั้งหมด ทุกการเลือกจะเปลี่ยนความไว้ใจ ความรู้ และพลังเงาที่ติดตัวไปตลอดชีวิต'});
+ for(let i=0;i<MAGIC_SCHOOL.length;i++){await magicAdvance(p,io,[7,9,11,13,15,18][i]);await magicEvent(p,io,MAGIC_SCHOOL[i]);}
+ p.degree='magic';p.uni='magic';
+}
+function magicEnding(p,choice){
+ if(choice==='sacrifice')return {id:'sacrifice',t:'ผู้สละเวทเพื่อวันพรุ่งนี้',d:'คุณใช้พลังทั้งหมดปิดรอยแยก แล้วใช้ชีวิตธรรมดาท่ามกลางผู้คนที่คุณช่วยไว้',bg:'magicForest'};
+ if(choice==='rule')return p.magic.shadow>=12?{id:'shadow',t:'ราชันแห่งเงาจันทร์',d:'คุณผูกบัลลังก์เข้ากับรอยแยก โลกเวทอยู่ใต้คำสั่งของคุณ แต่ความไว้ใจไม่มีวันบังคับได้',bg:'magicShadow'}:{id:'lost',t:'ผู้เฝ้าประตูที่สูญหาย',d:'พลังที่ยังควบคุมไม่ได้ดึงคุณข้ามรอยแยก คนรุ่นหลังออกตามหาแสงไม้กายสิทธิ์ของคุณ',bg:'magicGate'};
+ if(choice==='seal'&&p.magic.trust>=12)return {id:'guardian',t:'ตำนานผู้พิทักษ์สองโลก',d:'ผู้คนที่คุณช่วยกลับมาร่วมวงเวท รอยแยกปิดลงโดยไม่มีใครต้องสละพลังเพียงลำพัง',bg:'magicDawn'};
+ if(choice==='study'&&p.magic.knowledge>=15)return {id:'sage',t:'ปราชญ์ผู้เชื่อมดวงดาว',d:'คุณเปลี่ยนรอยแยกเป็นประตูที่ควบคุมได้ ตำราของคุณเปิดยุคใหม่ของการเดินทางระหว่างโลก',bg:'magicGate'};
+ return {id:'teacher',t:'แสงเล็ก ๆ ที่ส่งต่อ',d:'คุณถอยจากศึกใหญ่และช่วยอพยพผู้คน ก่อนใช้ชีวิตถ่ายทอดบทเรียนให้จอมเวทรุ่นถัดไป',bg:'magicSchool'};
+}
+async function magicLife(p,io){
+ p.stage=2;await magicAdvance(p,io,20);
+ await magicEvent(p,io,['วิชาเอกของจอมเวท','magicClass','เลือกความรู้ที่จะพาติดตัวออกจากโรงเรียน',[
+ magicOption('เวทป้องกันและการดูแลผู้คน','คุณผ่านวิชาป้องกันและช่วยเหลือหมู่คณะ',{H:5},{trust:5}),magicOption('ปรุงยาและอักขระมิติ','คุณอ่านอักขระโบราณและปรุงยาขั้นสูงได้',{S:6},{knowledge:6}),magicOption('ศาสตร์เงาและพลังต้องห้าม','คุณเรียนรู้พลังที่ต้องรับผิดชอบด้วยตนเอง',{S:4,K:-3},{shadow:6})]]);
+ await magicAdvance(p,io,22);p.stage=3;
+ const job=await choose(p,io,{kind:'main',bg:'magicSchool',title:'เลือกอาชีพในโลกเวทมนตร์',noStory:true,choices:Object.entries(MAGIC_JOBS).map(([k,j])=>({k,label:j.name,sub:'รายได้ตั้งต้น ฿'+baht(j.start)+'/เดือน · สมัครฟรี',cost:0}))});
+ p.career=job.k;p.cOut='mid';p.cYears=0;p.cStartAge=22;
+ await say(p,io,{kind:'result',bg:MAGIC_JOBS[job.k].bg,title:'เริ่มงาน: '+MAGIC_JOBS[job.k].name,text:incomeCaption(p)+'\nรายได้หลังค่าใช้จ่าย 20% จะสะสมเป็นเงินเก็บในแต่ละปี'});
+ const random=[...MAGIC_RANDOM];
+ for(let i=0;i<3;i++){await magicAdvance(p,io,[26,35,46][i]);await magicEvent(p,io,MAGIC_JOB_EVENTS[job.k][i]);await magicAdvance(p,io,p.age+3);const n=Math.floor(rnd()*random.length);await magicEvent(p,io,random.splice(n,1)[0]);}
+ await magicAdvance(p,io,58);
+ const final=await choose(p,io,{kind:'main',bg:'magicGate',title:'รอยแยกสุดท้าย: โลกเวทจะเดินไปทางไหน',text:'ความไว้ใจ '+p.magic.trust+' · ความรู้ '+p.magic.knowledge+' · พลังเงา '+p.magic.shadow,noStory:true,choices:[
+ {k:'seal',label:'รวมพลังผู้คนปิดรอยแยก',sub:'ความไว้ใจ 12 ขึ้นไป → ตำนานผู้พิทักษ์'},
+ {k:'study',label:'เปลี่ยนรอยแยกเป็นประตูดวงดาว',sub:'ความรู้ 15 ขึ้นไป → ปราชญ์ผู้เชื่อมดวงดาว'},
+ {k:'rule',label:'ยึดพลังรอยแยกไว้คนเดียว',sub:'พลังเงา 12 ขึ้นไป → ราชันแห่งเงา · ต่ำกว่านั้นเสี่ยงสูญหาย'},
+ {k:'sacrifice',label:'สละเวททั้งหมดเพื่อปิดประตู',sub:'ช่วยโลกได้แน่นอน แลกกับการกลับเป็นคนธรรมดา'}]});
+ const end=magicEnding(p,final.k);p.magic.ending=end.id;p.magic.endingScene=end.bg;
+ p.age=end.id==='lost'?58:80;p.dead=true;p.stage=7;p.cause=end.id==='lost'?'สูญหายหลังรอยแยก':'สิ้นสุดชีวิตหลังฝากตำนานไว้ในโลกเวท';
+ await say(p,io,{kind:'result',bg:end.bg,title:'บทสรุปพ่อมดแม่มด: '+end.t,text:end.d+'\nหลายปีผ่านไป เรื่องราวของคุณถูกจดไว้ในหอสมุดจันทราพฤกษ์'});
+ const Hbar=p.samples.H.reduce((a,b)=>a+b,0)/(p.samples.H.length||1),Jbar=p.samples.J.reduce((a,b)=>a+b,0)/(p.samples.J.length||1),estate=Math.max(0,p.money-totalDebt(p));
+ const score=clamp(Math.round((Hbar+Jbar+p.S+p.C)/4+p.magic.trust*.3+p.magic.knowledge*.3),1,100);
+ return {name:p.name,sex:p.sex,gen:p.gen,prov:p.prov,tier:p.tier,q:p.qBirth,qEnd:incomeToQ(Math.max(1,p.lastSalary)),religion:p.religion,career:MAGIC_JOBS[p.career].name,age:p.age,cause:p.cause,guests:Math.max(3,p.magic.trust*12),envelopes:0,estate,heirsEstate:estate,kidDebt:0,ledger:[],goodScore:0,fruits:{},K:p.K,Jbar,Hbar,Pw:wealthPct(estate),score,pct:score,kvPenalty:0,epilogueJ:0,funeral:'พิธีโคมดวงดาว',kids:[],anyFruit:false,tagsBad:0,tagsGood:0,arch:{t:end.t,d:end.d,rare:true},magic:true,endingScene:end.bg};
 }
 
 // ===== Sim IO สำหรับจำลองชีวิตเปรียบเทียบ =====
@@ -5120,6 +5247,27 @@ function rich(s){
 }
 
 // ---------- ฉากเคลื่อนไหว ----------
+// Pixel fantasy scenery, using the same 192 x 108 drawing grid as the base game.
+function magicSky(t,dawn=false){dSky(t,dawn?'dusk':'night','mountain');for(let i=0;i<18;i++){const x=(i*29+Math.sin(t+i)*3+192)%192,y=10+(i*17)%72;dr(x,y,1,1,i%2?'#b6a4ff':'#80f6dd');}}
+function magicFigure(t,st,x=95,y=98){
+ dPlayer(t,st,x,y,'none',{still:true});dp([[x-7,y-14],[x+6,y-14],[x+9,y],[x-9,y]],'#6550a0');dp([[x-6,y-24],[x+5,y-24],[x-1,y-38]],'#8e71c5');dr(x-8,y-25,15,2,'#b3a0dd');dl(x+7,y-12,x+16,y-21,DC.gold,1);dr(x+15,y-23,3,3,'#c4fff1');
+ for(let i=0;i<4;i++){const a=t+i*1.6;dr(x+16+Math.cos(a)*5,y-22+Math.sin(a)*5,1,1,DC.light);}
+}
+function magicCastle(t){
+ for(const [x,y,w,h] of [[26,45,26,43],[65,28,62,60],[142,45,25,43]]){dr(x,y,w,h,'#555374');dr(x+2,y+2,w-4,h-2,'#74718f');dp([[x-5,y],[x+w/2,y-24],[x+w+5,y]],'#584681');for(let wy=y+8;wy<y+h-8;wy+=13)for(let wx=x+6;wx<x+w-4;wx+=13){dr(wx,wy,5,8,'#e2c99c');dr(wx+2,wy,1,8,'#655378');}}
+ dr(84,65,24,23,'#262940');dp([[84,66],[96,53],[108,66]],'#262940');dr(90,70,12,18,'#9e83cc');dText('จันทราพฤกษ์',71,49,50,DC.light,'#3e355c');
+}
+Object.assign(SCENES,{
+ magicSchool(t,st){magicSky(t);dGround(86,'#4b4963');magicCastle(t);for(const x of [12,177]){dl(x,85,x,50,'#a8b2c4',1);dr(x-3,47,7,8,'#ffdea2');}magicFigure(t,st,98,106);},
+ magicClass(t,st){dRoom('#39334f','#5d5070',82);for(const x of [10,142]){dr(x,13,40,61,'#5d4660');for(let y=21;y<70;y+=15){dr(x,y,40,2,DC.gold);for(let j=0;j<7;j++)dr(x+3+j*5,y-10,3,10,['#b88daa','#87bcb5','#cfaf77'][j%3]);}}dr(67,11,58,39,'#20283f');for(let i=0;i<7;i++)dl(74+i*7,21,79+i*6,39,'#9de9d8',.5);for(let i=0;i<5;i++){const x=50+i*23,y=59+Math.sin(t+i)*4;dr(x,y,12,2,'#e2d7b3');dr(x+5,y-1,1,3,DC.gold);}dr(48,83,95,4,DC.wood);magicFigure(t,st,95,105);},
+ magicLab(t,st){dRoom('#323b4d','#5e6474',82);dr(9,17,64,45,'#252c44');for(let y=28;y<62;y+=17){dr(9,y,64,2,DC.wood);for(let i=0;i<5;i++){dr(14+i*12,y-9,6,8,['#8aead3','#d78ec8','#ecbc79'][i%3]);dr(16+i*12,y-12,2,3,DC.light);}}dr(116,65,43,22,'#202438');dr(112,62,51,4,'#96abbd');dr(118,64,39,3,'#91f3bf');for(let i=0;i<8;i++){let y=60-((t*9+i*7)%36);dr(121+i*4,y,2,2,i%2?'#b8fadc':'#a896d9');}dp([[120,91],[126,82],[131,92],[139,81],[149,91]],'#efbd81');dr(11,82,62,5,DC.wood);magicFigure(t,st,88,104);},
+ magicForest(t,st){magicSky(t);dGround(82,'#304d54');for(const x of [8,40,151,179]){dr(x,30,6,59,'#514c67');dp([[x-20,58],[x+3,10],[x+23,58]],'#48647a');dp([[x-15,39],[x+3,3],[x+20,39]],'#52668a');}for(let i=0;i<12;i++){let x=12+i*15,y=91+(i%3)*5;dr(x,y,2,4,'#c0c5be');dr(x-2,y-2,6,3,i%2?'#b7a2ed':'#85dccd');}dr(119,77,10,6,'#b7e9e1');dr(127,73,5,5,'#b7e9e1');dr(129,70,1,4,'#e9d4a0');magicFigure(t,st,84,105);},
+ magicArena(t,st){magicSky(t);dGround(77,'#625879');for(let i=0;i<3;i++){dr(12+i*4,52+i*7,166-i*8,5,'#8a7894');for(let x=18;x<176;x+=9)dr(x,49+i*7,3,3,i%2?'#b6b1c5':'#d5b8a3');}for(let i=0;i<28;i++){let a=i/28*Math.PI*2;dr(96+Math.cos(a)*60,89+Math.sin(a)*12,2,1,'#e4c69b');}magicFigure(t,st,53,104);magicFigure(t,{...st,sex:'F'},139,104);for(let i=0;i<10;i++)dr(69+i*5,78+Math.sin(t*2+i)*3,2,2,i%2?'#99e8df':'#c4a2ec');},
+ magicGate(t,st){magicSky(t);dGround(88,'#3b4059');for(let i=0;i<64;i++){const a=i/64*Math.PI*2;dr(116+Math.cos(a)*30,47+Math.sin(a)*39,4,4,'#8f7caf');dr(116+Math.cos(a)*25,47+Math.sin(a)*34,2,2,'#8ee3e0');}for(let i=0;i<18;i++){const a=t*.4+i*2.4,r=(i%6)*3;dr(116+Math.cos(a)*r,48+Math.sin(a)*r,2,2,'#ddc9ff');}for(const x of [18,44,166]){dr(x,76,8,13,'#6b6387');dr(x+2,78,3,7,'#bdebdc');}magicFigure(t,st,73,105);},
+ magicShadow(t,st){magicSky(t);dGround(88,'#302a43');for(const x of [24,157]){dr(x,29,11,59,'#554465');dp([[x-4,29],[x+5,8],[x+15,29]],'#88718f');}dr(76,41,42,48,'#66516c');dp([[76,42],[82,25],[92,40],[103,21],[118,42]],'#ad88b8');dr(71,86,53,5,'#aa82ad');dr(65,91,65,5,'#7e628a');magicFigure(t,st,96,88);for(let i=0;i<12;i++)dr(36+i*10,67+Math.sin(t+i)*7,1,3,'#c59ac8');},
+ magicDawn(t,st){magicSky(t,true);dGround(86,'#52616a');magicCastle(t);for(let i=0;i<12;i++){let x=9+i*16,y=20+((i*19-t*4)%58+58)%58;dr(x,y,3,5,'#f3d89d');dr(x+1,y+5,1,3,'#c2a785');}magicFigure(t,st,95,105);},
+});
+
 function snap(p){
   if(!p) return {};
   if(p.skin === undefined) p.skin = Math.floor(Math.random()*3);
@@ -5190,7 +5338,7 @@ function hud(p){
   $('#hName').textContent = p.name + (p.gen > 1 ? ` · รุ่นที่ ${p.gen}` : '');
   $('#hAge').innerHTML = `${ic('clock')}${p.age}`;
   $('#hWhere').textContent = `${p.prov} · ${QS[p.qBirth].name}${p.career && p.age < 60 ? ' · ' + CAREERS[p.career].name : ''}`;
-  $('#hIncome').textContent = incomeCaption(p);
+  $('#hIncome').textContent = incomeCaption(p) + (p.magic ? ` · ความไว้ใจ ${p.magic.trust} / ความรู้เวท ${p.magic.knowledge} / พลังเงา ${p.magic.shadow}` : '');
   const bar = v => `<span class="bar"><i style="width:${clamp(v,0,100)}%"></i></span>`;
   const debt = totalDebt(p);
   $('#hStats').innerHTML = [
@@ -5369,7 +5517,7 @@ async function makeCard(r,p,family){
  text(`บันทึกชีวิต${r.gen>1?' · รุ่นที่ '+r.gen:''}`,846,77,20,colors.muted,500,'right');
  // Local pixel art scene supplies the hero, without embedding any external assets.
  const scene=document.createElement('canvas');scene.width=768;scene.height=432;
- const keep=G2;try{drawScene(scene.getContext('2d'),'end',1.8,{},null,null)}finally{G2=keep}
+ const keep=G2;try{drawScene(scene.getContext('2d'),r.endingScene || 'end',1.8,snap(p),null,null)}finally{G2=keep}
  x.imageSmoothingEnabled=false;x.drawImage(scene,40,106,820,461);
  rect(40,106,820,2,colors.gold);rect(40,565,820,2,colors.gold);
  rect(40,535,820,613,colors.panel);
@@ -5382,14 +5530,14 @@ async function makeCard(r,p,family){
  fit(r.name+(r.gen>1?' · รุ่นที่ '+r.gen:''),222,590,602,42,colors.cream,700);
  fit(`เกิดที่${r.prov} · ฐานะ${QS[r.q].name}`,222,624,602,22,colors.muted,500);
  // A single large result number with a quiet percentile rail.
- text('ชีวิตนี้ดีกว่าคนไทย',72,691,28,colors.cream,600);
- text(`${r.pct}%`,825,720,91,colors.gold,700,'right');
+ text(r.magic?'คะแนนตำนานเวทมนตร์':'ชีวิตนี้ดีกว่าคนไทย',72,691,28,colors.cream,600);
+ text(`${r.pct}${r.magic?'/100':'%'}`,825,720,r.magic?70:91,colors.gold,700,'right');
  rect(73,739,752,4,colors.line);rect(73,739,752*clamp(r.pct/100,0,1),4,colors.gold);
  text(`คะแนนชีวิต ${Math.round(r.score)}`,74,778,21,colors.muted);
  if(r.arch){fit(r.arch.t,74,830,750,32,r.arch.rare?colors.gold:'#d0b9cf',700);if(r.arch.d)wrap(r.arch.d,74,865,750,20,colors.muted,2)}
  // Three well-spaced facts replace the previous stack of centered small text.
  rect(73,923,752,1,colors.line);
- const facts=[['อาชีพ',r.career],['อายุขัย',`${r.age} ปี`],['คนมาส่ง',`${Number(r.guests).toLocaleString()} คน`]];
+ const facts=[['อาชีพ',r.career],[r.magic?'อายุในบทสรุป':'อายุขัย',`${r.age} ปี`],[r.magic?'ผู้จดจำตำนาน':'คนมาส่ง',`${Number(r.guests).toLocaleString()} คน`]];
  facts.forEach(([label,value],i)=>{const a=74+i*253;text(label,a,962,18,colors.muted);fit(value,a,1003,230,27,colors.cream,600);if(i<2)rect(a+232,948,1,61,colors.line)});
  if(family&&family.length>1){fit(`ตระกูลรุ่นที่ ${r.gen} · จาก ${QS[family[0].q].code} สู่ ${QS[r.q].code}`,74,1056,752,22,colors.gold,500)}
  rect(73,1091,752,1,colors.line);
@@ -5398,19 +5546,19 @@ async function makeCard(r,p,family){
  return c.toDataURL('image/png');
 }
 
-function shareText(r){ return `ฉันเกิดเป็น 1 ใน 65 ล้านคน ที่${r.prov} ฐานะ${QS[r.q].name} เป็น${r.career} อยู่ถึงอายุ ${r.age} ปี มีคนมางานศพ ${r.guests} คน\nชีวิตนี้ดีกว่าคนไทย ${r.pct}%${r.gen>1?` (ตระกูลรุ่นที่ ${r.gen})`:''}${r.arch?`\nฉายา: ${r.arch.t}`:''}`; }
+function shareText(r){ if(r.magic) return `ฉันเลือกโรงเรียนเวทมนตร์ใน 1 ใน 65 ล้าน เป็น${r.career} และได้ฉากจบ ${r.arch.t} · คะแนนตำนาน ${r.score}/100`; return `ฉันเกิดเป็น 1 ใน 65 ล้านคน ที่${r.prov} ฐานะ${QS[r.q].name} เป็น${r.career} อยู่ถึงอายุ ${r.age} ปี มีคนมางานศพ ${r.guests} คน\nชีวิตนี้ดีกว่าคนไทย ${r.pct}%${r.gen>1?` (ตระกูลรุ่นที่ ${r.gen})`:''}${r.arch?`\nฉายา: ${r.arch.t}`:''}`; }
 async function copyText(t, btn){ try { await navigator.clipboard.writeText(t); btn.textContent = 'คัดลอกแล้ว'; } catch(e){ const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); btn.textContent = 'คัดลอกแล้ว'; }catch(_){ btn.textContent = 'คัดลอกไม่ได้'; } ta.remove(); } }
 
 async function summaryScreen(r, p){
-  setScene('end', null, null, { ...snap(p), age:r.age });
+  setScene(r.endingScene || 'end', null, null, { ...snap(p), age:r.age });
   const img = await makeCard(r, p, CUR.family);
-  const parts = [ ['ความสุขเฉลี่ย', r.Jbar, 100, .30], ['สุขภาพเฉลี่ย', r.Hbar, 100, .25], ['ทรัพย์ที่ส่งต่อ', r.Pw, 100, .20], ['บุญ/บาป', (r.K+100)/2, 100, .20], ['เส้นสาย', p.C, 100, .05] ];
+  const parts = r.magic ? [['ความไว้ใจ',p.magic.trust,50,'—'],['ความรู้เวท',p.magic.knowledge,50,'—'],['พลังเงา',p.magic.shadow,50,'—']] : [ ['ความสุขเฉลี่ย', r.Jbar, 100, .30], ['สุขภาพเฉลี่ย', r.Hbar, 100, .25], ['ทรัพย์ที่ส่งต่อ', r.Pw, 100, .20], ['บุญ/บาป', (r.K+100)/2, 100, .20], ['เส้นสาย', p.C, 100, .05] ];
   return new Promise(res => {
     const el = panel(`<div class="eyebrow">สรุปชีวิต<span>${esc(r.name)} · ${r.age} ปี</span></div>` +
-      `<div class="score"><span class="n">${Math.round(r.score)}</span><span class="p">ชีวิตนี้ดีกว่าคนไทย <b style="color:var(--gold2)">${r.pct}%</b></span></div>` +
+      `<div class="score"><span class="n">${Math.round(r.score)}</span><span class="p">${r.magic?'คะแนนตำนานเวทมนตร์':'ชีวิตนี้ดีกว่าคนไทย'} <b style="color:var(--gold2)">${r.pct}${r.magic?'/100':'%'}</b></span></div>` +
       (r.arch ? `<div class="arch${r.arch.rare?' rare':''}"><b>${esc(r.arch.t)}</b><span>${esc(r.arch.d)}</span></div>` : '') +
-      `<p class="help">${SIM_SCORES ? `เทียบกับชีวิตจำลอง ${SIM_SCORES.length} ชีวิตที่สุ่มเกิดตามสัดส่วนจริงและตัดสินใจแบบสุ่ม` : 'กำลังจำลองชีวิตเปรียบเทียบ ใช้ค่าประมาณไปก่อน'}</p>` +
-      `<div class="parts">${parts.map(([n,v,m,w]) => `<div class="part"><span>${n}</span><span class="bar"><i style="width:${clamp(v/m*100,0,100)}%"></i></span><span>×${w}</span></div>`).join('')}${r.goodScore ? `<div class="part"><span>กรรมดีออกผล</span><span class="bar"><i style="width:${r.goodScore/15*100}%;background:var(--gold)"></i></span><span>+${r.goodScore}</span></div>` : ''}</div>` +
+      `<p class="help">${r.magic ? 'เส้นทางแฟนตาซี · ฉากจบขึ้นกับความไว้ใจ ความรู้ พลังเงา และการตัดสินใจสุดท้าย' : SIM_SCORES ? `เทียบกับชีวิตจำลอง ${SIM_SCORES.length} ชีวิตที่สุ่มเกิดตามสัดส่วนจริงและตัดสินใจแบบสุ่ม` : 'กำลังจำลองชีวิตเปรียบเทียบ ใช้ค่าประมาณไปก่อน'}</p>` +
+      `<div class="parts">${parts.map(([n,v,m,w]) => `<div class="part"><span>${n}</span><span class="bar"><i style="width:${clamp(v/m*100,0,100)}%"></i></span><span>${r.magic?Math.round(v):'×'+w}</span></div>`).join('')}${r.goodScore ? `<div class="part"><span>กรรมดีออกผล</span><span class="bar"><i style="width:${r.goodScore/15*100}%;background:var(--gold)"></i></span><span>+${r.goodScore}</span></div>` : ''}</div>` +
       `<div class="cardwrap"><img class="card" src="${img}" alt="การ์ดสรุปชีวิตของ ${esc(r.name)}"><div><p class="help">กดค้างที่การ์ดเพื่อบันทึกภาพ แล้วนำไปแชร์ได้</p><div class="row"><button class="go ghost" id="cpBtn">คัดลอกข้อความ</button></div></div></div>` +
       `<button class="go" id="goBtn">ไปต่อ</button>`);
     $('#cpBtn').addEventListener('click', e => copyText(shareText(r), e.currentTarget));
