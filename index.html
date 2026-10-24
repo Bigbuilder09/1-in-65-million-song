@@ -35,6 +35,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 button{font:inherit;color:inherit}
 #app{max-width:1180px;margin:0 auto;padding-block:12px 28px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:12px;min-height:100%}
 /* HUD */
+.income-line{flex:1 0 100%;color:var(--gold2);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
 .hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;background:var(--bg2);border:2px solid var(--line);padding:8px 12px;box-shadow:0 4px 0 #050817}
 .who{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 220px}
 .who b{font-family:var(--f-disp);font-size:18px;letter-spacing:.02em;white-space:nowrap}
@@ -318,6 +319,7 @@ body{background:#0c1226;background-image:none}
 </style>
 <div id="app">
   <header class="hud" id="hud" hidden>
+    <div id="hIncome" class="income-line" aria-live="polite"></div>
     <div class="who"><b id="hName">—</b><span class="age" id="hAge"></span><span class="where" id="hWhere"></span></div>
     <div class="stats" id="hStats"></div>
   </header>
@@ -572,6 +574,21 @@ async function yesno(p, io, opt){ // opt: {title, text, cost, sub, yes, no, cond
 async function say(p, io, opt){ await io.say({ ...opt, pend: p.pend.splice(0) }); }
 
 // ===== กระโดดเวลา =====
+function personalMonthlyIncome(p){
+  if(p.age >= 60) return Math.max(0, Math.round(p.retireIncome || 0));
+  if(p.status.prison || !p.career || p.unemployed > 0) return 0;
+  let income = curIncome(p) * skillMult(p) * statWorkF(p) * worldIncomeF(p);
+  if(p.career === 'farm' && p.flags.rentLand) income *= .8;
+  return Math.max(0, Math.round(income));
+}
+function incomeCaption(p){
+  const amount = '฿' + baht(personalMonthlyIncome(p)) + '/เดือน';
+  if(p.age >= 60) return 'รายได้เกษียณ ' + amount;
+  if(p.status.prison) return 'รายได้จากงาน ' + amount + ' · อยู่ระหว่างคุมขัง';
+  if(p.unemployed > 0) return 'รายได้จากงาน ' + amount + ' · ว่างงานชั่วคราว';
+  if(!p.career) return 'รายได้ส่วนตัว ' + amount + ' · ยังไม่มีงาน';
+  return 'รายได้จากงานโดยประมาณ ' + amount;
+}
 function curIncome(p){ // รายได้ส่วนตัวต่อเดือนก่อนตัวคูณ
   if(!p.career || p.unemployed > 0) return 0;
   if(p.career === 'pol') return polPay(p) * (1 - p.incomeCut);
@@ -1758,7 +1775,9 @@ async function stage6(p, io){
 // ---------- พ่อแม่เสียชีวิต (โหมดสืบตระกูล) ----------
 async function parentDies(p, io){
   const d = p.parentDeath;
-  await say(p, io, { kind:'event', bg:'funeral', title:`${d.name}จากไปแล้ว`, text:`${d.name}เสียชีวิตตอนอายุ ${d.ageAtDeath} ปี${d.share > 0 ? `\nมรดกส่วนของคุณ ฿${baht(d.share)}` : '\nไม่มีมรดกเหลือถึงคุณ'}` });
+  if(d.paid) return;
+  d.paid = true;
+  await say(p, io, { kind:'event', bg:'funeral', title:`${d.name}จากไปแล้ว`, text:`${d.name}เสียชีวิตตอนอายุ ${d.ageAtDeath} ปี\n${inheritanceText(d)}` });
   fx(p,{J:-15}); p.status.grief = 10; if(d.share > 0) fx(p,{m:d.share});
   if(d.other && !p.flags.otherParentGone) p.flags.otherParentDieAt = p.age + randi(3, 12);
   if(!p.ancestors.find(a => a.name === d.name)) p.ancestors.push(d.anc);
@@ -1880,18 +1899,41 @@ async function live(p, io){
   return await stage7(p, io);
 }
 
+// Fictional estate events for gameplay, not statutory tax rates.
+function rollInheritance(estate, heirs){
+  const pool = Math.max(0, Math.floor(estate || 0));
+  const base = Math.floor(pool / Math.max(1, heirs));
+  const events = [
+    {name:'พินัยกรรมแบ่งเงินบางส่วนให้ญาติ', keep:75},
+    {name:'แบ่งทรัพย์สินให้พี่น้องและผู้ดูแลเพิ่มเติม', keep:60},
+    {name:'ครอบครัวกันเงินไว้ดูแลญาติผู้สูงอายุ', keep:80},
+    {name:'ขายทรัพย์มรดกได้ต่ำกว่าราคาประเมิน', keep:65},
+    {name:'ภาษีและค่าจัดการมรดก (เหตุการณ์สมมติในเกม)', keep:90},
+    {name:'พินัยกรรมบริจาคส่วนหนึ่งให้สาธารณะ', keep:50},
+  ];
+  const event = pickOne(events);
+  const net = Math.floor(base * event.keep / 100);
+  return {pool, base, net, deduction:base-net, keep:event.keep, name:event.name};
+}
+function inheritanceText(d){
+  const x = d.inheritance;
+  if(!x) return d.share > 0 ? 'มรดกส่วนของคุณ ฿'+baht(d.share) : 'ไม่มีมรดกเหลือถึงคุณ';
+  if(!x.pool) return 'ไม่มีทรัพย์มรดกสุทธิเหลือให้แบ่ง';
+  return x.name+'\nกองมรดกสุทธิ ฿'+baht(x.pool)+' · ส่วนแบ่งก่อนเหตุการณ์ ฿'+baht(x.base)+'\nได้รับ '+x.keep+'% ของส่วนแบ่ง · หัก ฿'+baht(x.deduction)+'\nมรดกที่ได้รับจริง ฿'+baht(x.net);
+}
 // สร้างรุ่นถัดไป
 function makeChild(p, res, kidIdx){
   const kid = p.kids[kidIdx];
   const q = incomeToQ(kid.hhInc);
   const nKids = p.kids.length;
-  const share = Math.round(res.heirsEstate / (nKids + (p.spouse ? 1 : 0)));
+  const inheritance = rollInheritance(res.heirsEstate, nKids + (p.spouse && !p.spouse.separated ? 1 : 0));
+  const share = inheritance.net;
   const anc = { name:p.name, gen:p.gen, prov:p.prov, q:p.qBirth, career:res.career, age:p.age, score:Math.round(res.score), pct:res.pct, fruits:Object.keys(res.fruits), erupted:res.ledger.filter(l=>!l.good&&l.erupt).length, ssTier:p.flags.ssTier||0 };
   return newPlayer({ tier:p.tier, prov:p.prov, q, religion:p.religion, sex:kid.sex, name:kid.name, gen:p.gen+1,
     money: QS[q].start + (p.flags.kidInsurance ? 300000 : 0), famDebt: Math.min(kid.debtAt, 2000000), skipGen: !!p.flags.grandRaise,
     Jbonus: Math.round((clamp(kid.kv - res.kvPenalty,0,100) - 50)/5), Sbonus: res.fruits.edu ? 10 : 0, Cbonus: (res.fruits.honest ? 10 : 0) - (res.kvPenalty ? 10 : 0),
     family: { parentName: p.name }, ancestors: [...p.ancestors],
-    parentDeath: { age: p.age - kid.born, name: p.name, ageAtDeath: p.age, sex: p.sex, other: (p.spouse && !p.spouse.separated) ? p.spouse.sex : null, otherName: (p.spouse && !p.spouse.separated) ? p.spouse.name : null, share, anc, familyFruit: !!res.fruits.family },
+    parentDeath: { age: p.age - kid.born, name: p.name, ageAtDeath: p.age, sex: p.sex, other: (p.spouse && !p.spouse.separated) ? p.spouse.sex : null, otherName: (p.spouse && !p.spouse.separated) ? p.spouse.name : null, share, inheritance, anc, familyFruit: !!res.fruits.family },
     extra: { flags: { ssTier: p.flags.ssTier || 0 } } });
 }
 
@@ -2032,9 +2074,9 @@ function depthStage1(p, io, beats){
     const pool = (sx==='M' ? (mu?NAMES_MU_M:NAMES_M) : (mu?NAMES_MU_F:NAMES_F)).filter(n => n !== p.name); const name = pickOne(pool);
     p.friend = { name, bond:0, fate: wpick([['rich',30],['ok',45],['poor',25]], x=>x[1])[0] };
     const c = await choose(p, io, { kind:'fork', bg:'school', title:`${name} เพื่อนสนิทของคุณโดนรุ่นพี่รีดไถเงินค่าขนม`, choices:[
-      { label:'เข้าไปช่วยเพื่อน', sub:'H−3 · 30% โดนรุ่นพี่หมายหัว', k:'help' },
-      { label:'แบ่งเงินค่าขนมให้เพื่อน', sub:'฿−2,000', k:'share' },
-      { label:'ทำเป็นไม่เห็น', sub:'ไม่มีผลทันที', k:'ignore' } ]});
+      { label:'เข้าไปช่วยเพื่อน', sub:'H−3 · 30% โดนรุ่นพี่หมายหัว', k:'help', story:'คุณเข้าไปยืนข้างเพื่อนและขอให้รุ่นพี่หยุด เพื่อนเห็นว่าคุณไม่ได้ปล่อยให้เขารับมือคนเดียว' },
+      { label:'แบ่งเงินค่าขนมให้เพื่อน', sub:'฿−2,000', k:'share', story:'คุณแบ่งเงินค่าขนมให้เพื่อนรวม 2,000 บาท เพื่อให้เขามีเงินใช้หลังถูกรีดไถ' },
+      { label:'ทำเป็นไม่เห็น', sub:'ไม่มีผลทันที', k:'ignore', story:'คุณเลือกเดินผ่านไปโดยไม่เข้าไปช่วย เพื่อนเห็นคุณเดินจากไปและเริ่มห่างเหิน' } ]});
     if(c.k==='help'){ p.friend.bond = 2; fx(p,{H:-3,K:3}); if(chance(.3)){ fx(p,{J:-5}); note(p,'รุ่นพี่หมายหัวคุณไปทั้งเทอม แต่เพื่อนไม่เคยลืม'); } else note(p,`${name}ซึ้งใจมาก คุณสองคนสนิทกันขึ้นอีก`); }
     if(c.k==='share'){ p.friend.bond = 1; fx(p,{m:-2000,K:1}); }
     if(c.k==='ignore'){ p.friend.bond = 0; note(p,`${name}เริ่มห่างจากคุณไป`); }
@@ -2066,9 +2108,9 @@ function depthStage2(p, io, beats){
   if(!['abroad','cadet','sports'].includes(p.uni)) thaiBeats(2, p, io, beats);
   beats.push({ age:20, run: async () => {
     const c = await choose(p, io, { kind:'minor', bg:'city', title:p.uni === 'abroad' ? 'เพื่อนนานาชาติชวนไปงานเลี้ยงหลังสอบ ทุกคนชนแก้วกัน' : 'งานเลี้ยงรุ่น ทุกคนชนแก้วกันไม่หยุด', text:'นิสัยการดื่มมักติดตัวไปจนทำงาน', choices:[
-      { label:'ดื่มหนัก ไปต่อทุกร้าน', sub:'C+6 J+3 · เสี่ยงตับและเมาแล้วขับ', k:2 },
-      { label:'ดื่มพอเป็นพิธี', sub:'C+3', k:1 },
-      { label:'ไม่ดื่มเลย', sub:'C−2', k:0 } ]});
+      { label:'ดื่มหนัก ไปต่อทุกร้าน', sub:'C+6 J+3 · เสี่ยงตับและเมาแล้วขับ', k:2, story:'คุณดื่มหนักและไปต่อกับกลุ่มเพื่อนจนดึก การดื่มเริ่มกลายเป็นส่วนหนึ่งของการสังสรรค์' },
+      { label:'ดื่มพอเป็นพิธี', sub:'C+3', k:1, story:'คุณจิบเพียงเล็กน้อยแล้วเปลี่ยนเป็นน้ำเปล่า อยู่คุยกับเพื่อนต่อ ก่อนเรียกรถกลับที่พัก' },
+      { label:'ไม่ดื่มเลย', sub:'C−2', k:0, story:'คุณปฏิเสธเครื่องดื่มแอลกอฮอล์และเลือกน้ำเปล่า ยังนั่งคุยกับเพื่อนได้โดยไม่ต้องดื่ม' } ]});
     hab(p).drink = c.k; fx(p, [{C:-2},{C:3},{C:6,J:3}][c.k]);
   }});
 }
@@ -2516,12 +2558,13 @@ function fresh(p, line){ if(!line) return ''; const key = line.replace(/฿?[\d.
 function storyFor(p, o, c){
   try {
     if(!o || !c || SKIP_KIND.test(o.kind || '')) return '';
+    if(c.story) return typeof c.story === 'function' ? c.story(p) : c.story;
     const X = ctxOf(p);
     let s = '';
     for(const S of STORIES){ if(S.t(o, c)){ s = S.f(X, p, o, c) || ''; break; } }
     if(!s) s = genericStory(p, X, o, c);
     p._recent = p._recent || [];
-    if(p._recent.includes(s)) s = genericStory(p, X, o, c);
+    // Keep the selected event's explanation even when it was seen before.
     p._recent.push(s); if(p._recent.length > 8) p._recent.shift();
     return s;
   } catch(e){ return ''; }
@@ -5147,6 +5190,7 @@ function hud(p){
   $('#hName').textContent = p.name + (p.gen > 1 ? ` · รุ่นที่ ${p.gen}` : '');
   $('#hAge').innerHTML = `${ic('clock')}${p.age}`;
   $('#hWhere').textContent = `${p.prov} · ${QS[p.qBirth].name}${p.career && p.age < 60 ? ' · ' + CAREERS[p.career].name : ''}`;
+  $('#hIncome').textContent = incomeCaption(p);
   const bar = v => `<span class="bar"><i style="width:${clamp(v,0,100)}%"></i></span>`;
   const debt = totalDebt(p);
   $('#hStats').innerHTML = [
