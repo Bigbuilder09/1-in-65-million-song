@@ -6,13 +6,13 @@
 <meta property="og:site_name" content="1 ใน 65 ล้าน">
 <meta property="og:title" content="1 ใน 65 ล้าน · คุณจะเกิดเป็นใคร ในประเทศไทย?">
 <meta property="og:description" content="เกมจำลองชีวิตคนไทยแบบ 8-bit สุ่มจังหวัด ฐานะ ครอบครัว แล้วดูว่าชีวิตจะไปได้ไกลแค่ไหน เล่นบนเบราว์เซอร์ได้เลย">
-<meta property="og:url" content="https://1-in-65-million-song.pages.dev/">
-<meta property="og:image" content="https://1-in-65-million-song.pages.dev/og.png">
+<meta property="og:url" content="https://one-in-65m.pages.dev/">
+<meta property="og:image" content="https://one-in-65m.pages.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="th_TH">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://1-in-65-million-song.pages.dev/og.png">
+<meta name="twitter:image" content="https://one-in-65m.pages.dev/og.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -350,6 +350,12 @@ const NAMES_MU_F = ['ฟาตีมะห์','นูรีซัน','ซา�
 
 // ===== อาชีพ (Stage 3) =====
 const CAREERS = {
+  police:{ name:'ตำรวจ', cost:0, start:20000, caps:{good:100000,mid:60000,bad:35000}, grow:.045, sig:.04, sens:0, fx:{C:5,J:3}, odds:[25,55,20], ret:'gov', bg:'police', needDegree:true,
+    outText:{good:'ผลงานสืบสวนและความไว้ใจจากชุมชนพาคุณขึ้นเป็นหัวหน้าชุด',mid:'คุณทำคดีและดูแลประชาชนในพื้นที่ เลื่อนขั้นตามผลงาน',bad:'คดีค้างและงานเวรสะสม การเลื่อนตำแหน่งช้ากว่าที่หวัง'} },
+  athlete:{ name:'นักกีฬาอาชีพ', cost:30000, start:25000, caps:{good:450000,mid:75000,bad:18000}, grow:.12, sig:.30, sens:.7, fx:{H:3,J:5}, odds:[20,55,25], ret:'allow', bg:'stadium', maxAge:30,
+    outText:{good:'คุณติดทีมชุดใหญ่และได้สัญญาที่ดีขึ้น ชื่อเริ่มเป็นที่รู้จัก',mid:'มีรายการให้ลงแข่งสม่ำเสมอ รายได้ขึ้นกับผลงานแต่ละฤดูกาล',bad:'ฟอร์มไม่นิ่ง คุณต้องพิสูจน์ตัวเองใหม่ในทีมระดับรอง'} },
+  coach:{ name:'ผู้ฝึกสอนกีฬา', cost:20000, start:22000, caps:{good:120000,mid:50000,bad:28000}, grow:.05, sig:.12, sens:.4, fx:{S:3,C:3}, odds:[25,55,20], ret:'allow', bg:'training',
+    outText:{good:'ลูกทีมคว้าแชมป์ หลายสโมสรติดต่อให้คุณไปคุมทีม',mid:'คุณสอนเยาวชนและดูแลทีมท้องถิ่นได้อย่างต่อเนื่อง',bad:'นักเรียนสมัครน้อย ต้องแบ่งเวลารับสอนรายชั่วโมง'} },
   farm:   { name:'เกษตรกร', cost:100000, start:8000,  caps:{good:45000,mid:18000,bad:11000}, grow:.045, sig:.45, sens:.5, fx:{H:5,J:3}, odds:[20,50,30], ret:'allow', bg:'farm',
             outText:{good:'ฟ้าฝนเป็นใจ ผลผลิตดีจนขยายสวนเป็นหลายร้อยไร่', mid:'รายได้พอกินพอใช้ ขึ้นลงตามราคาพืชและฟ้าฝน', bad:'ขาดทุนแทบทุก 1 ใน 3 ปี'} },
   factory:{ name:'แรงงานโรงงาน', cost:0, start:11000, caps:{good:40000,mid:22000,bad:15000}, grow:.035, sig:.10, sens:.8, fx:{H:-5}, odds:[15,65,20], ret:'sso', bg:'factory',
@@ -715,8 +721,8 @@ async function runEvent(p, io, e){
 async function seriousIllness(p, io, lost, who = 'คุณ'){
   const isKid = who !== 'คุณ';
   const privCost = isKid ? 500000 : (p.age >= 60 ? 800000 : 500000);
-  const ins = (isKid && p.flags.kidInsurance) ? .2 : (p.insurance ? .3 : (p.career === 'gov' && p.age >= 22 ? .2 : 1));
-  const govBonus = (p.career === 'gov') ? 10 : 0; const far = (p.tier >= 5) ? -10 : 0;
+  const ins = (isKid && p.flags.kidInsurance) ? .2 : (p.insurance ? .3 : (['gov','police'].includes(p.career) && p.age >= 22 ? .2 : 1));
+  const govBonus = (['gov','police'].includes(p.career)) ? 10 : 0; const far = (p.tier >= 5) ? -10 : 0;
   const c = await choose(p, io, { kind:'fork', bg:'hospital', title: isKid ? 'ลูกป่วยหนัก ต้องเลือกวิธีรักษา' : 'ป่วยหนัก ต้องเลือกวิธีรักษา',
     text: 'ผลการรักษาสุ่มตามโรงพยาบาลที่เลือก',
     choices: [
@@ -747,7 +753,7 @@ async function debtSpiral(p, io){
   p.flags.spiralCool = p.age + 4;
   if(c.k === 'clinic'){ p.flags.restructured = true; const mv = Math.min(p.debt.i, 200000); p.debt.i -= mv; p.debt.f += mv; fx(p,{ C:-3 }); note(p, mv ? `เข้าคลินิกแก้หนี้ ดอกเบี้ยในระบบเหลือ 3% และย้ายหนี้นอกระบบ ฿${baht(mv)} เข้าโครงการรัฐ` : 'เข้าคลินิกแก้หนี้ ดอกเบี้ยลดเหลือ 3% ต่อปี'); if(p.debt.i > 0) note(p, `ยังเหลือหนี้นอกระบบ ฿${baht(p.debt.i)} ดอก 20% ต่อปี`); }
   if(c.k === 'sell'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } addMoney(p, got); for(const k of ['i','f','k']){ const pay=Math.min(p.money,p.debt[k]); p.debt[k]-=pay; p.money-=pay; } fx(p,{ J:-10 }); note(p,`ขายทรัพย์สินได้ ฿${baht(got)} นำไปใช้หนี้`); }
-  if(c.k === 'bk'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } got += Math.max(0, p.money); p.money = 0; for(const k of ['i','f','k']){ const pay=Math.min(got,p.debt[k]); p.debt[k]-=pay; got-=pay; } if(got > 0){ p.money = got; note(p, `ขายทรัพย์ได้เกินหนี้ ได้เงินส่วนที่เหลือคืน ฿${baht(got)}`); } p.status.bankrupt = 3; p.flags.bkOnce = true; p.flags.bkRecord = p.age + 13; p.flags.spiralCool = p.age + 6; fx(p,{ C:-30, J:-20, H:-10 }); p.Jbase = Math.max(0, p.Jbase - 10); p.guestsMult *= .75; p.kids.forEach(k => k.kv -= 10); p.incomeBoost *= .85; if(p.spouse && !p.spouse.separated && chance(.35)){ p.flags.fightW = (p.flags.fightW||0) + 15; note(p, `${p.spouse.name}เก็บของกลับไปอยู่บ้านพ่อแม่สักพัก`); } if(p.career==='gov'){ p.career = p.degree ? 'office' : 'factory'; p.cOut='mid'; p.cYears=0; p.flags.noPension = true; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } else if(['office','abroad'].includes(p.career)){ p.career = p.degree ? 'office' : 'factory'; } note(p, totalDebt(p) > 0 ? `เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขาย หนี้ที่เหลือ ฿${baht(totalDebt(p))} หยุดคิดดอกเบี้ย` : 'เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขายจนใช้หนี้ได้ครบ'); if(totalDebt(p) > 0) note(p,'อีก 3 ปีหนี้ที่เหลือจะถูกล้าง'); }
+  if(c.k === 'bk'){ let got = 0; if(p.house){ got += p.house.value*.6; p.house = null; } if(p.car){ got += p.car.price ? Math.round(p.car.price * .4) : 150000; p.car = false; } got += Math.max(0, p.money); p.money = 0; for(const k of ['i','f','k']){ const pay=Math.min(got,p.debt[k]); p.debt[k]-=pay; got-=pay; } if(got > 0){ p.money = got; note(p, `ขายทรัพย์ได้เกินหนี้ ได้เงินส่วนที่เหลือคืน ฿${baht(got)}`); } p.status.bankrupt = 3; p.flags.bkOnce = true; p.flags.bkRecord = p.age + 13; p.flags.spiralCool = p.age + 6; fx(p,{ C:-30, J:-20, H:-10 }); p.Jbase = Math.max(0, p.Jbase - 10); p.guestsMult *= .75; p.kids.forEach(k => k.kv -= 10); p.incomeBoost *= .85; if(p.spouse && !p.spouse.separated && chance(.35)){ p.flags.fightW = (p.flags.fightW||0) + 15; note(p, `${p.spouse.name}เก็บของกลับไปอยู่บ้านพ่อแม่สักพัก`); } if(['gov','police'].includes(p.career)){ p.career = p.degree ? 'office' : 'factory'; p.cOut='mid'; p.cYears=0; p.flags.noPension = true; note(p,'ข้าราชการที่ล้มละลายต้องออกจากราชการ'); } else if(['office','abroad'].includes(p.career)){ p.career = p.degree ? 'office' : 'factory'; } note(p, totalDebt(p) > 0 ? `เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขาย หนี้ที่เหลือ ฿${baht(totalDebt(p))} หยุดคิดดอกเบี้ย` : 'เจ้าพนักงานพิทักษ์ทรัพย์ยึดทรัพย์สินไปขายจนใช้หนี้ได้ครบ'); if(totalDebt(p) > 0) note(p,'อีก 3 ปีหนี้ที่เหลือจะถูกล้าง'); }
   if(c.k === 'flee'){ p.flags.spiralCool = p.age + 8; fx(p,{ K:-10 }); tagBad(p,'debtflee','หนีหนี้', td); p.flags.fled = true; note(p,'คุณเลือกหนีหนี้ หนี้ยังโตต่อเงียบ ๆ'); }
 }
 async function offerDeed(p, io){
@@ -954,6 +960,8 @@ async function stage1(p, io){
 
 // ---------- STAGE 2 มหาวิทยาลัย ----------
 const UNI = {
+  cadet:{name:'โรงเรียนนายร้อยตำรวจ',now:{S:12,H:8,C:8},odds:[25,60,15],good:{S:8,C:5},mid:{S:4},bad:{J:-8}},
+  sports:{name:'มหาวิทยาลัยสายกีฬา / โครงการนักกีฬา',now:{S:8,H:12,C:5},odds:[25,55,20],good:{S:8,H:3},mid:{S:4},bad:{H:-5,J:-5}},
   work:  { name:'ไม่เรียนต่อ ทำงานเลย', now:{}, odds:[20,60,20], good:{m:50000,C:5}, mid:{}, bad:{J:-10} },
   open:  { name:'มหาวิทยาลัยใกล้บ้าน', now:{S:10,C:5}, odds:[20,55,25], good:{S:8}, mid:{S:3}, bad:{} },
   top:   { name:'ม.รัฐชั้นนำ', now:{S:20,C:15}, odds:[30,55,15], good:{S:10,C:10}, mid:{S:5}, bad:{J:-10} },
@@ -961,6 +969,16 @@ const UNI = {
   abroad:{ name:'เรียนต่างประเทศ', now:{S:20,C:20,J:5}, odds:[35,50,15], good:{S:10}, mid:{S:5}, bad:{J:-15} },
 };
 const S2_MINORS = {
+  cadet:[
+    {title:'ฝึกเพิ่มเติมกับเพื่อนหลังเลิกแถวไหม',bg:'academy',sub:'H+5 C+4 · J−3',run:p=>{fx(p,{H:5,C:4,J:-3});note(p,'จากคนที่วิ่งรั้งท้าย คุณเริ่มตามเพื่อนทัน และหันไปช่วยคนที่ยังเหนื่อยอยู่');}},
+    {title:'เลือกฝึกงานด้านสืบสวนและหลักฐานไหม',bg:'police',sub:'S+7 · H−2',run:p=>{fx(p,{S:7,H:-2});note(p,'อาจารย์ให้คุณเรียงเหตุการณ์จากหลักฐาน ไม่ใช่จากความรู้สึก สมุดบันทึกเล่มเล็กเต็มไปด้วยคำถาม');}},
+    {title:'ร่วมโครงการช่วยประชาชนในชุมชนไหม',bg:'police',sub:'C+5 J+4 K+5',run:p=>{fx(p,{C:5,J:4,K:5});note(p,'คุณนั่งฟังชาวบ้านเล่าปัญหาจนเย็น เครื่องแบบเริ่มมีความหมายมากกว่ายศบนบ่า');}}
+  ],
+  sports:[
+    {title:'เข้าค่ายฝึกนักกีฬาช่วงปิดเทอมไหม',bg:'training',sub:'S+7 H+4 · J−3',run:p=>{fx(p,{S:7,H:4,J:-3});note(p,'ตารางชีวิตเปลี่ยนเป็นซ้อม เรียน และพัก คุณเริ่มจดสถิติของตัวเองทุกสัปดาห์');}},
+    {title:'ลงแข่งรายการมหาวิทยาลัยไหม',bg:'stadium',sub:'C+6 S+4 · H−3',run:p=>{fx(p,{C:6,S:4,H:-3});p.flags.sportRecord=true;note(p,'ไม่ว่าผลบนป้ายคะแนนจะเป็นอย่างไร คุณมีผลงานการแข่งขันชิ้นแรกไว้ยื่นคัดตัว');}},
+    {title:'เรียนการวางแผนฝึกและฟื้นฟูร่างกายเพิ่มไหม',bg:'training',sub:'S+5 H+5',run:p=>{fx(p,{S:5,H:5});note(p,'คุณเรียนรู้ว่าการพักเป็นส่วนหนึ่งของการฝึก และเริ่มมองเห็นทางเป็นโค้ชในอนาคต');}}
+  ],
   work: [
     { title:'เข้ากรุงเทพฯ ไปหางานทำไหม', sub:'฿+60,000 C+3 · J−5', run:p=>fx(p,{m:60000,C:3,J:-5}) },
     { title:p=>p.sex==='M'&&p.religion==='พุทธ'?'บวชเรียน 2 ปีไหม':'เรียน กศน. ให้ได้วุฒิ ม.6 ไหม', sub:p=>p.sex==='M'&&p.religion==='พุทธ'?'S+5 · ไม่มีรายได้ 2 ปี':'S+3', run:p=>{ if(p.sex==='M'&&p.religion==='พุทธ'){ fx(p,{S:5,K:10,m:-60000}); } else fx(p,{S:3}); } },
@@ -981,7 +999,7 @@ const S2_MINORS = {
   abroad: [
     { title:'ทำงานพาร์ทไทม์ที่ต่างประเทศไหม', sub:'฿+200,000 S+3 · H−5', run:p=>fx(p,{m:200000,S:3,H:-5}) },
     { title:'ต่อปริญญาโทอีก 2 ปีไหม', sub:'S+15 C+10 · รายได้งานแรก +15% · เริ่มงานช้า 2 ปี', cost:3000000, run:p=>{ fx(p,{S:15,C:10}); p.eduBoost=(p.eduBoost||1)*1.15; p.flags.master=true; } },
-    { title:'ทำงานต่อที่ต่างประเทศหลังเรียนจบไหม', sub:'รายได้ช่วงทำงาน ×2 · C−10 J−5', run:p=>{ p.flags.stayAbroad=true; fx(p,{C:-10,J:-5}); } },
+
   ],
 };
 const S2_EVENTS = [
@@ -1006,13 +1024,46 @@ const S2_EVENTS = [
     } },
   { id:'moto', title:'อุบัติเหตุมอเตอร์ไซค์', bg:'road', text:()=>'คืนฝนตก มอเตอร์ไซค์ลื่นล้มกลางถนน', w:p=>12+(p.tier>=4?8:0)-(p.uni==='abroad'?5:0),
     run: async (p, io) => { fx(p,{H:-20}); if(chance(.02)) throw new Death('อุบัติเหตุมอเตอร์ไซค์'); await seriousIllness(p, io, 20); } },
-  { id:'sotus', title:'ระบบรับน้อง SOTUS', bg:'uni', text:()=>'รุ่นพี่ตะโกนว้ากใส่น้องปีหนึ่งทุกเย็น', w:p=>(p.uni==='work'||p.uni==='abroad')?null:10,
+  { id:'sotus', title:'ระบบรับน้อง SOTUS', bg:'uni', text:()=>'รุ่นพี่ตะโกนว้ากใส่น้องปีหนึ่งทุกเย็น', w:p=>(['work','abroad','cadet','sports'].includes(p.uni))?null:10,
     run: async p => { fx(p,{C:5,J:-10}); if(chance(.1)){ fx(p,{H:-10}); note(p,'บาดเจ็บระหว่างกิจกรรมรับน้อง'); } } },
 ];
+
+
+// Four guaranteed chapters for the overseas university route.
+function abroadStudyBeats(p, io, beats){
+  p.flags.livesAbroad = true;
+  const chapters = [
+    { age:18, bg:'dorm', title:'คืนแรกในประเทศที่ยังไม่คุ้นเคย', text:'จากสนามบินถึงมหาวิทยาลัย คุณลากกระเป๋าผ่านป้ายที่อ่านได้ไม่ครบ ห้องพักคืนนี้เงียบกว่าที่คิด จะใช้ชีวิตแบบไหนในปีแรก', choices:[
+      { label:'อยู่หอมหาวิทยาลัยกับรูมเมตนานาชาติ', sub:'C+5 S+3 · J−2', k:'dorm', effect:{C:5,S:3,J:-2}, story:'รูมเมตช่วยสอนวิธีขึ้นรถและซื้อของ คุณสอนเขาพูดคำว่าขอบคุณ ครัวรวมเริ่มมีเสียงหัวเราะ' },
+      { label:'แชร์ห้องกับนักเรียนไทย', sub:'J+5 C+2', k:'share', effect:{J:5,C:2}, story:'ข้าวมื้อแรกเป็นไข่เจียวในครัวเล็ก ๆ รุ่นพี่ช่วยอ่านเอกสารเปิดบัญชี ความกลัวค่อย ๆ ลดลง' }
+    ]},
+    { age:19, bg:'uni', title:'ฟังเลกเชอร์ทัน แต่ยังไม่กล้าพูด', text:'อาจารย์ถามความเห็นกลางห้อง ทุกคนเริ่มถกกันก่อนคุณแปลคำตอบในหัวเสร็จ งานกลุ่มแรกกำลังจะถึงกำหนด', choices:[
+      { label:'เข้ากลุ่มฝึกภาษาและขอคำปรึกษาอาจารย์', sub:'S+7 C+4 · H−2', k:'practice', effect:{S:7,C:4,H:-2}, story:'คุณซ้อมพรีเซนต์หน้ากระจกหลายคืน วันส่งงานยังพูดติดขัด แต่เพื่อนรอฟังจนจบ' },
+      { label:'เริ่มจากอ่านเพิ่มและรับผิดชอบงานเขียน', sub:'S+4 J+2', k:'write', effect:{S:4,J:2}, story:'คุณเขียนสรุปที่ทุกคนใช้ได้จริง เพื่อนเริ่มชวนคุยจากงานชิ้นนั้น แม้ยังต้องใช้เวลาฝึกพูด' }
+    ]},
+    { age:20, bg:'abroad', title:'วันหยุดที่บ้านกับที่นี่ไม่ตรงกัน', text:'รูปครอบครัวกินข้าวพร้อมหน้าปรากฏบนหน้าจอ ข้างนอกหน้าต่างของคุณมืดแล้ว และพรุ่งนี้ยังมีเรียน', choices:[
+      { label:'นัดวิดีโอคอลและทำอาหารบ้านเรากับเพื่อน', sub:'J+6 C+3', k:'call', effect:{J:6,C:3}, story:'คุณตั้งเวลาคุยกับคนที่บ้าน แล้วชวนเพื่อนชิมอาหารไทย ความคิดถึงยังอยู่ แต่ไม่ต้องเก็บไว้คนเดียว' },
+      { label:'วางแผนบินกลับช่วงปิดเทอมแล้วกลับมาเรียน', sub:'ค่าตั๋ว ฿60,000 · J+10', cost:60000, k:'visit', effect:{J:10}, story:'คุณได้กินข้าวที่บ้านอีกครั้ง ก่อนลากกระเป๋ากลับมาเรียนเทอมใหม่ คราวนี้ในกระเป๋ามีของฝากจากครอบครัว' }
+    ]},
+    { age:21, bg:'office', title:'โอกาสฝึกงานก่อนปีสุดท้าย', text:'ศูนย์อาชีพส่งประกาศฝึกงานที่รับนักศึกษาต่างชาติ คุณตรวจเงื่อนไขสิทธิทำงานกับมหาวิทยาลัยก่อนสมัคร', choices:[
+      { label:'สมัครฝึกงานควบกับโปรเจกต์จบ', sub:'S+6 C+6 · H−4', k:'intern', effect:{S:6,C:6,H:-4}, story:'คุณเรียนรู้การประชุมและส่งงานในอีกภาษา หัวหน้าให้คำแนะนำเรื่องพอร์ตสำหรับสมัครงานหลังจบ' },
+      { label:'ทำโปรเจกต์วิจัยกับอาจารย์', sub:'S+9 · C+2', k:'research', effect:{S:9,C:2}, story:'คุณใช้เวลาหลายเดือนในห้องสมุด ผลงานชิ้นนี้ทำให้การเรียนต่อหรือสมัครงานมีสิ่งที่จับต้องได้' }
+    ]}
+  ];
+  chapters.forEach(ch => beats.push({ age:ch.age, run:async () => {
+    if(p.uni !== 'abroad') return;
+    const c = await choose(p, io, { kind:'life', bg:ch.bg, title:ch.title, text:ch.text, choices:ch.choices });
+    const selected = ch.choices.find(x => x.k === c.k);
+    fx(p,selected.effect); note(p,selected.story);
+    if(ch.age === 18) p.flags.abroadHousing=c.k;
+  }}));
+}
 
 async function stage2(p, io){
   p.stage = 2; famDebtTick(p); p.flags.uniBad = p.flags.uniBad || 0;
   const pick = async (exclude = []) => choose(p, io, { kind:'main', bg:'uni', title:'หลังจบ ม.6 จะไปทางไหน', text:'ราคารวม 4 ปีรวมค่าครองชีพ', choices: [
+    { label:UNI.cadet.name, sub:'เส้นทางจำลอง 4 ปี · คัดเลือกด้วย S และ H · เปิดอาชีพตำรวจ', cost:120000, defer:true, k:'cadet', cond:!p.dropout && !p.flags.restricted && !exclude.includes('cadet'), condText:'ต้องจบ ม.6 ไม่มีประวัติติดคุก และยังไม่ตกคัดเลือก' },
+    { label:UNI.sports.name, sub:'เรียนและฝึก 4 ปี · คัดตัวด้วย H และ S · เปิดอาชีพนักกีฬา/โค้ช', cost:200000, defer:true, k:'sports', cond:!p.dropout && !exclude.includes('sports'), condText:'ต้องจบ ม.6 และยังไม่ตกคัดตัว' },
     { label:UNI.work.name, sub:'มีรายได้ทันที · เข้าได้บางอาชีพ', k:'work' },
     { label:UNI.open.name, sub:'S+10 C+5', cost:80000, loan:'kys', k:'open', cond: !p.dropout, condText:'ออกกลางคันหลัง ม.3' },
     { label:UNI.top.name, sub:`ต้องสอบ (ติด ${clamp(Math.round(10+(p.S-50)-(p.school==='inter'&&!p.flags.thaiTutor?10:0)),2,95)}%) · S+20 C+15`, cost:360000, loan:'kys', defer:true, k:'top', cond: !p.dropout && !exclude.includes('top'), condText: p.dropout?'ออกกลางคันหลัง ม.3':'สอบไม่ติด' },
@@ -1020,10 +1071,17 @@ async function stage2(p, io){
     { label:UNI.abroad.name, sub:'S+20 C+20 J+5', cost:6000000, k:'abroad', cond: !p.dropout, condText:'ออกกลางคันหลัง ม.3' },
   ]});
   let c = await pick();
+  const failedRoutes=[];
+  while(['top','cadet','sports'].includes(c.k)){
   if(c.k === 'top'){
     const pr = clamp(10+(p.S-50)-(p.school==='inter'&&!p.flags.thaiTutor?10:0), 2, 95)/100;
-    if(chance(pr)){ spend(p, 360000, 'kys'); note(p,'สอบติดมหาวิทยาลัยรัฐชั้นนำ'); }
-    else { note(p,'สอบไม่ติด ต้องเลือกทางใหม่'); c = await pick(['top']); }
+    if(chance(pr)){ spend(p, 360000, 'kys'); note(p,'สอบติดมหาวิทยาลัยรัฐชั้นนำ'); break; }
+    else { note(p,'สอบไม่ติด ต้องเลือกทางใหม่'); failedRoutes.push('top'); c = await pick(failedRoutes); continue; }
+  }
+    const pr=clamp(c.k==='cadet' ? 25+.55*(p.S-40)+.35*(p.H-40) : 30+.6*(p.H-40)+.3*(p.S-40),5,95);
+    if(chance(pr/100)){ spend(p,c.cost,false); note(p,c.k==='cadet'?'ผ่านการคัดเลือกเข้าโรงเรียนนายร้อยตำรวจ':'ผ่านการคัดตัวเข้าโครงการนักกีฬา'); break; }
+    note(p,c.k==='cadet'?'ครั้งนี้ไม่ผ่านการคัดเลือก ยังมีเส้นทางอื่นให้เลือก':'ครั้งนี้ไม่ติดโครงการนักกีฬา ยังเลือกเรียนหรือทำงานทางอื่นได้');
+    failedRoutes.push(c.k); c=await pick(failedRoutes);
   }
   p.uni = c.k; p.uniPaid = c.cost || 0; p.degree = c.k === 'work' ? null : c.k;
   if(c.k === 'work') p.flags.uniIncome = 25000;
@@ -1031,13 +1089,17 @@ async function stage2(p, io){
   const beats = [];
   S2_MINORS[c.k].forEach((m, i) => beats.push({ age: 19 + i, run: async () => {
     const t = typeof m.title === 'function' ? m.title(p) : m.title; const sub = typeof m.sub === 'function' ? m.sub(p) : m.sub;
-    const yes = await yesno(p, io, { title:t, sub, noSub:m.noSub, cost:m.cost||0, yes:m.yes, no:m.no, loan: m.cost >= 1000000 ? 'bank' : false });
+    const yes = await yesno(p, io, { title:t, bg:m.bg, sub, noSub:m.noSub, cost:m.cost||0, yes:m.yes, no:m.no, loan: m.cost >= 1000000 ? 'bank' : false });
     if(yes) m.run(p); else if(m.runNo) m.runNo(p);
   }}));
+  if(p.uni === 'abroad') abroadStudyBeats(p, io, beats);
+  if(['cadet','sports'].includes(p.uni)){
+    beats.push({age:18,run:()=>say(p,io,{kind:'event',bg:p.uni==='cadet'?'academy':'training',title:p.uni==='cadet'?'วันแรกในรั้วนายร้อย':'ชีวิตที่มีสนามเป็นห้องเรียนอีกห้อง',text:p.uni==='cadet'?'เสียงนกหวีดดังตั้งแต่ฟ้ายังไม่สว่าง คุณพับผ้าห่ม เก็บเตียง แล้ววิ่งลงลานฝึก ก่อนเข้าเรียนกฎหมายและหน้าที่ต่อประชาชน':'คุณหิ้วรองเท้าคู่เก่าเข้าหอ โค้ชแปะตารางเรียนคู่กับตารางซ้อม เป้าหมายคือเรียนให้จบพร้อมพัฒนาฝีมือไปทีละฤดูกาล'})});
+  }
   depthStage2(p, io, beats);
   const evs = drawEvents(p, S2_EVENTS, 2); const eAges = distinctAges(evs.length, 18, 21);
   evs.forEach((e, i) => beats.push(evBeat(p, io, e, eAges[i])));
-  if(p.sex === 'M' && !p.rd) beats.push({ age:21, run: async () => {
+  if(p.sex === 'M' && !p.rd && p.uni!=='cadet') beats.push({ age:21, run: async () => {
     const red = chance(.35);
     await say(p, io, { kind:'event', bg:'army', title:'วันเกณฑ์ทหาร', text:'คุณล้วงมือลงในโถ ใบดำหรือใบแดง' + (red ? '\n\nใบแดง ต้องเป็นทหาร 2 ปี' : '\n\nใบดำ รอดตัวไป') });
     if(red){ fx(p,{H:5,J:-10,C:3}); p.flags.late=(p.flags.late||0)+2; if(chance(.03)){ fx(p,{H:-20}); note(p,'บาดเจ็บระหว่างประจำการ'); } }
@@ -1049,12 +1111,25 @@ async function stage2(p, io){
     let t = { good:'ช่วงนี้ของชีวิตไปได้สวย', mid:'ผ่านไปตามปกติ', bad:'ช่วงนี้มีแต่เรื่องเหนื่อย' }[o];
     if(p.uni==='open' && o==='bad'){ p.degree = null; t = 'คุณเรียนไม่จบ ต้องเริ่มทำงานด้วยวุฒิ ม.6'; }
     if(p.uni==='abroad' && o==='good') p.eduBoost = (p.eduBoost||1) * 1.2;
+    if(p.uni==='cadet'){p.flags.policeQualified=!!p.degree;t='คุณสำเร็จหลักสูตรนายร้อยตำรวจ พร้อมเลือกเข้าสู่อาชีพตำรวจ';}
+    if(p.uni==='sports'){p.flags.athleteQualified=!!p.degree;t='คุณจบสายกีฬา พร้อมเลือกคัดตัวเป็นนักกีฬาอาชีพหรือทำงานผู้ฝึกสอน';}
     if(p.status.depressed && chance(.5)) stOff(p,'depressed');
-    await say(p, io, { kind:'result', bg:'uni', title:`จบช่วงอายุ 18–22: ผลลัพธ์${OUT_TH[o]}`, text:t + (p.degree ? '\nคุณได้ปริญญาแล้ว' : ''), outcome:o });
+    await say(p, io, { kind:'result', bg:p.uni==='cadet'?'academy':p.uni==='sports'?'stadium':'uni', title:`จบช่วงอายุ 18–22: ผลลัพธ์${OUT_TH[o]}`, text:t + (p.degree ? '\nคุณได้ปริญญาแล้ว' : ''), outcome:o });
   }});
   await runBeats(p, io, beats, 22);
   if(p.flags.late) await years(p, io, p.flags.late, { silent:true });
   if(p.flags.master) await years(p, io, 2, { silent:true });
+  if(c.k === 'abroad'){
+    if(p.degree){
+      const dest = await choose(p, io, { kind:'main', bg:'airport', title:'หลังเรียนจบ จะเริ่มชีวิตที่ไหน', text:'กระเป๋าใบเดิมอยู่ข้างเตียง แต่ครั้งนี้คุณต้องเลือกเองว่าจะเรียกที่ไหนว่าบ้าน', choices:[
+        { label:'หางานและยื่นขอวีซ่าทำงานเพื่ออยู่ต่อ', sub:'สายออฟฟิศ ธุรกิจ หรือครีเอเตอร์ · รายได้ ×2 · C−10 J−5', k:'stay' },
+        { label:'กลับไทยพร้อมประสบการณ์จากต่างแดน', sub:'เลือกอาชีพในไทย · J+5', k:'home' }
+      ]});
+      p.flags.stayAbroad = dest.k === 'stay'; p.flags.livesAbroad = dest.k === 'stay';
+      fx(p, dest.k === 'stay' ? {C:-10,J:-5} : {J:5});
+      note(p, dest.k === 'stay' ? 'คุณเริ่มสมัครงานที่รองรับผู้จบใหม่ต่างชาติ ตรวจเงื่อนไขวีซ่า และต่อสัญญาห้องเช่าระหว่างเตรียมเอกสาร' : 'คุณคืนกุญแจห้อง กอดลาเพื่อน แล้วบินกลับไทยก่อนเริ่มหางาน');
+    } else { p.flags.livesAbroad=false; p.flags.stayAbroad=false; note(p,'เมื่อเส้นทางเรียนสิ้นสุด คุณจัดการเอกสารและเดินทางกลับไทยเพื่อเริ่มต้นใหม่'); }
+  }
 }
 
 // ---------- STAGE 3 อาชีพ ----------
@@ -1065,13 +1140,28 @@ async function arrested(p, io, why, sev = 1){
     { label:'รับสารภาพ', sub:`ติดคุก ${sev} ปี J−20 C−10`, k:'confess' },
     { label:'ใช้เส้นช่วย', sub:'ต้องมี C 60 ขึ้นไป · หลุด 70%', cost:100000, cond:p.C>=60, condText:'C ต้องถึง 60', k:'line' } ]});
   let jailed = 0;
-  const jail = (y, d) => { jailed = y; p.flags.restricted = true; p.status.prison = y; p.unemployed = Math.max(p.unemployed, y); fx(p, d); p.Jbase = Math.max(0,p.Jbase-10); if(p.career==='gov'){ p.flags.noPension = true; p.career = 'factory'; p.cOut='mid'; p.cYears=0; } if(p.career==='office'){ p.career = 'factory'; p.cOut='mid'; p.cYears=0; note(p,'บริษัทเลิกจ้างเพราะมีคดีติดตัว'); } if(p.career==='pol'){ p.flags.polOut = true; note(p,'คุณหลุดจากตำแหน่งทางการเมือง'); } note(p, `ติดคุก ${y} ปี`); };
+  const jail = (y, d) => { jailed = y; p.flags.restricted = true; p.status.prison = y; p.unemployed = Math.max(p.unemployed, y); fx(p, d); p.Jbase = Math.max(0,p.Jbase-10); if(['gov','police'].includes(p.career)){ p.flags.noPension = true; p.career = 'factory'; p.cOut='mid'; p.cYears=0; } if(p.career==='office'){ p.career = 'factory'; p.cOut='mid'; p.cYears=0; note(p,'บริษัทเลิกจ้างเพราะมีคดีติดตัว'); } if(p.career==='pol'){ p.flags.polOut = true; note(p,'คุณหลุดจากตำแหน่งทางการเมือง'); } note(p, `ติดคุก ${y} ปี`); };
   if(c.k==='fight'){ if(chance(clamp(40+0.3*(p.C-50),5,95)/100)) note(p,'ศาลยกฟ้อง คุณกลับไปทำงานเดิมได้'); else jail(3*sev, {J:-30,C:-20}); }
   if(c.k==='confess'){ jail(sev, {J:-20,C:-10}); if(['gov','office'].includes(p.career)){ p.career='factory'; p.cOut='mid'; p.cYears=0; } }
   if(c.k==='line'){ fx(p,{K:-10}); tagBad(p,'corrupt','ใช้เส้นช่วยคดี',100000); if(chance(.7)) note(p,'คดีเงียบหายไป'); else jail(5*sev, {J:-30,C:-20}); }
   if(jailed){ log(p, `ติดคุก ${jailed} ปี`); await say(p, io, { kind:'event', bg:'prison', title:`ติดคุก ${jailed} ปี`, text:'ชุดสีฟ้า เลขประจำตัว และห้องขังรวมกับอีก 40 คน\nหลังพ้นโทษ งานราชการ บริษัท และงานต่างประเทศจะปิดประตูใส่คุณ' }); }
 }
 const C_MINORS = {
+  police:[
+    {title:'ฝึกวิเคราะห์หลักฐานดิจิทัลเพิ่มไหม',bg:'police',sub:'S+8 · โอกาสผลดี +10%',run:p=>{fx(p,{S:8});p.flags.cAdj=(p.flags.cAdj||0)+10;note(p,'คุณเชื่อมข้อมูลหลายจุดจนเห็นเส้นทางของคดี ทีมเริ่มมอบหมายงานที่ซับซ้อนขึ้น');}},
+    {title:'รับหน้าที่ประสานงานชุมชนไหม',bg:'police',sub:'C+7 K+5 · J−3',run:p=>{fx(p,{C:7,K:5,J:-3});note(p,'เบอร์โทรของคุณถูกจดไว้ในหลายบ้าน บางคืนมีแค่คนอยากให้ช่วยรับฟัง');}},
+    {title:'ขอย้ายกลับพื้นที่ใกล้บ้านไหม',bg:'police',sub:'J+8 · C−4',run:p=>{fx(p,{J:8,C:-4});note(p,'คุณเริ่มงานกับทีมใหม่ และได้กลับไปกินข้าวกับครอบครัวบ่อยขึ้น');}}
+  ],
+  athlete:[
+    {title:'จ้างทีมวิเคราะห์ฟอร์มและวางแผนซ้อมไหม',bg:'training',sub:'S+8 · โอกาสผลดี +10%',cost:30000,run:p=>{fx(p,{S:8});p.flags.cAdj=(p.flags.cAdj||0)+10;note(p,'วิดีโอการแข่งขันทำให้คุณเห็นจุดอ่อนที่ไม่เคยรู้ตัว แล้วค่อย ๆ แก้ทีละอย่าง');}},
+    {title:'รับงานสปอนเซอร์หลังการแข่งขันไหม',bg:'stadium',sub:'฿+100,000 C+5 · J−3',run:p=>{fx(p,{m:100000,C:5,J:-3});note(p,'รายได้เพิ่มขึ้น แต่วันพักบางวันกลายเป็นวันถ่ายโฆษณา คุณต้องจัดเวลาใหม่');}},
+    {title:'เรียนหลักสูตรผู้ฝึกสอนเตรียมอนาคตไหม',bg:'training',sub:'S+6 · ปลดล็อกอาชีพโค้ช',cost:20000,run:p=>{fx(p,{S:6});p.flags.coachQualified=true;note(p,'คุณเริ่มช่วยโค้ชอธิบายท่าให้รุ่นน้อง ความรู้จากสนามกลายเป็นสิ่งที่ส่งต่อได้');}}
+  ],
+  coach:[
+    {title:'เปิดคลาสเยาวชนช่วงสุดสัปดาห์ไหม',bg:'training',sub:'รายได้ +15% · H−3',run:p=>{p.incomeBoost*=1.15;fx(p,{H:-3});note(p,'ผู้ปกครองพาเด็กมารอที่สนามตั้งแต่เช้า คุณได้เห็นความมั่นใจเติบโตพร้อมฝีมือ');}},
+    {title:'อบรมการฝึกและดูแลนักกีฬาเพิ่มเติมไหม',bg:'training',sub:'S+7 H+2',cost:15000,run:p=>fx(p,{S:7,H:2})},
+    {title:'พาทีมเยาวชนลงแข่งขันไหม',bg:'stadium',sub:'C+6 J+5',run:p=>{fx(p,{C:6,J:5});note(p,'ครั้งนี้คุณยืนอยู่นอกเส้นสนาม ลุ้นให้ลูกทีมทำสิ่งที่ฝึกมาได้ด้วยตัวเอง');}}
+  ],
   farm: [
     { title:'กู้ ธ.ก.ส. 300,000 ขยายที่ดินไหม', sub:'รายได้ +30% · ถ้าเจอภัยแล้งหนี้เพิ่ม', run:p=>{ p.debt.f += 300000; p.incomeBoost *= 1.3; p.flags.baac = true; } },
     { title:'เปลี่ยนไปปลูกพืชราคาสูง (ทุเรียน/อินทรีย์) ไหม', sub:'สำเร็จ 30% รายได้ ×2', cost:200000, run:p=>{ if(chance(.3)){ p.incomeBoost *= 2; note(p,'สวนทุเรียนให้ผลดี รายได้เพิ่มเป็นเท่าตัว'); } else { fx(p,{J:-5}); note(p,'5 ปีแรกได้แค่เท่าทุน'); } } },
@@ -1112,9 +1202,12 @@ function careerChoices(p, exclude = []){
   const land = p.q >= 3 || p.tier === 4 || p.tier === 5;
   return Object.entries(CAREERS).map(([k, C]) => {
     let cond = !exclude.includes(k), condText = 'เพิ่งออกจากอาชีพนี้';
+    if(k==='police' && !(p.degree==='cadet' && p.flags.policeQualified)){cond=false;condText='ต้องจบโรงเรียนนายร้อยตำรวจ';}
+    if(k==='athlete' && !(p.flags.athleteQualified && p.H>=45)){cond=false;condText='ต้องจบเส้นทางกีฬา และมี H อย่างน้อย 45';}
+    if(k==='coach' && !(p.degree==='sports' || p.flags.coachQualified)){cond=false;condText='ต้องจบสายกีฬา หรือผ่านหลักสูตรผู้ฝึกสอน';}
     if(C.needDegree && !p.degree){ cond = false; condText = 'ต้องจบปริญญา'; }
-    if(C.maxAge && p.age > C.maxAge){ cond = false; condText = 'อายุเกิน 40'; }
-    if(p.flags.restricted && ['gov','office','abroad','pol'].includes(k)){ cond = false; condText = 'มีประวัติติดคุก'; } if(p.flags.bkRecord && p.age < p.flags.bkRecord && ['gov','abroad'].includes(k)){ cond = false; condText = 'มีประวัติล้มละลาย'; }
+    if(C.maxAge && p.age > C.maxAge){ cond = false; condText = `อายุเกิน ${C.maxAge}`; }
+    if(p.flags.restricted && ['gov','police','office','abroad','pol'].includes(k)){ cond = false; condText = 'มีประวัติติดคุก'; } if(p.flags.bkRecord && p.age < p.flags.bkRecord && ['gov','police','abroad'].includes(k)){ cond = false; condText = 'มีประวัติล้มละลาย'; }
     if(p.status.bankrupt && k==='abroad'){ cond = false; condText = 'ล้มละลาย ไปต่างประเทศไม่ได้'; }
     if(k==='crime' && cond && !crimeEntry(p)){ cond = false; condText = 'ไม่มีคนพาเข้าวงการ'; }
     if(k==='pol' && cond && !polEntry(p)){ cond = false; condText = 'ต้องมีเส้นสาย C 50 ขึ้นไป หรือมีคนหนุนหลัง'; }
@@ -1137,7 +1230,13 @@ async function enterCareer(p, io, opts = {}){
     const sd = seedFor(p, c.k); if(sd){ p.flags.cAdj = sd.adj; p.flags.seedWhy = sd.why; note(p, `${sd.why}ช่วยให้คุณเริ่มต้นได้ดีกว่าคนอื่น (โอกาสผลดี +${sd.adj}%)`); } else p.flags.seedWhy = null;
     if(c.k === 'farm' && !(p.q >= 3 || p.tier === 4 || p.tier === 5)) p.flags.rentLand = true;
     if(c.k === 'abroad') p.flags.abroadEnd = p.age + 5;
-    if(p.flags.stayAbroad && c.k !== 'abroad') p.incomeBoost *= 2, p.flags.stayAbroad = false;
+    if(p.flags.stayAbroad){
+      if(['office','biz','influ'].includes(c.k)){ p.incomeBoost *= 2; p.flags.livesAbroad=true; note(p,'คุณจัดการสิทธิพำนักและสิทธิทำงานเรียบร้อย ก่อนเริ่มอาชีพในต่างแดน'); }
+      else { p.flags.livesAbroad=c.k === 'abroad'; note(p,c.k === 'abroad' ? 'คุณเปลี่ยนไปทำงานต่างประเทศตามสัญญาจ้าง รายได้เป็นไปตามสายงานนี้' : 'อาชีพนี้เริ่มต้นในไทย คุณจึงย้ายกลับก่อนเริ่มงาน'); }
+      p.flags.stayAbroad=false;
+    }
+    if(c.k === 'abroad') p.flags.livesAbroad=true;
+    if(['police','athlete','coach'].includes(c.k)) p.flags.livesAbroad=false;
     if(c.k === 'biz' && opts.capital !== undefined && opts.capital < 500000) p.flags.cBad = (p.flags.cBad||0) + 10;
     log(p, `เริ่มอาชีพ${C.name}`);
     if(c.k === 'crime'){ p.flags.crimeRank = p.flags.crimeRank || 0; addHeat(p, 10); crimeBeats(p, io); }
@@ -1246,7 +1345,7 @@ async function stage4(p, io, beats){
              { t:'ลองใช้แอปหาคู่ไหม', s:'30% เจอคนถูกใจ · 10% โดน romance scam', cost:5000, r:async()=>{ const r=rnd(); if(r<.1){ fx(p,{m:-200000,J:-10}); note(p,'โดนหลอกโอนเงิน ฿200,000'); } else if(r<.4){ note(p,'เจอคนถูกใจ'); await rematch(p, io); } } } ],
     same:[ { t:'จัดงานแต่งใหญ่ (กู้มาจัด 400,000) ไหม', s:'C+10 J+5 · ได้เงินซองคืนครึ่งหนึ่ง', r:()=>{ p.debt.f += 400000; addMoney(p,200000); fx(p,{C:10,J:5}); p.flags.fightW=(p.flags.fightW||0)+10; } },
            { t:'ให้สินสอดสูงเพื่อหน้าตาไหม', s:'C+5 · 50% ครอบครัวอีกฝ่ายคืนให้', cost:500000, r:()=>{ fx(p,{C:5}); if(chance(.5)){ addMoney(p,500000); note(p,'ครอบครัวอีกฝ่ายคืนสินสอดให้ไว้ตั้งตัว'); } } },
-           { t:()=>parentsWord(p) ? 'อยู่บ้านพ่อแม่ (ทำ) หรือแยกบ้าน (ไม่ทำ)' : 'อยู่บ้านพ่อแม่ของคู่ (ทำ) หรือแยกบ้าน (ไม่ทำ)', y:()=>parentsWord(p) ? 'อยู่บ้านพ่อแม่' : 'อยู่บ้านพ่อแม่ของคู่', n:'แยกบ้าน', s:'฿+300,000 J−5', ns:'฿−300,000 J+5', r:()=>fx(p,{m:300000,J:-5}), rn:()=>fx(p,{m:-300000,J:5}) } ],
+           { needsHousing:true, t:()=>parentsWord(p) ? 'อยู่บ้านพ่อแม่ (ทำ) หรือแยกบ้าน (ไม่ทำ)' : 'อยู่บ้านพ่อแม่ของคู่ (ทำ) หรือแยกบ้าน (ไม่ทำ)', y:()=>parentsWord(p) ? 'อยู่บ้านพ่อแม่' : 'อยู่บ้านพ่อแม่ของคู่', n:'แยกบ้าน', s:'฿+300,000 J−5', ns:'฿−300,000 J+5', r:()=>fx(p,{m:300000,J:-5}), rn:()=>fx(p,{m:-300000,J:5}) } ],
     rich:[ { t:'ทำสัญญาก่อนสมรสไหม', s:'ถ้าหย่าไม่เสียทรัพย์สินเดิม · J−5', cost:20000, r:()=>{ p.spouse.prenup=true; fx(p,{J:-5}); } },
            { t:'เข้าทำงานในธุรกิจครอบครัวอีกฝ่ายไหม', s:'รายได้ +50% C+15 · J−10', r:()=>{ p.incomeBoost*=1.5; fx(p,{C:15,J:-10}); p.flags.inlawJob=true; } },
            { t:'ให้อีกฝ่ายจ่ายทุกอย่างไหม', s:'ออมเพิ่ม 15% · J−5', r:()=>{ p.flags.spousePays=true; fx(p,{J:-5}); p.flags.cheatW=(p.flags.cheatW||0)+5; } } ],
@@ -1261,6 +1360,7 @@ async function stage4(p, io, beats){
     if(c.k !== 'single' && !p.spouse) return;
     if(m.direct){ await m.r(); return; }
     if(m.needParents && !parentsAlive(p).length) return;
+    if(m.needsHousing && (p.house || p.flags.livesAbroad)) return;
     const yes = await yesno(p, io, { title: typeof m.t === 'function' ? m.t() : m.t, sub:m.s, noSub:m.ns, cost:m.cost||0, yes: typeof m.y === 'function' ? m.y() : m.y, no:m.n });
     if(yes) await m.r(); else if(m.rn) m.rn();
   }}));
@@ -1345,13 +1445,15 @@ function addKid(p){ const k = makeKid(p); p.kids.push(k); p.annual.push({ from:p
 async function stage5(p, io, beats){
   p.stage = 5;
   const ivfP = p.age<=35?.4:p.age<=40?.25:.1;
-  const c = await choose(p, io, { kind:'main', bg:'baby', title:'เรื่องลูก', text: p.spouse ? 'ค่าเลี้ยงดูพื้นฐานถึงอายุ 18 ไม่รวมค่าโรงเรียน หักเป็นรายปี' : 'ตอนนี้คุณยังไม่มีคู่ ทางเลือกเรื่องลูกจึงเหลือน้อยลง', choices:[
+  const c = await choose(p, io, { kind:'main', bg:'baby', noStory:true, title:'เรื่องลูก', text: p.spouse ? 'ค่าเลี้ยงดูพื้นฐานถึงอายุ 18 ไม่รวมค่าโรงเรียน หักเป็นรายปี' : 'ตอนนี้คุณยังไม่มีคู่ ทางเลือกเรื่องลูกจึงเหลือน้อยลง', choices:[
     { label:'ไม่มีลูก', sub:'ออมเพิ่ม 10%', k:'none' },
     { label:'มีลูก 1 คน', sub:'J+15 · ค่าเลี้ยงดู ~28,000/ปี · ออมลด 5%', cond:!!p.spouse && p.age<=45, condText: p.spouse ? 'อายุเกิน 45' : 'ต้องมีคู่ก่อน', k:'one' },
     { label:'มีลูก 2 คนขึ้นไป', sub:'J+20 H−5 · ~56,000/ปี · ออมลด 10%', cond:!!p.spouse && p.age<=42, condText: p.spouse ? 'อายุเกิน 42' : 'ต้องมีคู่ก่อน', k:'two' },
     { label:'ทำ IVF', sub:`สำเร็จ ${Math.round(ivfP*100)}% ต่อรอบ`, cost:250000, cond:!!p.spouse, condText:'ต้องมีคู่ก่อน', k:'ivf' },
     { label:'รับบุตรบุญธรรม', sub: p.spouse ? 'J+15' : 'J+15 · คนโสดรับได้ ถ้ารายได้ 20,000 ขึ้นไป', cost:50000, cond:!!p.spouse||curIncome(p)>=20000, condText:'คนโสดต้องมีรายได้ 20,000 ขึ้นไป', k:'adopt' } ]});
   let mode = c.k;
+  p.flags.familyChoice = c.k;
+  if(c.k !== 'none') p.flags.noKids = false;
   if(c.k==='none'){ p.flags.noKids = true; }
   if(c.k==='one'){ fx(p,{J:15}); addKid(p); }
   if(c.k==='two'){ fx(p,{J:20,H:-5}); addKid(p); addKid(p); }
@@ -1361,9 +1463,17 @@ async function stage5(p, io, beats){
     if(ok){ fx(p,{J:15}); addKid(p); note(p,'IVF สำเร็จ'); mode = 'one'; } else { fx(p,{J:-10}); note(p,'IVF ไม่สำเร็จ'); p.flags.noKids = true; mode = 'none'; }
   }
   if(c.k==='adopt'){ fx(p,{J:15,K:15}); const k = addKid(p); k.adopted = true; tagGood(p,'edu','รับบุตรบุญธรรม'); }
+  if(p.kids.length){
+    p.flags.noKids=false;
+    note(p,c.k==='adopt' ? `คุณต้อนรับลูกบุญธรรมชื่อ${p.kids[p.kids.length-1].name}เข้าครอบครัว` : `ครอบครัวมีลูกแล้ว ${p.kids.length} คน: ${p.kids.map(k=>k.name).join(' และ ')}`);
+  } else {
+    p.flags.noKids=true;
+    note(p,c.k==='ivf' ? 'หลัง IVF ไม่สำเร็จ คุณวางแผนชีวิตต่อโดยยังไม่มีลูก' : p.spouse ? `คุณกับ${p.spouse.name}ตกลงใช้ชีวิตโดยไม่มีลูก` : 'คุณเลือกใช้ชีวิตโดยไม่มีลูก');
+  }
+  const parenting = p.kids.length > 0 && !p.flags.noKids;
   const odds = { none:[30,50,20], one:[30,55,15], two:[30,50,20], adopt:[30,55,15] }[mode];
   const kidMinors = [];
-  if(p.kids.length){
+  if(parenting){
     kidMinors.push({ t:'ฝากปู่ย่าเลี้ยง (ทำ) หรือเลี้ยงเอง (ไม่ทำ)', y:'ฝากปู่ย่า', n:'เลี้ยงเอง', s:'ประหยัด · J−5 ค่าลูก−10', ns:'ค่าลูก+10 J+5 · รายได้ −30% 5 ปี',
       r:()=>{ p.kids.forEach(k=>k.kv-=10); fx(p,{J:-5}); p.flags.grandRaise=true; }, rn:()=>{ p.kids.forEach(k=>k.kv+=10); fx(p,{J:5}); p.incomeCut+=.3; beats.push({age:p.age+5, run:async()=>{ p.incomeCut=Math.max(0,p.incomeCut-.3); }}); } });
     kidMinors.push({ school:true });
@@ -1376,6 +1486,8 @@ async function stage5(p, io, beats){
     kidMinors.push({ t:'ใช้ชีวิตท่องเที่ยวรอบโลกไหม', s:'J+15 H+3', cost:500000, r:()=>fx(p,{J:15,H:3}) });
   }
   kidMinors.forEach((m, i) => beats.push({ age: p.age + 1 + i*2, run: async () => {
+    const hasChildren = p.kids.length > 0 && !p.flags.noKids;
+    if(parenting !== hasChildren) return;
     if(m.school){
       if(!p.kids.length) return;
       const ch = await choose(p, io, { kind:'minor', bg:'school', title:`ส่งลูก${p.kids.length>1?'ทุกคน':''}เรียนโรงเรียนแบบไหน`, text:'หักค่าเรียนเป็นรายปีตอนลูกอายุ 6–18', choices: SCHOOLS.map(s => ({ label:s.name, sub: s.cost ? `ปีละ ${baht(Math.round(s.cost/12))} ต่อคน` : 'เรียนฟรี', s })) });
@@ -1457,11 +1569,21 @@ async function stage3(p, io){
   const firstCareer = p.career;
   C_MINORS[firstCareer].forEach((m, i) => beats.push({ age: p.age + i, run: async () => {
     if(p.career !== firstCareer) return;
-    const yes = await yesno(p, io, { title:m.title, sub:m.sub, cost:m.cost||0 });
+    const yes = await yesno(p, io, { title:m.title, bg:m.bg || CAREERS[p.career].bg, sub:m.sub, cost:m.cost||0 });
     if(yes) await m.run(p, io);
   }}));
   beats.push({ age: p.age + 4, run: () => careerOutcome(p, io) });
   depthStage3(p, io, beats);
+  beats.push({age:Math.max(35,p.age),run:async()=>{
+    if(p.career!=='athlete')return;
+    const c=await choose(p,io,{kind:'main',bg:'stadium',title:'เมื่อร่างกายเริ่มฟื้นตัวช้าลง',text:'ถึงเวลาวางแผนชีวิตหลังการแข่งขันเต็มเวลา ประสบการณ์ในสนามยังพาคุณไปต่อได้',choices:[
+      {label:'อบรมและเปลี่ยนเป็นผู้ฝึกสอน',sub:'เริ่มรายได้ตามอาชีพโค้ช · S+5',k:'coach'},
+      {label:'เริ่มอาชีพใหม่',sub:'เลือกเส้นทางนอกการแข่งขัน',k:'change'}]});
+    p.flags.coachQualified=true;
+    if(c.k==='coach'){p.career='coach';p.cYears=0;p.cOut=null;p.incomeBoost=1;p.flags.cAdj=0;p.flags.cBad=0;fx(p,{S:5});note(p,'สโมสรสนับสนุนการอบรม คุณแขวนชุดแข่งและเริ่มงานสอนรุ่นน้อง');}
+    else await enterCareer(p,io,{title:'ชีวิตหลังเลิกแข่ง',exclude:['athlete']});
+    beats.push({age:p.age+3,run:()=>careerOutcome(p,io)});
+  }});
   investBeats(p, io, beats);
   // minor ทั่วไป
   beats.push({ age: 28, run: async () => {
@@ -1506,6 +1628,7 @@ async function stage3(p, io){
 async function abroadCheck(p, io, beats){
   if(p.career === 'abroad' && p.flags.abroadEnd && p.age >= p.flags.abroadEnd){
     if(p.cOut === 'good') fx(p,{m:1500000});
+    p.flags.livesAbroad=false;
     await say(p, io, { kind:'event', bg:'abroad', title:'กลับไทย', text: p.cOut==='good' ? 'ครบสัญญา คุณกลับไทยพร้อมเงินก้อน ฿1,500,000' : 'ครบสัญญา ถึงเวลากลับบ้าน' });
     await enterCareer(p, io, { title:'กลับมาแล้วจะทำอะไรต่อ', exclude:['abroad'] }); beats.push({ age:p.age+3, run:()=>careerOutcome(p, io) });
   } else if(p.career === 'abroad'){ beats.push({ age: p.flags.abroadEnd || p.age + 5, run: () => abroadCheck(p, io, beats) }); }
@@ -1553,7 +1676,7 @@ async function stage6(p, io){
   p.stage = 6;
   // รายได้หลังเกษียณ
   let pension = 0; const notes = [];
-  if(p.career==='gov' && !p.flags.noPension){ pension = Math.round(p.lastSalary*.6); p.insurance = true; notes.push(`บำนาญข้าราชการ ฿${baht(pension)}/เดือน และสวัสดิการรักษาพยาบาล`); }
+  if(['gov','police'].includes(p.career) && !p.flags.noPension){ pension = Math.round(p.lastSalary*.6); p.insurance = true; notes.push(`บำนาญข้าราชการ ฿${baht(pension)}/เดือน และสวัสดิการรักษาพยาบาล`); }
   else if(['factory','office'].includes(p.career)){ pension = 3000 + Math.min(1500, p.cYears*50); notes.push(`บำนาญประกันสังคม ฿${baht(pension)}/เดือน`); if(p.career==='office'){ const pf = clamp(Math.round(p.lastSalary*p.cYears*.6), 500000, 3000000); addMoney(p, pf); notes.push(`กองทุนสำรองเลี้ยงชีพ ฿${baht(pf)}`); } }
   else { pension = 700; notes.push('เบี้ยยังชีพผู้สูงอายุ ฿700/เดือน'); }
   if(p.flags.kidSend) { p.kidMoney = 5000 * p.kids.length; notes.push(`ลูกส่งเงินให้ ฿${baht(p.kidMoney)}/เดือน`); }
@@ -1919,9 +2042,10 @@ const S1_EXTRA = [
 
 // ---------- วัยมหาวิทยาลัย / เริ่มงาน: เหล้า ----------
 function depthStage2(p, io, beats){
-  thaiBeats(2, p, io, beats);
+  extraStudyChapters(p, io, beats);
+  if(!['abroad','cadet','sports'].includes(p.uni)) thaiBeats(2, p, io, beats);
   beats.push({ age:20, run: async () => {
-    const c = await choose(p, io, { kind:'minor', bg:'city', title:'งานเลี้ยงรุ่น ทุกคนชนแก้วกันไม่หยุด', text:'นิสัยการดื่มมักติดตัวไปจนทำงาน', choices:[
+    const c = await choose(p, io, { kind:'minor', bg:'city', title:p.uni === 'abroad' ? 'เพื่อนนานาชาติชวนไปงานเลี้ยงหลังสอบ ทุกคนชนแก้วกัน' : 'งานเลี้ยงรุ่น ทุกคนชนแก้วกันไม่หยุด', text:'นิสัยการดื่มมักติดตัวไปจนทำงาน', choices:[
       { label:'ดื่มหนัก ไปต่อทุกร้าน', sub:'C+6 J+3 · เสี่ยงตับและเมาแล้วขับ', k:2 },
       { label:'ดื่มพอเป็นพิธี', sub:'C+3', k:1 },
       { label:'ไม่ดื่มเลย', sub:'C−2', k:0 } ]});
@@ -1931,6 +2055,7 @@ function depthStage2(p, io, beats){
 
 // ---------- วัยทำงาน ----------
 function depthStage3(p, io, beats){
+  extraCareerChapters(p, io, beats);
   thaiBeats(3, p, io, beats);
   // ดูแลสุขภาพ 2 ครั้ง
   [31, 44].forEach(age => beats.push({ age, run: async () => {
@@ -2137,7 +2262,13 @@ function setHouse(p, h, price, loan){
   fx(p, { J: h.J, C: h.C }); log(p, `ได้${h.name}`);
 }
 async function houseChoice(p, io, upgrade = false, title = null){
+  if(p.flags.livesAbroad){
+    if(upgrade || p.status.prison || !p.career) return;
+    await say(p, io, { kind:'life', bg:'abroad', title:'บ้านของคุณในต่างแดน', text:'คุณต่อสัญญาเช่าห้องใกล้ที่ทำงาน ค่าที่พักรวมอยู่ในค่าใช้จ่ายปกติแล้ว ส่วนบ้านของครอบครัวยังอยู่ที่ไทย' });
+    return;
+  }
   if(!p.career || p.status.prison) return;
+  if(!upgrade && p.house) return;
   if(upgrade && (!p.house || p.house.q >= 5)) return;
   const sell = upgrade ? Math.round(p.house.value * .9) : 0;
   const cash = Math.max(0, p.money) + sell;
@@ -2150,7 +2281,7 @@ async function houseChoice(p, io, upgrade = false, title = null){
     return { label:h.name, sub: payCash ? `ราคา ฿${baht(h.price)} · จ่ายสดได้ · J+${h.J}` : `ราคา ฿${baht(h.price)} · ผ่อน ~${baht(pay)}/เดือน · กู้ผ่าน ${Math.round(odds*100)}%`, cost: upgrade ? 0 : (payCash ? h.price : down), loan:false,
       cond, condText: h.cond && !h.cond(p) ? h.condText : `ต้องมีเงินดาวน์ ฿${baht(down)}`, k:h.id, h, odds, payCash, down };
   });
-  const famHome = p.q>=2 || p.tier===4 || p.tier===5;
+  const famHome = !p.flags.livesAbroad && (p.q>=2 || p.tier===4 || p.tier===5);
   opts.push({ label: upgrade ? 'อยู่บ้านเดิมต่อ' : famHome ? (parentsWord(p) ? 'อยู่บ้านพ่อแม่ไปก่อน' : 'อยู่บ้านเก่าของครอบครัวไปก่อน') : 'เช่าอยู่ไปก่อน', sub: upgrade ? 'ไม่มีผล' : 'ค่าที่พักอยู่ในค่าใช้จ่ายปกติ', k:'none' });
   const c = await choose(p, io, { kind:'minor', bg:'home', title: title || (upgrade ? `ขายบ้านเดิม (ได้ ฿${baht(sell)}) แล้วขยับขึ้นไหม` : 'จะมีบ้านเป็นของตัวเองไหม'), text:`รายได้ครัวเรือนราว ฿${baht(hhIncome(p))}/เดือน · เงินเก็บ ฿${baht(p.money)}`, choices: opts.map(o => ({ ...o, defer: upgrade })) });
   if(c.k === 'none') return;
@@ -2318,6 +2449,8 @@ const STORIES = [
   } },
   // ===== วัยทำงาน =====
   { t:(o,c)=>/บ้านเป็นของตัวเอง|ขยับขึ้นไหม/.test(o.title), f:(X,p,o,c)=>{
+    if(c.k==='none' && p.house) return `คุณอยู่ใน${p.house.name || 'บ้านของตัวเอง'}ต่อ ยังไม่เปลี่ยนบ้านตอนนี้`;
+    if(c.k==='none' && p.flags.livesAbroad) return 'คุณต่อสัญญาที่พักในต่างประเทศ';
     if(c.k==='none') return p.q>=2||p.tier>=4 ? `คุณยังอยู่ที่${PLACE[p.tier][band(p.qBirth)].home} กับครอบครัว ประหยัดค่าที่พักได้อีกหลายปี` : 'คุณต่อสัญญาห้องเช่าอีกปี เจ้าของห้องขึ้นค่าเช่าอีก 500';
     if(!p.house || p.house.id !== c.k) return 'คุณนั่งดูแบบบ้านในมือถือทั้งคืน แต่เอกสารยังไม่ผ่าน';
     const born = PLACE[p.tier][band(p.qBirth)].home;
@@ -3297,7 +3430,7 @@ C_MINORS.pol = [
   { title:'รับเงินสนับสนุนจากนายทุนในจังหวัดไหม', sub:'฿+1,000,000 · ต้องตอบแทนภายหลัง', run:p=>{ fx(p,{ m:1000000, K:-8 }); tagBad(p,'corrupt','รับเงินทุนการเมืองจากนายทุน',1000000); p.flags.polOwe = (p.flags.polOwe||0) + 1; } },
 ];
 const POL_RANK = ['สมาชิกสภาท้องถิ่น', 'นายกฯ ท้องถิ่น', 'ส.ส.', 'รัฐมนตรี'];
-function polEntry(p){ return !!(p.C >= 50 || p.qBirth >= 4 || p.flags.polLink || p.career === 'gov' || (p.flags.crimeRank || 0) >= 2); }
+function polEntry(p){ return !!(p.C >= 50 || p.qBirth >= 4 || p.flags.polLink || ['gov','police'].includes(p.career) || (p.flags.crimeRank || 0) >= 2); }
 function polPay(p){ const r = p.flags.polRank ?? -1; if(p.flags.polOut || r < 0) return lm(p, 12000); return [25000, 70000, 125000, 220000][r]; }
 function polTitle(p){ const r = p.flags.polRank ?? -1; return r >= 0 && !p.flags.polOut ? POL_RANK[r] : 'นักการเมืองนอกตำแหน่ง'; }
 async function polStart(p, io){
@@ -3493,7 +3626,7 @@ const TWISTS = [
       { label:'ย้ายไปทำงานต่างประเทศ', sub:'รายได้ +60% · C−5 J−5 · ห่างครอบครัว', k:'go' },
       { label:'ใช้ข้อเสนอต่อรองขึ้นเงินเดือนที่เดิม', sub:`${p.C >= 55 ? 'เส้นสายช่วยต่อรอง' : 'เส้นสายยังน้อย อาจไม่ได้'}`, k:'nego' },
       { label:'ปฏิเสธ อยู่ที่เดิม', sub:'J+2', k:'no' } ], 'airport', 'twist');
-    if(c.k === 'go'){ if(p.career === 'gov') { p.career = 'office'; p.cOut = 'mid'; p.cYears = 0; } p.incomeBoost *= 1.6; fx(p, { C:-5, J:-5 }); p.flags.livesAbroad = true; tell(p, 'คุณลากกระเป๋าสองใบขึ้นเครื่องตอนเที่ยงคืน'); }
+    if(c.k === 'go'){ if(['gov','police'].includes(p.career)) { p.career = 'office'; p.cOut = 'mid'; p.cYears = 0; } p.incomeBoost *= 1.6; fx(p, { C:-5, J:-5 }); p.flags.livesAbroad = true; tell(p, 'คุณลากกระเป๋าสองใบขึ้นเครื่องตอนเที่ยงคืน'); }
     if(c.k === 'nego'){ if(chance(p.C >= 55 ? .75 : .35)){ p.incomeBoost *= 1.2; tell(p, 'ฝ่ายบุคคลยอมขึ้นเงินเดือนให้ทันที'); } else { fx(p, { J:-3 }); tell(p, 'หัวหน้าบอกว่า ถ้าอยากไปก็ไป'); } }
     if(c.k === 'no') fx(p, { J:2 });
   } },
@@ -4609,6 +4742,210 @@ Object.assign(SCENES, {
 });
 
 // ===== END PROMO PIXEL ART =====
+
+
+// Career-specific life events and pixel backgrounds.
+Object.assign(HOUSE_LOAN,{police:[3000000,.95,.04],athlete:[2500000,.5,.06],coach:[2000000,.65,.06]});
+Object.assign(CAR_PRICE,{police:700000,athlete:900000,coach:600000});
+Object.assign(CRYPTO_AMT,{police:100000,athlete:150000,coach:70000});
+S3_EVENTS.push(
+ {id:'police_evidence',title:'คดีที่ทุกคนอยากให้รีบปิด',bg:'police',text:()=> 'พยานคนสำคัญให้ข้อมูลไม่ตรงกับสำนวน คุณต้องเลือกระหว่างความเร็วกับความรอบคอบ',w:p=>p.career==='police'?18:null,run:async(p,io)=>{
+   if(p.career!=='police')return;
+   const c=await choose(p,io,{kind:'fork',bg:'police',title:'จะจัดการข้อมูลที่ขัดกันอย่างไร',choices:[
+     {label:'กลับไปตรวจหลักฐานและสัมภาษณ์พยานใหม่',sub:'S+6 K+6 · H−3',k:'check'},
+     {label:'ขอให้ทีมทบทวนสำนวนร่วมกัน',sub:'C+4 K+3 · J−2',k:'team'}]});
+   fx(p,c.k==='check'?{S:6,K:6,H:-3}:{C:4,K:3,J:-2});note(p,c.k==='check'?'หลักฐานใหม่ช่วยแก้ข้อสันนิษฐานเดิม คุณโล่งใจที่ยังไม่ได้ส่งสำนวนผิดไป':'ทีมพบช่องโหว่ร่วมกัน งานช้าลงแต่ทุกคนอธิบายที่มาของข้อสรุปได้');
+ }},
+ {id:'athlete_injury',title:'เจ็บก่อนรายการสำคัญ',bg:'training',text:()=> 'ระหว่างซ้อมคุณเริ่มเจ็บจนลงน้ำหนักไม่ถนัด ทีมเสนอให้พักจากการแข่งขัน',w:p=>p.career==='athlete'?18:null,run:async(p,io)=>{
+   if(p.career!=='athlete')return;
+   const c=await choose(p,io,{kind:'fork',bg:'training',title:'รักษาฟอร์มหรือรักษาระยะยาว',choices:[
+     {label:'พักรายการนี้และฟื้นฟูกับทีม',sub:'H+6 · J−4 · รายได้ลด 10%',k:'rest'},
+     {label:'หยุดซ้อมหนักและให้ทีมประเมินก่อนกลับ',sub:'H+3 S+3 · รายได้ลด 5%',k:'assess'}]});
+   fx(p,c.k==='rest'?{H:6,J:-4}:{H:3,S:3});p.incomeBoost*=c.k==='rest'?.9:.95;note(p,'คุณปรับแผนการแข่งขันตามการฟื้นตัว แม้เสียโอกาสครั้งนี้ แต่ยังมีชีวิตนอกสนามที่ต้องดูแล');
+ }},
+ {id:'athlete_final',title:'โอกาสในรอบชิง',bg:'stadium',text:()=> 'อัฒจันทร์เต็มไปด้วยเสียงเชียร์ คุณนึกถึงเช้ามืดทุกวันที่เคยซ้อม',w:p=>p.career==='athlete'?16:null,run:async(p,io)=>{
+   if(p.career!=='athlete')return;
+   const c=await choose(p,io,{kind:'fork',bg:'stadium',title:'ลงสนามด้วยแผนไหน',choices:[
+     {label:'ยึดแผนที่ซ้อมกับทีมมา',sub:'โอกาสชนะขึ้นกับ S และ H',k:'plan'},
+     {label:'เล่นอย่างระวังและเก็บประสบการณ์',sub:'S+4 J+2',k:'learn'}]});
+   if(c.k==='learn'){fx(p,{S:4,J:2});note(p,'วันนี้คุณไม่ได้ถ้วย แต่รู้ว่าต้องกลับไปฝึกอะไรต่อ');return;}
+   if(chance(clamp((p.S+p.H)/220,.15,.85))){fx(p,{m:150000,C:8,J:8});note(p,'คุณคว้าแชมป์ ได้เงินรางวัล 150,000 บาท และกอดทีมที่อยู่ด้วยกันมาตลอด');}
+   else{fx(p,{S:5,J:-4});note(p,'คุณพลาดชัยชนะไปนิดเดียว หลังเงียบอยู่พักหนึ่งก็เริ่มดูบันทึกการแข่งขันกับโค้ช');}
+ }}
+);
+function careerFigure(t,st,x,y,uniform){
+ dPlayer(t,st,x,y,uniform==='sport'?'none':'gov');
+}
+Object.assign(SCENES,{
+ academy(t,st){
+   dSky(t,'day','town');dGround(73,'#a7a99d');
+   dr(35,28,131,44,'#e9d8ac');dr(32,24,137,5,'#8f463b');
+   for(let x=42;x<160;x+=19){dWindow(x,37,10,13,false);dr(x,56,10,15,'#706f68');}
+   dText('โรงเรียนนายร้อย',62,29,76);dr(21,17,1,58,'#d8dce3');
+   ['#cb4a4b','#f6f2dc','#334876','#f6f2dc','#cb4a4b'].forEach((c,i)=>dr(22,18+i*2,17,2,c));
+   for(let j=0;j<2;j++)for(let i=0;i<6;i++){const x=48+i*19,y=81+j*10;dr(x,y-9,4,4,'#e8af7c');dr(x-1,y-5,6,6,'#82735e');dr(x,y+1,1,3,'#333942');dr(x+3,y+1,1,3,'#333942');}
+   for(let x=8;x<187;x+=18)dr(x,102,10,1,'#eee9cf');careerFigure(t,st,25,103,'cadet');
+ },
+ police(t,st){
+   dSky(t,'day','town');dGround(80,'#9da9ae');dr(35,31,128,48,'#dbd7c5');dr(31,26,136,6,'#594e48');
+   dText('สถานีตำรวจ',70,35,61,'#f8e9a3','#354761');dWindow(43,48,24,22,false);dWindow(132,48,22,22,false);dr(87,49,24,30,'#425369');
+   dr(9,86,52,11,'#e9eef1');dr(20,78,27,9,'#e9eef1');dr(23,80,21,6,'#7299b0');dr(10,91,50,3,'#344b73');dr(30,76,6,2,'#e2555a');dr(36,76,6,2,'#4592da');dr(17,96,8,5,'#292d39');dr(47,96,8,5,'#292d39');
+   dr(153,84,4,13,'#f39a48');dr(147,97,17,2,'#f39a48');dTree(181,81,.6);careerFigure(t,st,111,103,'police');
+ },
+ training(t,st){
+   dSky(t,'day','mountain');dGround(67,'#6caa70');dr(0,77,192,28,'#b96655');
+   for(let y=80;y<105;y+=7)dr(0,y,192,.7,'#f4dfb9');
+   dr(16,37,57,29,'#f2dfba');dr(13,33,63,5,'#486b81');dText('ศูนย์ฝึกกีฬา',19,41,51);dr(25,53,15,13,'#68879b');
+   for(let x=88;x<177;x+=21){dr(x,65,2,12,'#f5eee0');dr(x+12,65,2,12,'#f5eee0');dr(x,65,14,2,'#5f83ba');}
+   dr(137,88,24,3,'#d1aa75');dr(139,91,2,8,'#59616b');dr(157,91,2,8,'#59616b');careerFigure(t,st,56,103,'sport');
+ },
+ stadium(t,st){
+   dSky(t,'day','town');
+   for(let row=0;row<4;row++){dr(0,31+row*7,192,7,row%2?'#536980':'#738596');for(let i=0;i<38;i++)dr(i*5+1,32+row*7,2,2,['#f9d772','#f0a5a1','#a3dbe4'][(i+row)%3]);}
+   dr(0,61,192,47,'#4b9c68');dr(0,89,192,19,'#c1765d');dr(0,94,192,1,'#f8eacb');dr(0,102,192,1,'#f8eacb');
+   dl(15,67,177,67,'#eef1cd');dl(15,67,7,85,'#eef1cd');dl(177,67,185,85,'#eef1cd');dl(7,85,185,85,'#eef1cd');dr(95,67,1,18,'#eef1cd');
+   dText('รอบชิงชนะเลิศ',64,13,66,'#ffe397','#30435e');
+   for(const x of [12,176]){dr(x,9,2,36,'#c9d2d7');dr(x-5,8,12,4,'#fff0b0');}
+   careerFigure(t,st,108,104,'sport');dr(139,78,7,3,'#ffda66');dr(141,81,3,7,'#ffda66');dr(137,88,11,2,'#efd49b');
+ }
+});
+
+// Additional route chapters: three choices each, with persistent consequences.
+// Option: label, effects, result, optional cost, optional flag.
+const ROUTE_CHAPTERS = {
+ cadet:[
+ ['cadet_buddy','เพื่อนร่วมหมวดตามการฝึกไม่ทัน','academy','เพื่อนที่นอนเตียงข้าง ๆ เริ่มพูดว่าอยากลาออก ก่อนการทดสอบครั้งใหญ่',[
+  ['ซ้อมเป็นเพื่อนหลังเลิกแถว',{C:5,K:4,H:-2},'คุณวิ่งช้าลงเพื่อให้เพื่อนตามทัน วันทดสอบเขาหันมายิ้มให้ก่อนเข้าเส้นชัย',0,'cadetBuddy'],
+  ['พาไปคุยกับครูฝึก',{S:3,C:2},'ครูฝึกช่วยปรับแผนให้เหมาะกับเขา คุณได้เรียนรู้ว่าการขอความช่วยเหลือไม่ใช่ความอ่อนแอ'],
+  ['รักษาเวลาพักและฝึกของตัวเอง',{H:3,C:-2},'คุณผ่านการทดสอบของตัวเอง แต่เพื่อนเริ่มห่างออกไป']]],
+ ['cadet_exam','คืนก่อนสอบกฎหมาย','academy','ทั้งหมวดกำลังติว มีคนส่งเอกสารที่อ้างว่าเป็นข้อสอบหลุดเข้ากลุ่ม',[
+  ['ไม่เปิดไฟล์และชวนติวจากตำรา',{S:6,K:4,H:-2},'คุณทำสรุปแจกเพื่อน แม้ไม่ตรงทุกข้อแต่ตอบด้วยความเข้าใจ',0,'cadetIntegrity'],
+  ['แจ้งอาจารย์ให้ตรวจสอบที่มา',{K:6,C:-2},'อาจารย์เปลี่ยนข้อสอบและตรวจสอบเอกสาร เพื่อนบางคนไม่พอใจ แต่เรื่องไม่ลุกลาม'],
+  ['ถอนตัวจากกลุ่มแล้วอ่านเอง',{S:4,J:-2},'คุณปิดโทรศัพท์และอ่านจนดึก ผลสอบมาจากสิ่งที่เตรียมไว้เอง']]],
+ ['cadet_field','การฝึกจำลองเหตุฉุกเฉิน','academy','ทีมต้องแบ่งหน้าที่ช่วยผู้ประสบเหตุ ภายในเวลาที่จำกัด',[
+  ['รับหน้าที่ประสานและแบ่งทีม',{C:5,S:3,J:-2},'การสื่อสารชัดเจนทำให้ทุกคนรู้หน้าที่ คุณค้นพบว่าตัวเองชอบคุมภาพรวม',0,'policeLeader'],
+  ['ดูแลผู้ประสบเหตุจำลอง',{K:4,S:4},'คุณคอยอธิบายทุกขั้นตอนให้ผู้ประสบเหตุเข้าใจ ครูฝึกชมเรื่องความใจเย็น',0,'policeCommunity'],
+  ['จดข้อมูลและตรวจจุดที่ทีมมองข้าม',{S:6,C:-1},'บันทึกของคุณช่วยอธิบายลำดับเหตุการณ์ได้ครบ',0,'policeEvidence']]],
+ ['cadet_home','วันหยุดที่ตรงกับการฝึกพิเศษ','academy','ที่บ้านอยากให้กลับไปกินข้าว แต่มีที่ว่างในหลักสูตรเสริมเพียงไม่กี่คน',[
+  ['กลับบ้านตามที่นัดไว้',{J:7,C:-1},'โต๊ะอาหารมีจานโปรดรออยู่ คุณได้พักจากเสียงนกหวีดหนึ่งวัน'],
+  ['อยู่ฝึกแล้วโทรอธิบายกับครอบครัว',{S:6,J:-3},'คุณได้ทักษะเพิ่ม แต่เก็บรูปมื้อเย็นจากที่บ้านไว้ดูหลังฝึก'],
+  ['แบ่งเวลาฝึกครึ่งวันแล้วกลับบ้าน',{S:3,J:3,H:-2},'วันนั้นเหนื่อยกับการเดินทาง แต่ยังทันมื้อเย็น']]],
+ ],
+ sports:[
+ ['sport_study','สอบปลายภาคชนกับรายการแข่ง','training','ตารางเดินทางออกแล้ว แต่มีสอบวิชาสำคัญในสัปดาห์เดียวกัน',[
+  ['ประสานอาจารย์และทีมล่วงหน้า',{S:5,C:3},'คุณได้แผนส่งงานและสอบที่ตกลงร่วมกัน ก่อนเดินทางไปแข่ง',0,'sportDiscipline'],
+  ['ถอนตัวรายการนี้เพื่อสอบ',{S:7,J:-4},'คุณนั่งดูเพื่อนแข่งผ่านจอ แต่ไม่ต้องไล่ตามงานเรียนภายหลัง'],
+  ['ลงแข่งและอ่านหนังสือระหว่างเดินทาง',{C:4,S:2,H:-5},'หนังสือเต็มไปด้วยรอยพับ คุณผ่านสัปดาห์นั้นด้วยความเหนื่อยสะสม']]],
+ ['sport_bench','ชื่อคุณอยู่บนม้านั่งสำรอง','stadium','โค้ชเลือกเพื่อนลงตัวจริง ทั้งที่คุณซ้อมมาหนักพอกัน',[
+  ['ขอคำแนะนำเฉพาะจุดจากโค้ช',{S:6,J:-2},'คุณได้เป้าหมายที่วัดได้สำหรับการคัดตัวรอบหน้า',0,'sportDiscipline'],
+  ['ช่วยทีมและวิเคราะห์คู่แข่งข้างสนาม',{C:6,S:2},'เพื่อนเริ่มเห็นว่าคุณช่วยทีมได้แม้ไม่ได้ลงแข่ง',0,'teamPlayer'],
+  ['พักใจแล้วกลับไปซ้อมพื้นฐาน',{H:3,J:3},'คุณค่อย ๆ เลิกเปรียบเทียบตัวเองกับคนอื่น แล้วกลับมาสนุกกับการฝึก']]],
+ ['sport_gear','อุปกรณ์คู่เก่าเริ่มไม่ไหว','training','รองเท้าและอุปกรณ์ที่ใช้มาหลายฤดูกาลถึงเวลาต้องจัดการ',[
+  ['ซื้ออุปกรณ์ที่เหมาะกับการฝึก',{H:4,S:2},'คุณเลือกจากความพอดีและการใช้งานจริง ไม่ใช่ชื่อบนกล่อง',12000],
+  ['ยื่นขอใช้อุปกรณ์จากโครงการ',{C:3,J:2},'คุณช่วยดูแลคลังอุปกรณ์ แลกกับสิทธิยืมชุดฝึกของมหาวิทยาลัย'],
+  ['ซ่อมและปรับแผนใช้ต่อชั่วคราว',{S:2,J:-2},'คุณเรียนรู้ดูแลอุปกรณ์ และแยกเงินเก็บไว้สำหรับครั้งต่อไป']]],
+ ['sport_scout','แมวมองมาดูการแข่งขัน','stadium','หลังจบรายการ มีทีมสนใจให้คุณส่งประวัติและวิดีโอผลงาน',[
+  ['ทำพอร์ตพร้อมบันทึกสถิติ',{S:4,C:5},'ข้อมูลที่ครบทำให้ทีมเรียกคุณไปทดสอบต่อ',0,'sportPortfolio'],
+  ['ให้โค้ชช่วยติดต่อและตรวจข้อเสนอ',{C:6,K:2},'โค้ชช่วยตั้งคำถามเรื่องการเรียนและเวลาฝึก ก่อนคุณตอบรับ',0,'teamPlayer'],
+  ['ขอเรียนจบก่อนแล้วค่อยติดต่อ',{S:5,J:2},'คุณเก็บช่องทางติดต่อไว้ และตั้งใจทำฤดูกาลสุดท้ายให้ดีที่สุด']]],
+ ],
+ police:[
+ ['police_partner','คู่หูในคืนเข้าเวร','police',p=>p.flags.cadetBuddy?'เพื่อนที่คุณเคยช่วยฝึกถูกย้ายมาร่วมชุด คืนแรกมีงานเข้าพร้อมกันหลายเรื่อง':'คุณเข้าเวรกับคู่หูคนใหม่ ยังไม่รู้จังหวะการทำงานของกันและกัน',[
+  ['ตกลงวิธีแบ่งงานและตรวจทานกัน',{C:5,S:3},'คุณทั้งคู่เลิกเดาใจกัน และทำงานเข้าขากว่าเดิม',0,'policeTeam'],
+  ['รับงานยากเองเพื่อให้ทีมเดินต่อ',{S:5,H:-4},'งานเสร็จ แต่คุณกลับห้องเมื่อฟ้าเริ่มสว่าง'],
+  ['ขอกำลังเสริมตามขั้นตอน',{C:3,H:2,J:-1},'ทีมเพิ่มช่วยแบ่งภาระ แม้ต้องใช้เวลาประสานมากขึ้น']]],
+ ['police_pressure','คนรู้จักขอให้ช่วยเป็นพิเศษ','police','ญาติโทรมาขอให้คุณช่วยเร่งเรื่องของเพื่อน โดยไม่ต้องเข้าคิวตามปกติ',[
+  ['อธิบายขั้นตอนและให้เข้าคิวตามสิทธิ',{K:7,C:-2,J:2},'ญาติเงียบไปพักหนึ่ง แต่คุณไม่ต้องกังวลว่าจะอธิบายกับคนอื่นอย่างไร',0,'policeFair'],
+  ['ช่วยตรวจเอกสารให้ครบก่อนยื่น',{S:3,K:4,C:2},'คุณช่วยได้ในขอบเขตเดียวกับที่ประชาชนคนอื่นควรได้รับ'],
+  ['ให้เจ้าหน้าที่คนอื่นรับเรื่องเพื่อเลี่ยงผลประโยชน์ทับซ้อน',{K:5,J:-2},'คุณถอยออกจากเรื่องนี้และแจ้งเหตุผลให้หัวหน้าทราบ']]],
+ ['police_witness','พยานไม่กล้าพูด','police',p=>p.flags.policeCommunity?'คนในชุมชนที่คุ้นกับคุณพาพยานมาพบ แต่เขายังกลัวผลที่จะตามมา':'พยานคนหนึ่งมาถึงสถานีแล้วเปลี่ยนใจเดินกลับ คุณต้องสร้างความไว้วางใจ',[
+  ['ให้เวลาและอธิบายกระบวนการ',{K:5,S:4,J:-2},'เขาค่อย ๆ เล่าเฉพาะสิ่งที่เห็นด้วยตัวเอง คุณบันทึกโดยไม่เร่งรัด'],
+  ['ประสานผู้รับผิดชอบด้านคุ้มครอง',{C:4,K:4},'พยานได้รับข้อมูลและช่องทางติดต่อที่ชัดเจน'],
+  ['หาหลักฐานอื่นควบคู่โดยไม่กดดัน',{S:6,H:-2},'งานเพิ่มขึ้น แต่สำนวนไม่ผูกกับคำพูดของคนคนเดียว',0,'policeEvidence']]],
+ ['police_promotion','โอกาสรับผิดชอบทีมใหม่','police',p=>p.flags.policeLeader||p.flags.policeTeam?'หัวหน้าจำผลงานการประสานทีมของคุณได้ และเสนอให้ลองนำชุดงานใหม่':'มีตำแหน่งหัวหน้าชุดว่าง คุณต้องเลือกระหว่างงานบริหารกับงานที่ถนัด',[
+  ['รับงานนำทีม',{C:7,J:-4},'คุณต้องฟังปัญหาของทั้งทีม และเรียนรู้ว่าการสั่งงานต่างจากทำเอง',0,'policeLeader'],
+  ['พัฒนางานผู้เชี่ยวชาญต่อ',{S:8,C:-2},'คุณรับคดีที่ต้องใช้ทักษะเฉพาะมากขึ้น แม้ไม่ได้นำทีม'],
+  ['ขอเป็นพี่เลี้ยงก่อนรับตำแหน่งเต็ม',{S:4,C:4},'คุณได้ลองดูแลรุ่นน้องโดยยังมีหัวหน้าช่วยตรวจทาน']]],
+ ['police_burnout','งานค้างตามกลับมาถึงบ้าน','police','คุณเริ่มเปิดสำนวนระหว่างกินข้าว และสะดุ้งทุกครั้งที่โทรศัพท์ดัง',[
+  ['จัดเวลาพักและส่งต่องานให้ทีม',{H:6,J:5,C:-2},'ช่วงแรกคุณรู้สึกผิดที่ไม่รับทุกสาย แต่ทีมเริ่มจัดเวรกันได้ดีขึ้น'],
+  ['ขอคำปรึกษาและทบทวนภาระงาน',{J:6,S:3},'คุณได้คุยเรื่องที่ค้างในใจ และเริ่มแยกสิ่งที่ควบคุมได้จากสิ่งที่ทำไม่ได้'],
+  ['เร่งปิดงานก้อนนี้ก่อนพัก',{S:5,H:-6,J:-3},'งานค้างลดลง แต่ร่างกายทวงคืนเวลาที่คุณยืมมา']]],
+ ],
+ athlete:[
+ ['athlete_contract','สัญญาฉบับแรกที่ต้องอ่านเอง','stadium',p=>p.flags.sportPortfolio?'พอร์ตที่ทำไว้ช่วยให้สองทีมติดต่อมา แต่เงื่อนไขวันพักและค่าตอบแทนต่างกัน':'สโมสรส่งสัญญามาให้เซ็น มีรายละเอียดมากกว่าแค่ตัวเลขค่าตัว',[
+  ['จ้างคนช่วยตรวจสัญญา',{S:4,J:3},'คุณเจรจาเรื่องวันพักและการจ่ายค่าตัวให้ชัดเจน',15000,'athleteContract'],
+  ['ขอรุ่นพี่ช่วยอ่านและถามทีมทีละข้อ',{C:4,S:3},'คุณจดคำถามเต็มหน้า ก่อนนัดคุยให้เข้าใจตรงกัน',0,'athleteContract'],
+  ['เลือกสัญญาระยะสั้นเพื่อเก็บประสบการณ์',{S:4,J:-2},'คุณยังไม่ผูกมัดยาว แต่ต้องเตรียมหาทีมอีกเมื่อหมดฤดูกาล']]],
+ ['athlete_transfer','ทีมใหม่เสนอค่าตัวสูงกว่า','stadium','โอกาสย้ายทีมมาพร้อมระยะทางที่ไกลจากคนใกล้ตัว',[
+  ['ย้ายทีมและเริ่มพิสูจน์ตัวใหม่',{m:100000,C:4,J:-5},'เงินเซ็นสัญญาช่วยเพิ่มเงินเก็บ แต่คุณต้องเริ่มสร้างความคุ้นเคยใหม่ทั้งทีม'],
+  ['อยู่ต่อกับทีมที่รู้ใจกัน',{C:6,J:5},'คุณเลือกความต่อเนื่อง และช่วยรับรุ่นน้องเข้าทีม',0,'teamPlayer'],
+  ['ขอไปทดลองฝึกก่อนตัดสินใจ',{S:5,H:-2},'คุณได้เห็นระบบฝึกจริง ก่อนรู้ว่าที่ไหนเหมาะกับตัวเอง']]],
+ ['athlete_online','คลิปพลาดถูกแชร์ทั้งคืน','stadium','ความผิดพลาดไม่กี่วินาทีถูกตัดวนในโซเชียล จนคุณไม่กล้าเปิดโทรศัพท์',[
+  ['พักโซเชียลและคุยกับทีม',{J:6,C:3},'เพื่อนช่วยรับมือเสียงข้างนอก คุณกลับมาโฟกัสสิ่งที่ฝึกได้'],
+  ['รับผิดชอบแล้วอธิบายสั้น ๆ',{C:5,J:-2},'คุณยอมรับสิ่งที่พลาดโดยไม่โทษใคร แล้วปล่อยให้ผลงานครั้งต่อไปตอบ'],
+  ['ใช้คลิปวิเคราะห์จุดผิดพลาด',{S:7,J:-3},'ภาพเดิมดูยาก แต่คราวนี้คุณหยุดมันเพื่อเรียนรู้แทนอ่านคำด่า']]],
+ ['athlete_recovery','วันพักก่อนรายการถัดไป','training',p=>p.flags.sportDiscipline?'บันทึกการฝึกที่ทำมาตลอดชี้ว่าคุณเหนื่อยสะสม โค้ชชวนปรับตาราง':'คุณเริ่มทำเวลาแย่ลงทั้งที่ซ้อมหนักกว่าเดิม ทีมชวนทบทวนตาราง',[
+  ['ลดความหนักและให้เวลาฟื้นตัว',{H:7,J:2},'คุณกลับมาซ้อมด้วยความสดขึ้น และเลิกวัดความขยันจากจำนวนชั่วโมงเพียงอย่างเดียว'],
+  ['ปรับเทคนิคกับโค้ช',{S:6,H:2},'คุณฝึกให้มีเป้าหมายชัดเจนขึ้น โดยไม่เพิ่มชั่วโมง',0,'sportDiscipline'],
+  ['ซ้อมเพิ่มเพื่อแย่งตำแหน่ง',{S:5,H:-7,J:-2},'คุณพัฒนาบางจุด แต่จบสัปดาห์ด้วยความเหนื่อยกว่าเดิม']]],
+ ['athlete_future','รุ่นน้องขอให้ช่วยสอน','training',p=>p.flags.teamPlayer?'รุ่นน้องที่เคยได้คุณช่วยข้างสนามอยากให้คุณเป็นพี่เลี้ยงประจำ':'รุ่นน้องถามว่าคุณอ่านเกมอย่างไร คุณเพิ่งรู้ว่าต้องอธิบายสิ่งที่ทำโดยอัตโนมัติ',[
+  ['ฝึกสอนควบกับเรียนหลักสูตรโค้ช',{S:6,C:4},'คุณผ่านการอบรมและเริ่มมีบันทึกการสอนของตัวเอง',20000,'coachQualified'],
+  ['ช่วยแนะนำเป็นครั้งคราว',{C:5,J:3},'คุณสนุกกับการเห็นคนอื่นทำได้ แต่ยังให้การแข่งขันเป็นงานหลัก'],
+  ['เก็บประสบการณ์เป็นวิดีโอฝึก',{S:5,C:2},'คลังวิดีโอของคุณเริ่มเป็นประโยชน์กับทั้งทีม',0,'coachMaterials']]],
+ ],
+ coach:[
+ ['coach_first','เด็กในทีมมีพื้นฐานไม่เท่ากัน','training',p=>p.flags.coachMaterials?'คุณนำวิดีโอที่เคยทำไว้มาใช้ แต่เด็กแต่ละคนยังเรียนรู้ต่างกัน':'บางคนเพิ่งเริ่มเล่น บางคนแข่งมาหลายปี คุณต้องวางแผนคลาสแรก',[
+  ['แบ่งกลุ่มและตั้งเป้าหมายรายคน',{S:6,H:-2},'เด็กเริ่มเห็นความก้าวหน้าของตัวเอง โดยไม่ต้องเทียบกับคนที่เก่งที่สุด',0,'coachInclusive'],
+  ['ให้รุ่นพี่จับคู่ช่วยรุ่นน้อง',{C:5,K:3},'สนามเริ่มมีเสียงสอนกันเอง คุณคอยตรวจท่าทางและให้คำแนะนำ'],
+  ['เริ่มจากพื้นฐานร่วมกันทั้งทีม',{S:4,J:2},'คุณยอมเดินช้าช่วงแรก เพื่อให้ทุกคนเข้าใจสิ่งเดียวกัน']]],
+ ['coach_parent','ผู้ปกครองอยากให้ลูกเป็นตัวจริง','training','หลังซ้อมมีคนขอคุยเป็นการส่วนตัว เพราะไม่พอใจเวลาลงแข่งของลูก',[
+  ['อธิบายเกณฑ์และแผนพัฒนาให้ชัด',{C:5,K:4},'การคุยไม่ง่าย แต่ทุกฝ่ายรู้ว่าต้องพัฒนาเรื่องไหน',0,'coachFair'],
+  ['นัดคุยร่วมกับเด็กและผู้ช่วยโค้ช',{S:4,C:3},'คุณได้ฟังความต้องการของเด็กเอง แทนให้ผู้ใหญ่พูดแทนทั้งหมด'],
+  ['จัดเกมฝึกให้ทุกคนได้แสดงฝีมือ',{J:4,H:-2},'คุณเพิ่มโอกาสเรียนรู้ โดยยังใช้เกณฑ์เดิมในการเลือกทีมแข่ง']]],
+ ['coach_budget','งบพาทีมไปแข่งไม่พอ','stadium','ค่ารถและที่พักสูงกว่าที่วางไว้ เด็กหลายคนกำลังรอคำตอบ',[
+  ['ออกเงินส่วนขาดเอง',{J:5,K:5},'ทีมได้เดินทาง คุณเก็บใบเสร็จไว้และเริ่มคิดแผนงบสำหรับปีหน้า',30000],
+  ['หาผู้สนับสนุนพร้อมเปิดเผยบัญชี',{C:6,S:3},'ร้านในชุมชนช่วยกันคนละส่วน ทุกคนตรวจดูค่าใช้จ่ายได้',0,'coachSponsor'],
+  ['เลือกรายการใกล้บ้านแทน',{S:3,J:2},'เป้าหมายเปลี่ยนไป แต่เด็กยังได้ประสบการณ์แข่งขันจริง']]],
+ ['coach_loss','ทีมแพ้ขาดในนัดสำคัญ','stadium','ห้องพักเงียบ ไม่มีใครกล้ามองหน้าคุณ เด็กคนหนึ่งร้องไห้',[
+  ['ให้พักใจก่อนทบทวนเกมวันถัดไป',{J:6,C:4},'พอกลับมาคุย เด็กเริ่มกล้าบอกว่าตัวเองรู้สึกและเห็นอะไร',0,'coachInclusive'],
+  ['ชวนแต่ละคนบอกหนึ่งเรื่องที่เรียนรู้',{S:6,J:2},'ความพ่ายแพ้เริ่มกลายเป็นเป้าหมายเล็ก ๆ สำหรับการฝึกต่อ'],
+  ['ปรับแผนและรับผิดชอบในส่วนของโค้ช',{K:4,C:5},'ลูกทีมเห็นว่าคุณพร้อมเรียนรู้เช่นเดียวกับพวกเขา']]],
+ ['coach_offer','สโมสรใหญ่ชวนไปคุมทีม','stadium',p=>p.flags.coachFair||p.flags.coachInclusive?'ทั้งผลงานและวิธีดูแลเด็กทำให้ชื่อคุณไปถึงสโมสรใหญ่':'สโมสรใหญ่ติดต่อมา พร้อมงานที่กดดันและโอกาสเติบโต',[
+  ['รับข้อเสนอและส่งต่องานเดิมให้พร้อม',{m:80000,C:6,J:-3},'คุณเริ่มสัญญาใหม่พร้อมเงินเซ็นสัญญา และทิ้งแผนฝึกไว้ให้ทีมเดิม'],
+  ['อยู่สร้างทีมท้องถิ่นต่อ',{J:7,K:4},'เด็กชุดเดิมยังเห็นคุณยืนรอที่สนามทุกเย็น'],
+  ['รับเป็นที่ปรึกษาบางช่วง',{m:30000,S:4,H:-3},'คุณได้เรียนรู้ระบบใหม่ แต่ต้องระวังไม่ให้ตารางงานแน่นเกินไป']]],
+ ]
+};
+function routeEligible(p,route){return !p.status.prison && (['cadet','sports'].includes(route) ? p.stage===2 && p.uni===route : p.career===route && p.age<60);}
+async function playRouteChapter(p,io,route,event){
+ if(!routeEligible(p,route))return;
+ const [id,title,bg,intro,options]=event;
+ const seen=p.flags.routeChapters||(p.flags.routeChapters=[]);if(seen.includes(id))return;
+ const choices=options.map(([label,effect,result,cost=0,flag],k)=>({label,k,cost,loan:false,sub:Object.entries(effect).map(([key,value])=>`${key==='m'?'฿':key}${value>=0?'+':'−'}${baht(Math.abs(value))}`).join(' · ')}));
+ const c=await choose(p,io,{kind:'life',bg,title,text:typeof intro==='function'?intro(p):intro,choices});
+ const [,effect,result,,flag]=options[c.k];fx(p,effect);if(flag)p.flags[flag]=true;seen.push(id);log(p,title);note(p,result);
+ // Previously established relationships and preparation add a small, explicit payoff.
+ if(id==='police_partner'&&p.flags.cadetBuddy){fx(p,{C:3});note(p,'ความไว้ใจจากสมัยนายร้อยช่วยให้ทำงานเข้าขา: C+3');}
+ if(id==='athlete_contract'&&p.flags.sportPortfolio){fx(p,{m:20000});note(p,'ผลงานในพอร์ตช่วยต่อรองเงินเซ็นสัญญาเพิ่ม ฿20,000');}
+ if(id==='coach_first'&&p.flags.coachMaterials){fx(p,{S:3});note(p,'คลังวิดีโอที่เตรียมไว้ช่วยวางบทเรียน: S+3');}
+ if(id==='police_promotion'&&p.flags.cadetIntegrity){fx(p,{C:3});note(p,'ประวัติความซื่อตรงตั้งแต่เรียนช่วยให้ทีมเชื่อมั่น: C+3');}
+}
+function extraStudyChapters(p,io,beats){
+ if(!['cadet','sports'].includes(p.uni))return;
+ const route=p.uni;
+ ROUTE_CHAPTERS[route].forEach((e,i)=>beats.push({age:18+i,run:()=>playRouteChapter(p,io,route,e)}));
+}
+function extraCareerChapters(p,io,beats){
+ // Choose at execution time: career switches never show the former job's events.
+ [24,26,29,32,34,37,41,45,49,53,57].filter(age=>age>=p.age).forEach(age=>beats.push({age,run:async()=>{
+   const route=p.career;if(!['police','athlete','coach'].includes(route)||!routeEligible(p,route))return;
+   const pool=ROUTE_CHAPTERS[route].filter(e=>!(p.flags.routeChapters||[]).includes(e[0]));
+   if(!pool.length)return;
+   // Keep setup chapters before their payoffs; later chapters vary between lives.
+   const e=pool.length===ROUTE_CHAPTERS[route].length?pool[0]:pickOne(pool);
+   await playRouteChapter(p,io,route,e);
+ }}));
+}
 
 
 // ===== UI =====
