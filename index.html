@@ -1,13 +1,4 @@
 <title>1 ใน 65 ล้าน</title>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-V09V9ESBCD"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-V09V9ESBCD');
-</script>
 <meta name="google-adsense-account" content="ca-pub-5036429552549841">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5036429552549841" crossorigin="anonymous"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1091,8 +1082,8 @@ function abroadStudyBeats(p, io, beats){
 async function stage2(p, io){
   p.stage = 2; famDebtTick(p); p.flags.uniBad = p.flags.uniBad || 0;
   const pick = async (exclude = []) => choose(p, io, { kind:'main', bg:'uni', title:'หลังจบ ม.6 จะไปทางไหน', text:'ราคารวม 4 ปีรวมค่าครองชีพ', choices: [
-    { label:UNI.cadet.name, sub:'เส้นทางจำลอง 4 ปี · คัดเลือกด้วย S และ H · เปิดอาชีพตำรวจ', cost:120000, defer:true, k:'cadet', cond:!p.dropout && !p.flags.restricted && !exclude.includes('cadet'), condText:'ต้องจบ ม.6 ไม่มีประวัติติดคุก และยังไม่ตกคัดเลือก' },
-    { label:UNI.sports.name, sub:'เรียนและฝึก 4 ปี · คัดตัวด้วย H และ S · เปิดอาชีพนักกีฬา/โค้ช', cost:200000, defer:true, k:'sports', cond:!p.dropout && !exclude.includes('sports'), condText:'ต้องจบ ม.6 และยังไม่ตกคัดตัว' },
+    { label:UNI.cadet.name, sub:`โอกาสผ่าน ${routeAdmissionChance(p,'cadet')}% · เรียน 4 ปี · เปิดอาชีพตำรวจ`, cost:120000, defer:true, k:'cadet', cond:!p.dropout && !p.flags.restricted && !exclude.includes('cadet'), condText:'ต้องจบ ม.6 ไม่มีประวัติติดคุก และยังไม่ตกคัดเลือก' },
+    { label:UNI.sports.name, sub:`โอกาสผ่าน ${routeAdmissionChance(p,'sports')}% · เรียนและฝึก 4 ปี · เปิดอาชีพนักกีฬา/โค้ช`, cost:200000, defer:true, k:'sports', cond:!p.dropout && !exclude.includes('sports'), condText:'ต้องจบ ม.6 และยังไม่ตกคัดตัว' },
     { label:UNI.work.name, sub:'มีรายได้ทันที · เข้าได้บางอาชีพ', k:'work' },
     { label:UNI.open.name, sub:'S+10 C+5', cost:80000, loan:'kys', k:'open', cond: !p.dropout, condText:'ออกกลางคันหลัง ม.3' },
     { label:UNI.top.name, sub:`ต้องสอบ (ติด ${clamp(Math.round(10+(p.S-50)-(p.school==='inter'&&!p.flags.thaiTutor?10:0)),2,95)}%) · S+20 C+15`, cost:360000, loan:'kys', defer:true, k:'top', cond: !p.dropout && !exclude.includes('top'), condText: p.dropout?'ออกกลางคันหลัง ม.3':'สอบไม่ติด' },
@@ -1107,7 +1098,7 @@ async function stage2(p, io){
     if(chance(pr)){ spend(p, 360000, 'kys'); note(p,'สอบติดมหาวิทยาลัยรัฐชั้นนำ'); break; }
     else { note(p,'สอบไม่ติด ต้องเลือกทางใหม่'); failedRoutes.push('top'); c = await pick(failedRoutes); continue; }
   }
-    const pr=clamp(c.k==='cadet' ? 25+.55*(p.S-40)+.35*(p.H-40) : 30+.6*(p.H-40)+.3*(p.S-40),5,95);
+    const pr=routeAdmissionChance(p,c.k);
     if(chance(pr/100)){ spend(p,c.cost,false); note(p,c.k==='cadet'?'ผ่านการคัดเลือกเข้าโรงเรียนนายร้อยตำรวจ':'ผ่านการคัดตัวเข้าโครงการนักกีฬา'); break; }
     note(p,c.k==='cadet'?'ครั้งนี้ไม่ผ่านการคัดเลือก ยังมีเส้นทางอื่นให้เลือก':'ครั้งนี้ไม่ติดโครงการนักกีฬา ยังเลือกเรียนหรือทำงานทางอื่นได้');
     failedRoutes.push(c.k); c=await pick(failedRoutes);
@@ -1784,7 +1775,7 @@ async function parentDies(p, io){
     { label:'ตกแต่งสุสานใน SHARESOULS (สวนอนุสรณ์)', sub:'J+8 C+5', cost:20000, d:{J:8,K:6,C:5}, ss:3 },
   ].filter(x => x.cond !== false);
   const picks = await io.multi({ kind:'mourn', bg:'funeral', title:'กิจกรรมไว้อาลัย', text:'เลือกได้หลายข้อ ทุกข้อช่วยให้ความเศร้าจางลง', items: prepChoices(p, items), p, pend:p.pend.splice(0) });
-  for(const i of picks){ const it = items[i]; spend(p, it.cost); fx(p, it.d); if(d.familyFruit) fx(p,{J:5}); if(it.annual) p.annual.push({ from:p.age, to:120, amt:it.annual }); if(it.ss) p.flags.ssTier = Math.max(p.flags.ssTier||0, it.ss); if(!it.noTag) tagGood(p, it.tag || 'family', it.label); }
+  for(const i of picks){ const it = items[i]; if(prepChoices(p,[it])[0].disabled) continue; spend(p, it.cost); fx(p, it.d); if(d.familyFruit) fx(p,{J:5}); if(it.annual) p.annual.push({ from:p.age, to:120, amt:it.annual }); if(it.ss) p.flags.ssTier = Math.max(p.flags.ssTier||0, it.ss); if(!it.noTag) tagGood(p, it.tag || 'family', it.label); }
   p.status.grief = picks.length >= 2 ? 0 : picks.length === 1 ? 5 : 10;
   if(!p.status.grief) delete p.status.grief;
   note(p, picks.length ? `คุณไว้อาลัย${d.name} ${picks.length} อย่าง` : 'คุณไม่ได้ทำกิจกรรมไว้อาลัย ความเศร้ายังอยู่อีกนาน');
@@ -3000,9 +2991,9 @@ function freeOpts(p){
 }
 async function freeTime(p, io){
   if(p.status.prison || !p.career) return;
-  const items = freeOpts(p);
-  let picks = await io.multi({ kind:'life', bg: CAREERS[p.career].bg || 'city', title:'ช่วงนี้ใช้เวลาว่างกับอะไร', text:'เลือกได้ไม่เกิน 2 อย่าง (เวลามีจำกัด) หรือไม่เลือกก็ได้', items: prepChoices(p, items), max:2, p, pend:p.pend.splice(0) });
-  picks = picks.slice(0, 2);
+  const items = variedFreeOpts(p);
+  let picks = await io.multi({ kind:'life', bg: CAREERS[p.career].bg || 'city', title:'ช่วงนี้ใช้เวลาว่างกับอะไร', text:'สุ่มกิจกรรมใหม่ 6 อย่าง ไม่ซ้ำชุดก่อน · เลือกได้ไม่เกิน 2 อย่าง หรือพักไว้ก่อนก็ได้', items: prepChoices(p, items), max:2, p, pend:p.pend.splice(0) });
+  picks = [...new Set(picks)].filter(i=>Number.isInteger(i) && items[i] && !prepChoices(p,[items[i]])[0].disabled).slice(0, 2);
   if(!picks.length){ tell(p, 'เวลาว่างทั้งหมดหมดไปกับงานและการนอน'); return; }
   const lines = [];
   for(const i of picks){ const it = items[i]; spend(p, it.cost); it.run(); lines.push(it.st); log(p, it.label); }
@@ -4976,6 +4967,68 @@ function extraCareerChapters(p,io,beats){
  }}));
 }
 
+
+// One shared formula for the displayed odds and the actual admission roll.
+function routeAdmissionChance(p,route){return clamp(Math.round(route==='cadet'?55+.45*(p.S-40)+.25*(p.H-40):60+.45*(p.H-40)+.25*(p.S-40)),20,95);}
+function variedFreeOpts(p){
+ const rows=[
+ ['swim','ว่ายน้ำหลังเลิกงาน',2000,{H:4,J:2},'เสียงใต้น้ำทำให้คุณพักจากเรื่องงานได้ ร่างกายเริ่มแข็งแรงขึ้น'],
+ ['badminton','ตีแบดกับเพื่อน',1500,{H:3,C:3},'จากตีไม่โดนลูก กลายเป็นนัดประจำที่ทุกคนรอ'],
+ ['yoga','ฝึกยืดเหยียดและโยคะที่บ้าน',0,{H:3,J:2},'คุณขยับตัวช้า ๆ ตามคลิป อาการตึงหลังเริ่มเบาลง'],
+ ['dance','เข้าคลาสเต้น',2000,{H:3,J:4},'คุณจำท่าผิดอยู่บ้าง แต่หัวเราะมากกว่าเขิน'],
+ ['bike','ปั่นจักรยานชมเมือง',2500,{H:4,J:2},'คุณพบทางเล็ก ๆ ที่ไม่เคยเห็นตอนนั่งรถผ่าน'],
+ ['sleep','จัดเวลานอนให้พอหนึ่งสัปดาห์',0,{H:4,J:2},'คุณปิดหน้าจอเร็วขึ้น ตอนเช้าจึงไม่ต้องต่อรองกับนาฬิกาปลุก'],
+ ['cook','ลองทำเมนูใหม่จากวัตถุดิบในบ้าน',800,{S:2,J:4},'จานแรกเค็มไปนิด แต่จานถัดมาคุณเริ่มจับจังหวะได้'],
+ ['plants','ปลูกผักในกระถาง',1200,{J:4,H:1},'ผักใบแรกโตพอให้เก็บ คุณภูมิใจกับอาหารมื้อนั้นเป็นพิเศษ'],
+ ['music','หัดเล่นดนตรีเพลงโปรด',3000,{S:3,J:4},'ท่อนที่เคยเล่นติดขัดเริ่มต่อกันได้จนจบเพลง'],
+ ['sketch','พกสมุดไปวาดภาพนอกบ้าน',500,{S:3,J:3},'คุณเริ่มมองเห็นรายละเอียดเล็ก ๆ ของสถานที่คุ้นเคย'],
+ ['photo','ถ่ายภาพด้วยโทรศัพท์',0,{S:3,J:3},'คุณลองมุมใหม่กับแสงเย็น รูปธรรมดากลับเล่าเรื่องได้'],
+ ['read','ยืมหนังสือจากห้องสมุด',0,{S:4,J:2},'คุณปิดแจ้งเตือนและอ่านจบเล่มแรกในรอบหลายเดือน'],
+ ['boardgame','เล่นบอร์ดเกมกับเพื่อน',600,{C:4,J:3},'เกมจบแล้วแต่บทสนทนายังต่อจนร้านใกล้ปิด'],
+ ['museum','เที่ยวพิพิธภัณฑ์ใกล้บ้าน',400,{S:3,J:3},'คุณพบเรื่องราวของเมืองที่ไม่เคยรู้ แม้อยู่มานาน'],
+ ['camp','ตั้งแคมป์พักใจช่วงวันหยุด',3500,{J:6,H:1},'คืนนี้ไม่มีเสียงแจ้งเตือน มีแค่ลมกับเสียงคุยรอบโต๊ะ'],
+ ['film','ดูหนังแล้วเขียนบันทึกสั้น ๆ',300,{J:4,S:2},'เรื่องในจอทำให้คุณมองปัญหาของตัวเองจากอีกมุม'],
+ ['language','ฝึกภาษากับเพื่อนออนไลน์',0,{S:4,C:2},'คุณกล้าพูดผิดมากขึ้น และเริ่มคุยได้โดยไม่ต้องแปลทุกคำ'],
+ ['repair','หัดซ่อมของใช้เล็ก ๆ',1000,{S:5},'ของที่คิดว่าจะต้องทิ้งกลับมาใช้งานได้ คุณเริ่มมีมุมเครื่องมือของตัวเอง'],
+ ['budget','จัดบัญชีรายรับรายจ่าย',0,{S:3,J:2},'คุณเห็นว่าเงินหายไปกับอะไร และตั้งเป้าหมายที่ทำได้จริง'],
+ ['online','เรียนเรื่องใหม่จากคอร์สฟรี',0,{S:5,J:-1},'คุณทำแบบฝึกหัดหลังเลิกงานจนเข้าใจสิ่งที่เคยคิดว่ายาก'],
+ ['market','ขายของมือสองที่ไม่ได้ใช้',0,{m:3000,S:2},'ห้องโล่งขึ้น และของเก่าได้ไปอยู่กับคนที่ต้องการ'],
+ ['freelance','รับงานเสริมเล็ก ๆ ตามทักษะ',0,{m:15000,H:-2,J:-2},'งานส่งทันและได้เงินเพิ่ม แต่คุณต้องคืนเวลาพักให้ตัวเอง'],
+ ['tutor','ช่วยติวรุ่นน้อง',0,{S:3,C:3,K:3},'พออธิบายให้คนอื่นเข้าใจ คุณก็เข้าใจเรื่องนั้นชัดขึ้นด้วย'],
+ ['clean','ร่วมเก็บขยะพื้นที่สาธารณะ',0,{H:2,C:3,K:3},'พื้นที่สะอาดขึ้นทีละถุง คุณได้รู้จักคนที่เดินสวนกันทุกวัน'],
+ ['shelter','ช่วยดูแลสัตว์ที่ศูนย์พักพิง',500,{J:4,C:2,K:3},'สัตว์ขี้กลัวเริ่มยอมเข้ามาใกล้ มือคุณเปื้อนแต่ใจเบาลง'],
+ ['friends','นัดเพื่อนเก่าคุยกัน',800,{C:4,J:4},'เรื่องที่เคยหนักกลายเป็นเรื่องที่เล่าแล้วหัวเราะด้วยกันได้'],
+ ['rest','พักอยู่บ้านโดยไม่รับงานเพิ่ม',0,{H:3,J:4},'คุณยอมให้หนึ่งวันไม่มีผลงาน และตื่นมาโดยไม่รู้สึกผิด'],
+ ['write','เขียนบันทึกชีวิต',0,{S:2,J:4},'คุณเขียนสิ่งที่กังวลออกจากหัว แล้วเห็นว่าบางเรื่องค่อย ๆ แก้ได้'],
+ ['puzzle','ฝึกหมากรุกและเกมปริศนา',0,{S:4,J:1},'คุณเริ่มคิดล่วงหน้าหลายจังหวะ และรู้จักหยุดก่อนตัดสินใจ'],
+ ['craft','ทำงานฝีมือชิ้นเล็ก',1200,{S:3,J:4},'งานชิ้นแรกไม่เรียบร้อยนัก แต่เป็นของที่คุณทำจนเสร็จด้วยมือ']
+ ];
+ const careerRows={
+ police:[['caseclub','คุยแลกเปลี่ยนบทเรียนคดีกับเพื่อนร่วมงาน',0,{S:4,C:3},'คุณฟังวิธีคิดของคนอื่นโดยไม่เปิดเผยข้อมูลส่วนตัวของผู้เกี่ยวข้อง'],['communitysport','เล่นกีฬากับคนในชุมชน',500,{H:3,C:4},'นอกเวลางาน ทุกคนเริ่มรู้จักกันมากกว่าแค่เครื่องแบบ']],
+ athlete:[['replay','ดูการแข่งขันย้อนหลังกับเพื่อนนักกีฬา',0,{S:5,C:2},'คุณหยุดภาพในจังหวะสำคัญแล้วลองอ่านเกมอีกแบบ'],['recoveryday','พักฟื้นด้วยการเคลื่อนไหวเบา ๆ',0,{H:5,J:2},'วันพักช่วยให้คุณกลับมาฝึกอย่างสดชื่นกว่าเดิม']],
+ coach:[['drills','ออกแบบเกมฝึกใหม่สำหรับลูกทีม',0,{S:5,J:2},'คุณเปลี่ยนแบบฝึกเดิมให้สนุกขึ้น เด็กอยากลองอีกรอบ'],['coachclub','แลกเปลี่ยนแผนฝึกกับโค้ชคนอื่น',1000,{S:3,C:4},'คำถามจากคนอื่นช่วยให้คุณเห็นจุดที่มองข้าม']],
+ pol:[['listen','ร่วมวงฟังปัญหาชุมชนนอกงานทางการ',0,{C:4,S:2},'เมื่อไม่มีเวทีและไมโครโฟน คุณได้ยินรายละเอียดที่ต่างออกไป'],['policyread','อ่านกรณีศึกษาการพัฒนาเมือง',0,{S:5},'คุณจดทั้งสิ่งที่ได้ผลและข้อผิดพลาดของเมืองอื่น']]
+ };
+ rows.push(...(careerRows[p.career]||[]));
+ const pool=rows.map(([k,label,cost,effect,st])=>({k,label,cost,loan:false,sub:fxText(effect),st,run:()=>fx(p,effect)}));
+ // Retain contextual work and family options, but retire the old catch-all hobby cards.
+ for(const it of freeOpts(p).filter(x=>['course','social','family'].includes(x.k))){
+   if(it.k==='family' && p.flags.livesAbroad){it.label='วิดีโอคอลกับครอบครัวและส่งข่าวถึงกัน';it.st='คุณนัดเวลาให้ตรงกัน แม้อยู่คนละประเทศก็ยังได้เล่าเรื่องในแต่ละวัน';it.cost=0;}
+   pool.push({...it,loan:false});
+ }
+ const previous=p.flags.freeTimeLastOffered||[];
+ let fresh=pool.filter(x=>!previous.includes(x.k));
+ const draw=list=>list.splice(Math.floor(rnd()*list.length),1)[0];
+ const offered=[];
+ // At least two free options every time, with no repeats from the previous menu.
+ const free=fresh.filter(x=>x.cost===0);
+ while(offered.length<2&&free.length){const it=draw(free);offered.push(it);fresh=fresh.filter(x=>x.k!==it.k);}
+ while(offered.length<6&&fresh.length)offered.push(draw(fresh));
+ // Shuffle the free cards too; they should not always occupy the first two positions.
+ for(let i=offered.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[offered[i],offered[j]]=[offered[j],offered[i]];}
+ p.flags.freeTimeLastOffered=offered.map(x=>x.k);
+ return offered;
+}
 
 // ===== UI =====
 const $ = s => document.querySelector(s);
