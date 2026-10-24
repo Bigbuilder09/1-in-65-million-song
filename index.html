@@ -297,7 +297,25 @@ body{background:#0c1226;background-image:none}
  .panel:has(.cardwrap) .parts{gap:9px;padding:8px 0}
  .cardwrap{gap:16px}.cardwrap .card{width:min(100%,360px);border:1px solid #a48764;image-rendering:auto;box-shadow:0 6px 16px #080d1d}
  @media(max-width:640px){.panel:has(.title-art){gap:16px}.panel .txt{font-size:14.5px}.legendgrid{gap:10px}.legendgrid b{font-size:14px}.legendgrid span{font-size:11px}}
- </style>
+ 
+/* Latest update announcement */
+#latestUpdate{box-sizing:border-box;width:min(560px,calc(100% - 28px));max-height:calc(100dvh - 32px);overflow:auto;margin:auto;padding:28px;border:2px solid var(--gold);border-radius:18px;background:var(--panel);color:var(--ink);box-shadow:0 24px 90px #0009;font-family:var(--f-body)}
+#latestUpdate::backdrop{background:rgba(3,7,22,.82)}
+#latestUpdate .update-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#latestUpdate .update-label{color:var(--gold);font:700 13px var(--f-disp);letter-spacing:1px}
+#latestUpdate .update-close{border:1px solid var(--line);border-radius:8px;background:var(--bg2);color:var(--ink);font:inherit;min-width:44px;min-height:44px;cursor:pointer}
+#latestUpdate h2{font:700 clamp(23px,5vw,30px)/1.35 var(--f-disp);margin:16px 0 20px}
+#latestUpdate ul{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+#latestUpdate li{display:flex;gap:12px;padding:13px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;line-height:1.65}
+#latestUpdate .update-icon{font-size:25px;flex:0 0 30px}
+#latestUpdate li b{color:var(--gold)}
+#latestUpdate .update-follow{font-size:14px;color:var(--dim);line-height:1.7;margin:20px 0 10px}
+#latestUpdate .update-facebook{display:block;text-align:center;padding:12px;border:1px solid var(--teal);border-radius:9px;color:var(--teal);text-decoration:none;font-weight:700;margin-bottom:12px}
+#latestUpdate .go{width:100%;margin:0}
+#latestUpdate :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+@media(max-width:420px){#latestUpdate{padding:18px}#latestUpdate li{padding:10px}}
+
+</style>
 <div id="app">
   <header class="hud" id="hud" hidden>
     <div class="who"><b id="hName">—</b><span class="age" id="hAge"></span><span class="where" id="hWhere"></span></div>
@@ -5333,6 +5351,34 @@ $('#drawer').addEventListener('click', e => { if(e.target.id === 'drawer') $('#d
 document.addEventListener('keydown', e => { if(e.key === 'Escape') $('#drawer').hidden = true; });
 
 // ---------- เส้นทางเกม ----------
+
+let updateAnnouncementShown=false;
+function showLatestUpdate(){
+  if(updateAnnouncementShown)return;
+  updateAnnouncementShown=true;
+  const dialog=document.createElement('dialog');dialog.id='latestUpdate';
+  dialog.setAttribute('aria-labelledby','latestUpdateTitle');
+  dialog.innerHTML=`<div class="update-head"><span class="update-label">อัปเดตล่าสุด · LATEST UPDATE</span><button class="update-close" aria-label="ปิดประกาศอัปเดต">✕</button></div>
+    <h2 id="latestUpdateTitle">1 ใน 65 ล้าน<br>อัปเดตเส้นทางอาชีพให้เลือกเล่น!</h2>
+    <ul>
+      <li><span class="update-icon" aria-hidden="true">🏅</span><span><b>นักกีฬา</b> — วิ่งเอาเหรียญ ไม่ใช่วิ่งหนีชีวิต</span></li>
+      <li><span class="update-icon" aria-hidden="true">🗳️</span><span><b>นักการเมือง</b> — หาเสียงให้ปัง อย่าให้ชาวบ้านกดข้าม</span></li>
+      <li><span class="update-icon" aria-hidden="true">👮</span><span><b>ตำรวจ</b> — จับโจรให้ไว ก่อนโดนชีวิตจับแกง</span></li>
+    </ul>
+    <p class="update-follow">ติดตามข่าวสารและให้ Feedback ได้ที่</p>
+    <a class="update-facebook" href="https://www.facebook.com/profile.php?id=61595766296706" target="_blank" rel="noopener noreferrer">Facebook · ข่าวสารและ Feedback ↗</a>
+    <button class="go" id="updateContinue">เข้าเกมเลย</button>`;
+  document.body.appendChild(dialog);
+  // Keep game hotkeys from firing through the modal; native dialog handles focus and Escape.
+  const blockGameKeys=e=>{if(dialog.open)e.stopPropagation();};
+  document.addEventListener('keydown',blockGameKeys,true);
+  const close=()=>dialog.close();
+  dialog.querySelector('.update-close').addEventListener('click',close);
+  dialog.querySelector('#updateContinue').addEventListener('click',close);
+  dialog.addEventListener('close',()=>{document.removeEventListener('keydown',blockGameKeys,true);dialog.remove();$('#goBtn')?.focus();},{once:true});
+  dialog.showModal();dialog.querySelector('#updateContinue').focus();
+}
+
 function titleScreen(){
   setScene('title', null, null); $('#hud').hidden = true; $('#tl').hidden = true; $('#logBtn').hidden = true;
   return new Promise(res => {
@@ -5340,7 +5386,7 @@ function titleScreen(){
       `<p class="txt">คุณจะเกิดเป็นคนไทยหนึ่งคนจาก 65,852,335 คน จังหวัดสุ่มตามสัดส่วนประชากรจริง ฐานะสุ่มตามการกระจายรายได้จริง แล้วใช้ชีวิตตั้งแต่เรียนจนตาย</p>` +
       `<div class="legendgrid">${[['H','สุขภาพ','ต่ำแล้วลาป่วย รายได้หาย · ถึง 0 คือตาย'],['J','ความสุข','ต่ำเสี่ยงซึมเศร้า · สูงช่วยสุขภาพ'],['S','ทักษะ','สอบเข้า ขึ้นเงินเดือน ปรับตัวทันโลก'],['C','เส้นสาย','หางานง่าย ชนะเลือกตั้ง แขกงานศพ'],['M','เงิน','ติดลบกลายเป็นหนี้'],['K','บุญ/บาป','ซ่อนไว้ เฉลยตอนตาย']].map(([k,n,d]) => `<div>${ic(k,'ic big')}<b>${n}</b><span>${d}</span></div>`).join('')}</div>` +
       `<p class="help kbd">กดตัวเลข 1–9 เพื่อเลือก · Enter เพื่อไปต่อ</p><button class="go" id="goBtn">เกิด</button>`);
-    const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
+    const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el); showLatestUpdate();
   });
 }
 function rebornPlayer(K){
