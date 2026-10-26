@@ -1,0 +1,6 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "characters", "fieldPath": "payload", "indexes": [] }
+  ]
+}

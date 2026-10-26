@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<link rel="stylesheet" href="save-ui.css">
 <title>1 ใน 65 ล้าน</title>
 <meta name="google-adsense-account" content="ca-pub-5036429552549841">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5036429552549841" crossorigin="anonymous"></script>
@@ -8,13 +12,13 @@
 <meta property="og:site_name" content="1 ใน 65 ล้าน">
 <meta property="og:title" content="1 ใน 65 ล้าน · คุณจะเกิดเป็นใคร ในประเทศไทย?">
 <meta property="og:description" content="เกมจำลองชีวิตคนไทยแบบ 8-bit สุ่มจังหวัด ฐานะ ครอบครัว แล้วดูว่าชีวิตจะไปได้ไกลแค่ไหน เล่นบนเบราว์เซอร์ได้เลย">
-<meta property="og:url" content="https://one-in-65m.pages.dev/">
-<meta property="og:image" content="https://one-in-65m.pages.dev/og.png">
+<meta property="og:url" content="https://1-in-65-million-song.pages.dev/">
+<meta property="og:image" content="https://1-in-65-million-song.pages.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="th_TH">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://one-in-65m.pages.dev/og.png">
+<meta name="twitter:image" content="https://1-in-65-million-song.pages.dev/og.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -333,6 +337,9 @@ body{background:#0c1226;background-image:none}
   </div>
 </div>
 <div class="drawer" id="drawer" hidden><div class="in" id="drawerIn"></div></div>
+<script charset="utf-8" src="firebase-config.js"></script>
+<script charset="utf-8" src="cloud-save.js"></script>
+<script charset="utf-8" src="game-save.js"></script>
 <script>
 // ===== DATA (จากเอกสารออกแบบ "1 ใน 65 ล้าน") =====
 const POP_TOTAL = 65852335;
@@ -460,7 +467,7 @@ function newPlayer(o = {}){
   const Q = QS[qi];
   const J0 = clamp(tier.J + (o.Jbonus||0), 0, 100);
   const p = {
-    name, sex, tier: tier.id, prov, q: qi, qBirth: qi, religion,
+    name, sex, skin: randi(0, 2), tier: tier.id, prov, q: qi, qBirth: qi, religion,
     skipGen: o.skipGen !== undefined ? o.skipGen : chance(tier.skip),
     age: 0, H: tier.H, J: J0, Jbase: J0, S: clamp(30 + (o.Sbonus||0),0,100), C: clamp(tier.C + (o.Cbonus||0),0,100), K: 0,
     money: o.money !== undefined ? o.money : Q.start, start: o.money !== undefined ? o.money : Q.start,
@@ -1479,10 +1486,12 @@ const S4_SINGLE = [
 ];
 
 // ---------- STAGE 5 ลูก ----------
+function cleanKidName(value){ return String(value ?? '').normalize('NFC').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim(); }
 function makeKid(p){ const mu = p.religion==='อิสลาม'; const sx = chance(.5)?'M':'F'; return { name: pickOne(sx==='M'?(mu?NAMES_MU_M:NAMES_M):(mu?NAMES_MU_F:NAMES_F)), sex:sx, kv:50, born:p.age, hhInc: hhIncome(p), debtAt: totalDebt(p), left:false }; }
-function addKid(p){ const k = makeKid(p); p.kids.push(k); p.annual.push({ from:p.age, to:p.age+18, amt:27778, kid:k }); log(p, `ลูกชื่อ${k.name}เกิด`); return k; }
+function addKid(p){ const k = makeKid(p); p.kids.push(k); p.annual.push({ from:p.age, to:p.age+18, amt:27778, kid:k }); log(p, `ลูกชื่อ${k.name}เกิด`); Object.defineProperty(k, '_birthLog', { value:p.log[p.log.length-1], enumerable:false }); return k; }
 async function stage5(p, io, beats){
   p.stage = 5;
+  const existingKids = p.kids.length;
   const ivfP = p.age<=35?.4:p.age<=40?.25:.1;
   const c = await choose(p, io, { kind:'main', bg:'baby', noStory:true, title:'เรื่องลูก', text: p.spouse ? 'ค่าเลี้ยงดูพื้นฐานถึงอายุ 18 ไม่รวมค่าโรงเรียน หักเป็นรายปี' : 'ตอนนี้คุณยังไม่มีคู่ ทางเลือกเรื่องลูกจึงเหลือน้อยลง', choices:[
     { label:'ไม่มีลูก', sub:'ออมเพิ่ม 10%', k:'none' },
@@ -1502,6 +1511,13 @@ async function stage5(p, io, beats){
     if(ok){ fx(p,{J:15}); addKid(p); note(p,'IVF สำเร็จ'); mode = 'one'; } else { fx(p,{J:-10}); note(p,'IVF ไม่สำเร็จ'); p.flags.noKids = true; mode = 'none'; }
   }
   if(c.k==='adopt'){ fx(p,{J:15,K:15}); const k = addKid(p); k.adopted = true; tagGood(p,'edu','รับบุตรบุญธรรม'); }
+  if(io.nameKid) for(let i = existingKids; i < p.kids.length; i++){
+    const kid = p.kids[i];
+    const name = cleanKidName(await io.nameKid({ kid, number:i + 1 }));
+    if(name && [...name].length <= 40) kid.name = name;
+    const birthLog = kid._birthLog;
+    if(birthLog) birthLog.text = `ลูกชื่อ${kid.name}เกิด`;
+  }
   if(p.kids.length){
     p.flags.noKids=false;
     note(p,c.k==='adopt' ? `คุณต้อนรับลูกบุญธรรมชื่อ${p.kids[p.kids.length-1].name}เข้าครอบครัว` : `ครอบครัวมีลูกแล้ว ${p.kids.length} คน: ${p.kids.map(k=>k.name).join(' และ ')}`);
@@ -5835,7 +5851,7 @@ Object.assign(SCENES,{
 
 function snap(p){
   if(!p) return {};
-  if(p.skin === undefined) p.skin = Math.floor(Math.random()*3);
+  if(p.skin === undefined) p.skin = (p.qBirth + p.tier) % 3;
   const ctx = p.age < 18 ? 'school' : (p.age < 22 && p.degree) ? 'uni' : p.age >= 60 ? 'none' : ({ farm:'farm', factory:'factory', gov:'gov', office:'office', pol:'office' }[p.career] || 'none');
   return { age:p.age, sex:p.sex, q: p.age >= 22 ? (p.house && p.house.q != null ? p.house.q : Math.min(5, incomeToQ(hhIncome(p)))) : p.q, tier:p.tier, skin:p.skin, religion:p.religion, school:p.school, uni:p.uni,
     career:p.career, ctx: p.status.prison ? 'black' : ctx, spouse: p.spouse ? { sex:p.spouse.sex, q:p.spouse.q } : null, kids: p.kids.map(k => ({ sex:k.sex, born:k.born })), ssTier: p.flags.ssTier || 0, night:false };
@@ -5977,10 +5993,32 @@ function setKeys(fn){ CUR.keys = fn; }
 document.addEventListener('keydown', e => { if(!CUR.keys || $('#drawer').hidden === false) return; if(e.target && e.target.tagName === 'INPUT') return; CUR.keys(e); });
 
 const UI = {
-  update(p){ hud(p || CUR.p); },
-  chips(list){ chipQ.push(...list); },
+  update(p){ if(!SaveGame.replaying) hud(p || CUR.p); },
+  chips(list){ if(!SaveGame.replaying) chipQ.push(...list); },
+  nameKid(o){
+    return SaveGame.nameKid(o, res => {
+      setKeys(null); setScene('baby', 'birth', null); hud(CUR.p);
+      const el = panel(`<div class="eyebrow">สมาชิกใหม่ของครอบครัว</div><h2>ตั้งชื่อลูกคนที่ ${o.number}</h2>
+        <p class="txt">${o.kid.adopted ? 'ลูกบุญธรรม' : 'ลูก'}${o.kid.sex === 'M' ? 'ชาย' : 'สาว'}ของคุณ ชื่อนี้จะอยู่กับเขาไปตลอดเรื่อง</p>
+        <form id="kidNameForm" class="kidNameForm"><label for="kidNameInput">ชื่อลูก</label>
+        <input id="kidNameInput" name="kidName" type="text" maxlength="80" value="${esc(o.kid.name)}" autocomplete="off" required aria-describedby="kidNameHelp kidNameError">
+        <p id="kidNameHelp" class="help">ตั้งชื่อได้ไม่เกิน 40 ตัวอักษร</p>
+        <p id="kidNameError" class="help" role="status" aria-live="polite"></p>
+        <button type="submit" class="go">ยืนยันชื่อ</button></form>`);
+      const input = el.querySelector('#kidNameInput');
+      el.querySelector('#kidNameForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = cleanKidName(input.value);
+        if(!name || [...name].length > 40){
+          el.querySelector('#kidNameError').textContent = 'กรุณาใส่ชื่อ 1–40 ตัวอักษร'; input.focus(); return;
+        }
+        res(name);
+      });
+      input.focus(); input.select(); scrollPanelIntoView();
+    });
+  },
   ask(o){
-    return new Promise(res => {
+    return saveGate('screen-1', res => {
       const p = CUR.p; setScene((o.head ? o.head.bg || o.bg : o.bg) || autoBg(o, p), o.head ? 'event' : o.kind, null);
       hud(p);
       const el = panel(eyebrow(o) + headHTML(o.head) + pendHTML(o.pend) + `<h2>${esc(cleanTitle(o.title))}</h2>` + textHTML(o.text) + `<div class="choices">${o.choices.map((c,i)=>choiceHTML(c,i)).join('')}</div>`);
@@ -5992,7 +6030,7 @@ const UI = {
     });
   },
   say(o){
-    return new Promise(res => {
+    return saveGate('screen-2', res => {
       setScene(o.bg || autoBg(o, CUR.p), o.kind, o.outcome, o.kind === 'cut' && o.bg === 'sharesouls' ? { ...snap(CUR.p), ssTier:o.tier } : null);
       hud(CUR.p);
       const body = o.birth ? birthHTML(o.birth) : textHTML(o.text);
@@ -6006,7 +6044,7 @@ const UI = {
     });
   },
   skip(o){
-    return new Promise(res => {
+    return saveGate('screen-3', res => {
       const p = o.p; setScene('timeskip', null, null); hud(p);
       const max = Math.max(1, ...o.bars.map(b => Math.abs(b.net)));
       const bars = o.bars.map(b => { const h = Math.abs(b.net)/max*48; const neg = b.net < 0; return `<div class="b ${neg?'neg':''} ${b.rec?'rec':''}" title="อายุ ${b.age}: ฿${baht(b.net)}"><i style="${neg ? `top:50%;height:${h}%` : `bottom:50%;height:${h}%`}"></i></div>`; }).join('');
@@ -6032,7 +6070,7 @@ const UI = {
     });
   },
   multi(o){
-    return new Promise(res => {
+    return saveGate('screen-4', res => {
       setScene(o.bg || autoBg(o, CUR.p), o.kind, null); hud(CUR.p);
       const sel = new Set();
       const el = panel(eyebrow(o) + pendHTML(o.pend) + `<h2>${esc(cleanTitle(o.title))}</h2>` + textHTML(o.text) + `<div class="choices">${o.items.map((c,i)=>choiceHTML(c,i,true)).join('')}</div><p class="help" id="mTotal">ยังไม่ได้เลือก</p><button class="go" id="goBtn">ยืนยัน</button>`);
@@ -6046,13 +6084,13 @@ const UI = {
   },
   async funeral(r, p){
     // 1) งานศพ
-    await new Promise(res => {
+    await saveGate('screen-5', res => {
       setScene('funeral', null, null, { ...snap(p), age: 40, ctx:'funeral' });
       const el = panel(`<div class="eyebrow">งานศพ<span>${esc(r.funeral)}</span></div><h2>มีคน ${r.guests.toLocaleString()} คนมาส่งคุณ</h2><p class="txt">เงินซองที่คืนมา ฿${baht(r.envelopes)}${r.kidDebt ? `\nค่างานส่วนที่ขาด ฿${baht(r.kidDebt)} กลายเป็นหนี้ของลูก` : ''}</p><button class="go" id="goBtn">เปิดบัญชีกรรม</button>`);
       const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el);
     });
     // 2) บัญชีกรรม
-    await new Promise(res => {
+    await saveGate('screen-6', res => {
       const goods = r.ledger.filter(l=>l.good).length, all = r.ledger.length || 1;
       setScene('karma', null, null, { goodRatio: goods/all });
       const rows = r.ledger.map((l, i) => `<div class="led ${l.good?'good':''}" style="animation-delay:${REDUCED?0:i*0.25}s"><span class="a">อายุ ${l.age}</span><span class="t">${esc(l.label)}</span><span class="st ${l.erupt?'y':'n'}">${l.good ? (l.erupt?'ออกผล':'เงียบ') : (l.erupt?'ปะทุ':'รอด')}</span>${l.eff ? `<span class="e">${esc(l.eff)}</span>` : ''}</div>`).join('');
@@ -6115,10 +6153,10 @@ function shareText(r){ if(r.magic) return `ฉันเลือกโรงเ�
 async function copyText(t, btn){ try { await navigator.clipboard.writeText(t); btn.textContent = 'คัดลอกแล้ว'; } catch(e){ const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); btn.textContent = 'คัดลอกแล้ว'; }catch(_){ btn.textContent = 'คัดลอกไม่ได้'; } ta.remove(); } }
 
 async function summaryScreen(r, p){
-  setScene(r.endingScene || 'end', null, null, { ...snap(p), age:r.age });
-  const img = await makeCard(r, p, CUR.family);
+  if(!SaveGame.replaying) setScene(r.endingScene || 'end', null, null, { ...snap(p), age:r.age });
+  const img = SaveGame.replaying ? '' : await makeCard(r, p, CUR.family);
   const parts = r.magic ? [['ความไว้ใจ',p.magic.trust,50,'—'],['ความรู้เวท',p.magic.knowledge,50,'—'],['พลังเงา',p.magic.shadow,50,'—']] : [ ['ความสุขเฉลี่ย', r.Jbar, 100, .30], ['สุขภาพเฉลี่ย', r.Hbar, 100, .25], ['ทรัพย์ที่ส่งต่อ', r.Pw, 100, .20], ['บุญ/บาป', (r.K+100)/2, 100, .20], ['เส้นสาย', p.C, 100, .05] ];
-  return new Promise(res => {
+  return saveGate('screen-7', res => {
     const el = panel(`<div class="eyebrow">สรุปชีวิต<span>${esc(r.name)} · ${r.age} ปี</span></div>` +
       `<div class="score"><span class="n">${Math.round(r.score)}</span><span class="p">${r.magic?'คะแนนตำนานเวทมนตร์':'ชีวิตนี้ดีกว่าคนไทย'} <b style="color:var(--gold2)">${r.pct}${r.magic?'/100':'%'}</b></span></div>` +
       (r.arch ? `<div class="arch${r.arch.rare?' rare':''}"><b>${esc(r.arch.t)}</b><span>${esc(r.arch.d)}</span></div>` : '') +
@@ -6132,7 +6170,7 @@ async function summaryScreen(r, p){
   });
 }
 function afterScreen(r, p){
-  return new Promise(res => {
+  return saveGate('screen-8', res => {
     const opts = [];
     p.kids.forEach((k, i) => { if(i < 4) opts.push({ label:`เล่นต่อเป็น${k.name} (ลูก${k.sex==='M'?'ชาย':'สาว'})`, sub:`เกิดตอนคุณอายุ ${k.born} · ค่าลูก ${Math.round(k.kv)}`, v:{ t:'child', i } }); });
     opts.push({ label:'เกิดใหม่ (ชาติหน้า)', sub: r.K < 0 ? 'บาปที่สะสมจะดึงโอกาสฐานะลงเล็กน้อย' : r.K > 0 ? 'บุญที่สะสมจะดันโอกาสฐานะขึ้นเล็กน้อย' : 'สุ่มเกิดใหม่', v:{ t:'reborn' } });
@@ -6150,7 +6188,7 @@ function treeScreen(){
   const first = fam[0], last = fam[fam.length-1];
   const avg = fam.reduce((s,f)=>s+f.score,0)/fam.length;
   const moved = last.qEnd - first.q;
-  return new Promise(res => {
+  return saveGate('screen-9', res => {
     setScene('end', null, null);
     const el = panel(`<div class="eyebrow">ต้นไม้ครอบครัว<span>${fam.length} รุ่น</span></div><h2>ตระกูลคุณขยับจาก ${QS[first.q].code} ไป ${QS[Math.min(5,last.qEnd)].code} ใน ${fam.length} รุ่น</h2>` +
       `<p class="txt">คะแนนเฉลี่ยตระกูล ${Math.round(avg)} · บุญสะสมรวม ${Math.round(fam.reduce((s,f)=>s+f.K,0))}${moved > 0 ? ' · ลูกหลานไต่ฐานะขึ้นได้' : moved < 0 ? ' · ฐานะของตระกูลถดถอยลง' : ''}</p>` +
@@ -6200,12 +6238,17 @@ function showLatestUpdate(){
 
 function titleScreen(){
   setScene('title', null, null); $('#hud').hidden = true; $('#tl').hidden = true; $('#logBtn').hidden = true;
+  setKeys(null);
   return new Promise(res => {
-    const el = panel(`<div class="title-art">1 ใน 65 ล้าน<small>A THAI LIFE, RANDOMLY ASSIGNED</small></div>` +
-      `<p class="txt">คุณจะเกิดเป็นคนไทยหนึ่งคนจาก 65,852,335 คน จังหวัดสุ่มตามสัดส่วนประชากรจริง ฐานะสุ่มตามการกระจายรายได้จริง แล้วใช้ชีวิตตั้งแต่เรียนจนตาย</p>` +
-      `<div class="legendgrid">${[['H','สุขภาพ','ต่ำแล้วลาป่วย รายได้หาย · ถึง 0 คือตาย'],['J','ความสุข','ต่ำเสี่ยงซึมเศร้า · สูงช่วยสุขภาพ'],['S','ทักษะ','สอบเข้า ขึ้นเงินเดือน ปรับตัวทันโลก'],['C','เส้นสาย','หางานง่าย ชนะเลือกตั้ง แขกงานศพ'],['M','เงิน','ติดลบกลายเป็นหนี้'],['K','บุญ/บาป','ซ่อนไว้ เฉลยตอนตาย']].map(([k,n,d]) => `<div>${ic(k,'ic big')}<b>${n}</b><span>${d}</span></div>`).join('')}</div>` +
-      `<p class="help kbd">กดตัวเลข 1–9 เพื่อเลือก · Enter เพื่อไปต่อ</p><button class="go" id="goBtn">เกิด</button>`);
-    const done = () => { setKeys(null); res(); }; $('#goBtn').addEventListener('click', done); setKeys(e => { if(e.key==='Enter'){ e.preventDefault(); done(); } }); focusFirst(el); showLatestUpdate();
+    const el = panel(`<div class="title-art">1 ใน 65 ล้าน<small>A THAI LIFE, RANDOMLY ASSIGNED</small></div>
+      <p class="txt">สุ่มเกิดเป็นคนไทยหนึ่งคน แล้วเลือกว่าชีวิตนี้จะไปทางไหน</p>
+      <div class="entryActions">
+        <button class="go" id="googleLoginBtn">เข้าสู่ระบบด้วย Google</button>
+        <p class="help">เก็บชีวิตของคุณไว้ แล้วกลับมาเล่นต่อได้ทุกเครื่อง</p>
+        <button class="go ghost" id="guestPlayBtn">เล่นแบบ Guest</button>
+        <p class="help">เข้าเล่นได้เลย · ความคืบหน้าอยู่ในเครื่องนี้</p>
+      </div><p id="loginError" class="help" role="status" aria-live="polite"></p>`);
+    SaveGame.bindEntry(el, res); focusFirst(el);
   });
 }
 function rebornPlayer(K){
@@ -6213,7 +6256,7 @@ function rebornPlayer(K){
   if(!shift) return p0;
   const tier = TIERS[p0.tier]; const q = tier.q.slice();
   if(K < 0){ const m = Math.min(q[4], shift); q[4] -= m; q[0] += m; } else { const m = Math.min(q[0], shift); q[0] -= m; q[4] += m; }
-  const r = Math.random()*q.reduce((s,v)=>s+v,0); let acc = 0, qi = 0; for(let i=0;i<6;i++){ acc += q[i]; if(r <= acc){ qi = i; break; } }
+  const r = rnd()*q.reduce((s,v)=>s+v,0); let acc = 0, qi = 0; for(let i=0;i<6;i++){ acc += q[i]; if(r <= acc){ qi = i; break; } }
   return newPlayer({ tier: p0.tier, prov: p0.prov, q: qi, sex: p0.sex, religion: p0.religion });
 }
 async function playFrom(p){
@@ -6229,9 +6272,16 @@ async function playFrom(p){
   }
 }
 async function boot(){
-  $('#simnote').textContent = 'กำลังจำลองชีวิตเปรียบเทียบ…';
-  simulateLives(160, s => { SIM_SCORES = s; $('#simnote').textContent = `เทียบผลกับชีวิตจำลอง ${s.length} ชีวิต`; });
-  await titleScreen();
+  $('#simnote').textContent = 'กำลังเตรียมเกม…';
+  // Finish isolated, deterministic comparison simulations before setting the
+  // player's RNG. Background simulation must never consume a saved game's RNG.
+  RNG = SaveGame.seeded(65000001);
+  SIM_SCORES = await simulateLives(160);
+  $('#simnote').textContent = `เทียบผลกับชีวิตจำลอง ${SIM_SCORES.length} ชีวิต`;
+  let record = await SaveGame.init();
+  while(!record){ record = SaveGame.signedIn ? await SaveGame.library(true) : await titleScreen(); }
+  RNG = SaveGame.seeded(SaveGame.start(record));
+  CUR.family = [];
   await playFrom(newPlayer());
 }
 boot().catch(e => { console.error(e); panel(`<h2>เกมสะดุด</h2><p class="txt">${esc(e.message)}</p><button class="go" onclick="location.reload()">เริ่มใหม่</button>`); });
