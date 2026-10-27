@@ -1,4 +1,4 @@
-﻿/* Saved games are deterministic event logs: the seed and all completed inputs.
+/* Saved games are deterministic event logs: the seed and all completed inputs.
    Replaying rebuilds async continuations and scheduled callbacks without serializing them.
    Keep the engine identifier fixed only while story/control flow remains compatible. */
 window.SaveGame = (() => {
@@ -147,13 +147,13 @@ window.SaveGame = (() => {
         'auth/popup-closed-by-user': 'หน้าต่าง Google ถูกปิดก่อนเข้าสู่ระบบเสร็จ กรุณากดเข้าสู่ระบบอีกครั้ง',
         'auth/popup-blocked': 'เบราว์เซอร์บล็อกหน้าต่าง Google กรุณาอนุญาตป๊อปอัปสำหรับเว็บนี้แล้วลองอีกครั้ง',
         'auth/cancelled-popup-request': 'มีหน้าต่างเข้าสู่ระบบเปิดอยู่แล้ว กรุณาทำรายการในหน้าต่างนั้นให้เสร็จ',
-        'auth/unauthorized-domain': `ยังไม่ได้อนุญาตโดเมน ${location.hostname} ใน Firebase Authentication`,
+        'auth/unauthorized-domain': `ยังไม่ได้อนุญาตโดเมน ${location.hostname} กรุณาเพิ่ม ${location.hostname} ใน Firebase Console → Authentication → Settings → Authorized domains (ไม่ต้องใส่ http:// หรือพอร์ต)`,
         'auth/operation-not-allowed': 'ยังไม่ได้เปิด Google ใน Firebase Authentication → Sign-in method',
         'auth/invalid-api-key': 'ค่าตั้งค่า Firebase ไม่ถูกต้อง กรุณาตรวจ API key ของเว็บแอป',
         'auth/configuration-not-found': 'ยังตั้งค่า Firebase Authentication ไม่ครบ กรุณาเปิด Google provider',
         'auth/network-request-failed': 'ติดต่อ Google ไม่ได้ กรุณาตรวจการเชื่อมต่อหรือส่วนขยายที่บล็อกคำขอ',
         'auth/web-storage-unsupported': 'เบราว์เซอร์ไม่อนุญาตให้เก็บสถานะเข้าสู่ระบบ กรุณาอนุญาตพื้นที่เว็บไซต์',
-        'auth/operation-not-supported-in-this-environment': 'กรุณาเปิดเกมผ่าน http://localhost:8765 หรือเว็บไซต์เกม แทนการเปิดไฟล์โดยตรง',
+        'auth/operation-not-supported-in-this-environment': 'เปิดไฟล์ START-LOCAL.cmd ในโฟลเดอร์เกม แล้วเล่นผ่าน http://localhost:8765/index.html เพื่อใช้ Google Login หรือเลือกเล่นแบบ Guest จากไฟล์นี้',
         'firebase/loading': 'ระบบเข้าสู่ระบบยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วกดอีกครั้ง',
       };
       const reason = reasons[e.code] || 'เข้าสู่ระบบไม่สำเร็จ';

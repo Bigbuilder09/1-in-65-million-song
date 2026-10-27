@@ -7,6 +7,10 @@ window.CloudSave = (() => {
     get user() { return auth?.currentUser || null; },
     get error() { return error; },
     login() {
+      if (location.protocol === 'file:') return Promise.reject(Object.assign(
+        new Error('Open START-LOCAL.cmd to use Google Login'),
+        { code: 'auth/operation-not-supported-in-this-environment' }
+      ));
       // Open the popup in the click's activation context, without an async wait.
       // Preserve the original startup error instead of hiding it behind a generic one.
       if (!initialized) return Promise.reject(error || Object.assign(new Error('Firebase is still loading'), { code: 'firebase/loading' }));

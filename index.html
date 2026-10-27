@@ -320,6 +320,12 @@ body{background:#0c1226;background-image:none}
 #latestUpdate :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 @media(max-width:420px){#latestUpdate{padding:18px}#latestUpdate li{padding:10px}}
 
+/* Public privacy link remains available before sign-in and during play. */
+.site-footer{margin-top:auto;padding:12px 0 0;text-align:center;font-size:13px;color:var(--dim)}
+.site-footer a{display:inline-block;padding:8px 12px;color:var(--dim);text-underline-offset:4px}
+.site-footer a:hover{color:var(--gold2)}
+.site-footer a:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+
 </style>
 <div id="app">
   <header class="hud" id="hud" hidden>
@@ -335,6 +341,7 @@ body{background:#0c1226;background-image:none}
     </section>
     <section class="panel" id="panel" aria-live="polite"></section>
   </div>
+  <footer class="site-footer"><a href="privacy.html" target="_blank" rel="noopener noreferrer">นโยบายความเป็นส่วนตัว ↗</a></footer>
 </div>
 <div class="drawer" id="drawer" hidden><div class="in" id="drawerIn"></div></div>
 <script charset="utf-8" src="firebase-config.js"></script>

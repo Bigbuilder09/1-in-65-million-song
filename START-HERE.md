@@ -1,3 +1,13 @@
+## เปิดเล่นในเครื่อง (Windows)
+
+ดับเบิลคลิก START-LOCAL.cmd ในโฟลเดอร์นี้ โปรแกรมจะเปิด http://localhost:8765/index.html ให้เอง ต้องมี Node.js (เครื่องนี้ติดตั้งไว้แล้ว) และเชื่อมต่ออินเทอร์เน็ตสำหรับ Google Login ให้เปิดหน้าต่างเซิร์ฟเวอร์ค้างไว้ระหว่างเล่น ปิดหน้าต่างหรือกด Ctrl+C เมื่อต้องการหยุด
+
+อย่าเปิด index.html แบบ file:// หากต้องการ Google Login เพราะ Firebase ไม่รองรับวิธีนั้น หากขึ้น auth/unauthorized-domain ให้เจ้าของโปรเจกต์เพิ่ม localhost ใน Firebase Console → Authentication → Settings → Authorized domains (ใส่เฉพาะ localhost ไม่ใส่ http:// หรือพอร์ต) ไฟล์ในเครื่องแก้การตั้งค่าใน Console แทนไม่ได้
+
+เซฟ Guest ของ file://, localhost, 127.0.0.1 และเว็บจริงเป็นคนละพื้นที่จัดเก็บ จึงไม่ย้ายหากันอัตโนมัติ ส่วนเซฟออนไลน์จะโหลดได้เมื่อเข้าสู่ระบบด้วยบัญชีเดิม
+
+ลิงก์กลับจากหน้าความเป็นส่วนตัวชี้ index.html โดยตรง จึงเปิดได้ทั้งจากไฟล์และจากเว็บไซต์
+
 # เปิดใช้ Google Login และเซฟออนไลน์
 
 ชุดนี้ใช้หน้าเกมบน Cloudflare เดิม และ Firebase Authentication + Cloud Firestore Standard บนแพ็กเกจ Spark ไม่ต้องมี Render และไม่ใช้ Cloud Functions
