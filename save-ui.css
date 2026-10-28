@@ -1,0 +1,12 @@
+#saveBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:1100px;margin:10px auto;padding:10px 16px;border:1px solid #39435d;border-radius:12px;background:#141d31;color:#f3e8d5;font:14px "IBM Plex Sans Thai",Tahoma,sans-serif}
+#saveBar[hidden]{display:none}
+.entryActions{display:flex;flex-direction:column;gap:10px;margin-top:28px}.entryActions .go{width:100%;margin:0;padding:16px 22px}.entryActions .help{margin:0 0 12px}#loginError{color:#ffbfbd}
+.saveDialog .danger{color:#ffc3bf;border-color:#915a63}.kidNameForm{display:grid;gap:12px;margin-top:24px}.kidNameForm input{box-sizing:border-box;width:100%;font:inherit;color:var(--cream,#f3e8d5);background:#101a2c;border:1px solid #687c9c;padding:14px;border-radius:8px}.kidNameForm input:focus{outline:2px solid #e4bb7e;outline-offset:2px}.kidNameForm .help{margin:0}#kidNameError{color:#ffbfbd}
+#saveBar button{background:#26334d;color:#f3e8d5;border:1px solid #566581;border-radius:7px;padding:8px 12px;cursor:pointer;font:inherit}
+#saveBar span{font-size:12px;color:#c7d5bc}#saveBar button:focus-visible,.saveDialog button:focus-visible{outline:3px solid #e4bb7e;outline-offset:3px}
+.saveDialog{width:min(620px,calc(100vw - 32px));max-height:85vh;overflow-y:auto;box-sizing:border-box;border:1px solid #7c6c53;border-radius:18px;background:#141d31;color:#f3e8d5;padding:24px;font:16px/1.65 "IBM Plex Sans Thai",Tahoma,sans-serif}
+.saveDialog::backdrop{background:rgba(4,8,19,.85)}.saveDialog h2{margin:0 0 12px}.saveDialog p{white-space:normal}.saveDialog button{margin:8px 8px 0 0;font:inherit}.saveDialog button:disabled{opacity:.45;cursor:not-allowed}.saveCard{padding:16px;margin:14px 0;border:1px solid #3a4860;border-radius:12px;background:#1a263c}.saveCard strong{font-size:21px;color:#e4bb7e}.saveCard p{margin:5px 0}.saveCard small{display:block;color:#b8c6bd}.saveActions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:480px){.saveDialog{padding:18px}.saveDialog button{width:100%;margin-right:0}#saveBar{margin:8px}#saveBar span{width:100%}}
+
+/* Keep in-play controls reachable on narrow screens. */
+.ubtns{flex-wrap:wrap;justify-content:flex-end}#restartBtn{color:var(--gold2,#e4bb7e)}#restartBtn:disabled{opacity:.45;cursor:not-allowed}#restartError{color:#ffbfbd}.saveDialog button:focus-visible,#restartBtn:focus-visible{outline:3px solid #e4bb7e;outline-offset:3px}
