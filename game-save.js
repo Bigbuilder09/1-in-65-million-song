@@ -398,10 +398,14 @@ window.SaveGame = (() => {
       } catch (e) { records = []; message('อ่านเซฟในเครื่องไม่ได้ กรุณาลองโหลดหน้าใหม่'); }
       if (bucket !== 'guest') {
         try {
-          const cloud = await Promise.race([CloudSave.list(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))]);
+          const cloud = await Promise.race([CloudSave.list(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))]);
           mergeCloud(cloud);
           persist(); message('โหลดตัวละครแล้ว');
-        } catch (e) { message('โหลดออนไลน์ไม่ได้ · ใช้เซฟในเครื่องได้'); }
+        } catch (e) {
+          // Slow first connection: continue with local saves; the live listener below
+          // merges cloud characters into the menu as soon as they arrive.
+          message('กำลังโหลดเซฟออนไลน์…');
+        }
       } else message(CloudSave.error ? 'เชื่อมต่อ Firebase ไม่ได้ · เล่นแบบผู้เยี่ยมชมได้' : 'เซฟในเครื่องพร้อมใช้งาน');
       let migrated = false;
       for(const record of records){

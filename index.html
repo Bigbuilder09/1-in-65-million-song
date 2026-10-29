@@ -9459,6 +9459,8 @@ async function playFrom(p){
 }
 async function boot(){
   await showLatestUpdate();
+  // Firebase and the first cloud read can take a few seconds; never leave the panel blank.
+  panel('<p class="txt">กำลังเชื่อมต่อบัญชีและโหลดเซฟ…</p>');
 
 
 
