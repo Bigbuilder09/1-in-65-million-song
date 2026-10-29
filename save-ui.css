@@ -10,3 +10,4 @@
 
 /* Keep in-play controls reachable on narrow screens. */
 .ubtns{flex-wrap:wrap;justify-content:flex-end}#restartBtn{color:var(--gold2,#e4bb7e)}#restartBtn:disabled{opacity:.45;cursor:not-allowed}#restartError{color:#ffbfbd}.saveDialog button:focus-visible,#restartBtn:focus-visible{outline:3px solid #e4bb7e;outline-offset:3px}
+#logoutBtn{margin-left:auto}#logoutBtn[hidden]{display:none}#saveBar button:disabled{opacity:.45;cursor:not-allowed}

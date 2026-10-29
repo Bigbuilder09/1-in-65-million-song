@@ -14,7 +14,7 @@ function server() {
     advance(id='hero') { const record=this.records.get(id); const g=JSON.parse(record.payload);g.events.push({gate:'choice',value:1});record.payload=JSON.stringify(g);record.revision++;record.age++;this.emit(); }
   };
 }
-function device(server, { guest=false, local=null }={}) {
+function device(server, { guest=false, local=null, ready=Promise.resolve() }={}) {
   const all=[], nodes=new Map(), listeners={}, docListeners={}, storage=new Map(), timers=new Map();
   let reads=0,writes=0,reloads=0,nextTimer=0,storageFailure=false;
   class Element {
@@ -37,7 +37,8 @@ function device(server, { guest=false, local=null }={}) {
     localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>{if(storageFailure)throw Error('quota');storage.set(key,value);}},
     setTimeout:fn=>{const id=++nextTimer;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>listeners[name]=fn,
     alert:message=>{throw Error(message);}, confirm:()=>true,
-    CloudSave:{configured:true,user:guest?null:{uid:'account'},ready:Promise.resolve(),
+    CloudSave:{configured:true,user:guest?null:{uid:'account'},ready,
+      async logout(){this.user=null;},
       async list(){reads++;if(server.offline)throw Error('offline');return clone([...server.records.values()]);},
       watch(fn){server.watchers.push(fn);return ()=>server.watchers.splice(server.watchers.indexOf(fn),1);},
       async write(record){writes++;if(server.offline)throw Error('offline');await server.beforeWrite?.(record);
@@ -122,4 +123,18 @@ test('conflict panel loads the latest server version even when it later matches 
 test('handoff never confirms the previous account after auth changes',async()=>{
  const s=server(),d=device(s);await d.start();await d.api.sync();d.context.CloudSave.user={uid:'other-account'};
  await d.nodes.get('#syncBtn').onclick({currentTarget:d.nodes.get('#syncBtn')});assert.match(d.status(),/บัญชีเปลี่ยน/);assert.doesNotMatch(d.status(),/เปิดอีกเครื่อง/);
+});
+test('guest can skip a slow account load without touching the cloud',async()=>{
+ const s=server(),d=device(s,{ready:new Promise(()=>{})});
+ const pending=d.api.init();d.api.skipToGuest();const record=await pending;
+ assert.ok(record);assert.equal(d.api.signedIn,false);assert.equal(d.stats().reads,0);
+ assert.equal(d.nodes.get('#syncBtn').hidden,true);assert.equal(d.all.find(n=>n.id==='logoutBtn').hidden,true);
+ assert.equal(JSON.parse(d.context.localStorage.getItem('o65m_characters_v1:guest')).length,1);
+});
+test('logout uploads pending progress before signing out',async()=>{
+ const s=server(),d=device(s);await d.start();d.choose();
+ const button=d.all.find(n=>n.id==='logoutBtn');assert.equal(button.hidden,false);
+ await button.onclick();
+ assert.equal(JSON.parse(s.records.get('hero').payload).events.length,1);
+ assert.equal(d.context.CloudSave.user,null);assert.equal(d.stats().reloads,1);
 });

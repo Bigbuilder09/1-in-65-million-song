@@ -9,6 +9,9 @@ window.SaveGame = (() => {
   let lastCheckpoint = null, queuedCloud = null, stopWatching = null, lastSyncSucceeded = false;
   const conflictWaiters = [];
   let reachedLivePrompt = false;
+  // "Play as Guest" pressed while the account is still loading.
+  let forceGuest = false, skipGuest;
+  const skipped = new Promise(resolve => { skipGuest = resolve; });
   const status = document.createElement('span');
   const bar = document.createElement('div');
   bar.id = 'saveBar';
@@ -16,7 +19,9 @@ window.SaveGame = (() => {
   bar.innerHTML = '<button type="button" id="charactersBtn" disabled>ตัวละครของฉัน</button><button type="button" id="syncBtn" hidden>บันทึกก่อนย้ายเครื่อง</button>';
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
-  bar.append(status);
+  const logoutBtn = document.createElement('button');
+  logoutBtn.type = 'button'; logoutBtn.id = 'logoutBtn'; logoutBtn.textContent = 'ออกจากระบบ'; logoutBtn.hidden = true;
+  bar.append(status, logoutBtn);
   document.body.append(bar);
   const message = text => { status.textContent = text; };
   const key = () => `o65m_characters_v1:${bucket}`;
@@ -388,17 +393,25 @@ window.SaveGame = (() => {
       });
     },
     async init() {
-      await Promise.race([CloudSave.ready, new Promise(r => setTimeout(r, 8000))]);
-      bucket = CloudSave.user?.uid || 'guest';
-      undoId = sessionStorage.getItem(`o65m_undo_delete:${bucket}`);
-      try {
-        records = JSON.parse(localStorage.getItem(key()) || '[]');
-        if (!Array.isArray(records)) throw new Error('Invalid local saves');
-        records = records.filter(r => r && typeof r.id === 'string' && r.engine === ENGINE && validGame(r.game));
-      } catch (e) { records = []; message('อ่านเซฟในเครื่องไม่ได้ กรุณาลองโหลดหน้าใหม่'); }
+      // A first sign-in can take up to ~30 s; the loading screen offers Guest meanwhile.
+      await Promise.race([CloudSave.ready, new Promise(r => setTimeout(r, 30000)), skipped]);
+      const loadLocal = () => {
+        undoId = sessionStorage.getItem(`o65m_undo_delete:${bucket}`);
+        try {
+          records = JSON.parse(localStorage.getItem(key()) || '[]');
+          if (!Array.isArray(records)) throw new Error('Invalid local saves');
+          records = records.filter(r => r && typeof r.id === 'string' && r.engine === ENGINE && validGame(r.game));
+        } catch (e) { records = []; message('อ่านเซฟในเครื่องไม่ได้ กรุณาลองโหลดหน้าใหม่'); }
+      };
+      bucket = forceGuest ? 'guest' : CloudSave.user?.uid || 'guest';
+      loadLocal();
       if (bucket !== 'guest') {
         try {
-          const cloud = await Promise.race([CloudSave.list(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))]);
+          const cloud = await Promise.race([
+            CloudSave.list(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+            skipped.then(() => { throw new Error('guest'); }),
+          ]);
           mergeCloud(cloud);
           persist(); message('โหลดตัวละครแล้ว');
         } catch (e) {
@@ -406,7 +419,10 @@ window.SaveGame = (() => {
           // merges cloud characters into the menu as soon as they arrive.
           message('กำลังโหลดเซฟออนไลน์…');
         }
-      } else message(CloudSave.error ? 'เชื่อมต่อ Firebase ไม่ได้ · เล่นแบบผู้เยี่ยมชมได้' : 'เซฟในเครื่องพร้อมใช้งาน');
+        if (forceGuest) { bucket = 'guest'; loadLocal(); }
+      }
+      if (bucket === 'guest') message(forceGuest ? 'เล่นแบบ Guest · เซฟอยู่ในเครื่องนี้'
+        : CloudSave.error ? 'เชื่อมต่อ Firebase ไม่ได้ · เล่นแบบผู้เยี่ยมชมได้' : 'เซฟในเครื่องพร้อมใช้งาน');
       let migrated = false;
       for(const record of records){
         if(!record.game.deleted && !Number.isInteger(record.game.balanceFixFrom)){
@@ -471,6 +487,21 @@ window.SaveGame = (() => {
       document.querySelector('#charactersBtn').disabled = false;
       document.querySelector('#charactersBtn').textContent = bucket === 'guest' ? 'เข้าสู่ระบบด้วย Google' : 'ตัวละครของฉัน';
       document.querySelector('#charactersBtn').onclick = () => library();
+      logoutBtn.hidden = bucket === 'guest';
+      logoutBtn.onclick = async () => {
+        if (!confirm('ออกจากระบบหรือไม่? เกมจะพยายามบันทึกความคืบหน้าออนไลน์ก่อน')) return;
+        logoutBtn.disabled = true;
+        message('กำลังบันทึกก่อนออกจากระบบ…');
+        try { await Promise.race([sync(), new Promise(r => setTimeout(r, 5000))]); } catch (_) {}
+        try {
+          // Anything not uploaded stays in this browser and syncs on the next sign-in.
+          tabBlocked = true; clearTimeout(timer); timer = null; stopWatching?.();
+          await CloudSave.logout(); location.reload();
+        } catch (_) {
+          tabBlocked = false; logoutBtn.disabled = false;
+          message('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง');
+        }
+      };
       bar.hidden = true;
       if (bucket !== 'guest') {
         if (records.some(r => r.dirty)) schedule();
@@ -481,8 +512,9 @@ window.SaveGame = (() => {
         });
       }
       const requested = sessionStorage.getItem('o65m_open'); sessionStorage.removeItem('o65m_open');
-      return records.find(r => r.id === requested && !r.game.deleted) || null;
+      return records.find(r => r.id === requested && !r.game.deleted) || (forceGuest ? guestRecord() : null);
     },
+    skipToGuest() { forceGuest = true; skipGuest(); },
     library,
     start(record) {
       if (!validGame(record.game)) throw new Error('เซฟไม่ถูกต้อง');

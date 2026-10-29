@@ -9460,7 +9460,10 @@ async function playFrom(p){
 async function boot(){
   await showLatestUpdate();
   // Firebase and the first cloud read can take a few seconds; never leave the panel blank.
-  panel('<p class="txt">กำลังเชื่อมต่อบัญชีและโหลดเซฟ…</p>');
+  const waiting = panel(`<p class="txt">กำลังเชื่อมต่อบัญชีและโหลดเซฟ…</p>
+    <p class="help">การเข้าสู่ระบบครั้งแรกอาจต้องรอนานถึง 30 วินาที ถ้ารอไม่ไหว กดเล่นแบบ Guest ได้เลย (ความคืบหน้าจะเก็บไว้ในเครื่องนี้)</p>
+    <div class="entryActions"><button class="go ghost" id="skipToGuestBtn">เล่นแบบ Guest</button></div>`);
+  waiting.querySelector('#skipToGuestBtn').addEventListener('click', e => { e.currentTarget.disabled = true; SaveGame.skipToGuest(); });
 
 
 
