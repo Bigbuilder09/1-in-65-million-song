@@ -6,11 +6,16 @@ window.SaveGame = (() => {
   let bucket = 'guest', records = [], active = null, cursor = 0, timer;
   let syncing = null, conflict = null, tabBlocked = false, menuRefresh, undoId = null;
   let pendingCancel = null, restartInFlight = false;
+  let lastCheckpoint = null, queuedCloud = null, stopWatching = null, lastSyncSucceeded = false;
+  const conflictWaiters = [];
+  let reachedLivePrompt = false;
   const status = document.createElement('span');
   const bar = document.createElement('div');
   bar.id = 'saveBar';
   bar.hidden = true;
-  bar.innerHTML = '<button type="button" id="charactersBtn" disabled>ตัวละครของฉัน</button><button type="button" id="syncBtn" hidden>บันทึกออนไลน์</button>';
+  bar.innerHTML = '<button type="button" id="charactersBtn" disabled>ตัวละครของฉัน</button><button type="button" id="syncBtn" hidden>บันทึกก่อนย้ายเครื่อง</button>';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
   bar.append(status);
   document.body.append(bar);
   const message = text => { status.textContent = text; };
@@ -44,16 +49,50 @@ window.SaveGame = (() => {
   function checkpoint() {
     if (!active || active.game.deleted) return;
     const p = typeof CUR !== 'undefined' ? CUR.p : null;
+    const metadataChanged = p && (active.name !== p.name || active.age !== p.age || active.generation !== p.gen);
     if (p) { active.name = p.name; active.age = p.age; active.generation = p.gen; }
+    const version = JSON.stringify(active.game);
+    // Ignore metadata reconstructed by replay, but save age/name changes after new decisions.
+    const wasLive = reachedLivePrompt; reachedLivePrompt = true;
+    if (version === lastCheckpoint && (!wasLive || !metadataChanged)) {
+      if (!wasLive) message(active.dirty ? 'บันทึกในเครื่องแล้ว · รอซิงก์' : 'โหลดเซฟแล้ว · พร้อมเล่นต่อ');
+      return;
+    }
+    lastCheckpoint = version;
     active.updatedAt = Date.now(); active.dirty = true;
     if (persist()) message(bucket === 'guest' ? 'บันทึกในเครื่องแล้ว' : 'บันทึกในเครื่องแล้ว · รอซิงก์');
     schedule();
   }
+  function receiveCloud(cloud) {
+    if (tabBlocked || CloudSave.user?.uid !== bucket) return;
+    if (syncing) { queuedCloud = cloud; return; }
+    mergeCloud(cloud);
+  }
+  function mergeCloud(cloud) {
+    for (const remote of cloud) {
+      try {
+        const record = fromCloud(remote), local = records.find(r => r.id === record.id);
+        if (!local) { records.push(record); continue; }
+        if (record.cloudRevision <= (local.cloudRevision || 0)) continue;
+        if (conflict?.local === local) { conflict.remote = remote; continue; }
+        if (JSON.stringify(record.game) === JSON.stringify(local.game)) {
+          local.cloudRevision = record.cloudRevision; local.dirty = false;
+          continue;
+        }
+        if (local.dirty || active === local) {
+          // Never replace an event log underneath the running game.
+          if (!conflict) conflict = { local, remote };
+        } else records[records.indexOf(local)] = record;
+      } catch (e) { console.warn('Skipped incompatible cloud save', e.message); }
+    }
+    persist(); menuRefresh?.();
+    if (conflict) { message('มีเซฟจากอีกเครื่อง กรุณาเลือกเวอร์ชัน'); showConflict(); }
+  }
   function schedule() {
     if (bucket === 'guest' || conflict || timer) return;
-    timer = setTimeout(() => { timer = null; sync(); }, 15000);
+    timer = setTimeout(() => { timer = null; sync({ pull: false }); }, 15000);
   }
-  async function sync() {
+  async function sync({ pull = true } = {}) {
     if (tabBlocked) return;
     if (bucket === 'guest') { message('เซฟอยู่ในเครื่อง · เข้าสู่ระบบเพื่อบันทึกออนไลน์'); return; }
     if (syncing) return syncing;
@@ -63,9 +102,12 @@ window.SaveGame = (() => {
     syncing = (async () => {
       // Yield before finally can clear the shared promise, including no-op syncs.
       await Promise.resolve();
+      lastSyncSucceeded = false;
       try {
+        if (pull) mergeCloud(await CloudSave.list());
+        if (tabBlocked || conflict || CloudSave.user?.uid !== bucket) return;
         for (const record of records.filter(r => r.dirty)) {
-          if (tabBlocked) return;
+          if (tabBlocked || CloudSave.user?.uid !== bucket) return;
           const sent = clone(record), sentVersion = JSON.stringify(sent.game);
           if (new TextEncoder().encode(JSON.stringify(sent.game)).length >= 790000) {
             throw new Error('ประวัติชีวิตนี้ยาวเกินขนาดเซฟออนไลน์ กรุณาเริ่มตัวละครใหม่');
@@ -80,12 +122,14 @@ window.SaveGame = (() => {
           record.dirty = JSON.stringify(record.game) !== sentVersion;
           persist();
         }
+        lastSyncSucceeded = true;
         message(records.some(r => r.dirty) ? 'มีความคืบหน้าใหม่ · รอซิงก์' : 'บันทึกออนไลน์แล้ว ✓');
       } catch (e) {
         console.warn('Cloud save failed', e.code || e.message);
         message('เซฟออนไลน์ยังไม่สำเร็จ · เก็บในเครื่องไว้แล้ว');
       } finally {
         syncing = null;
+        if (queuedCloud) { const cloud = queuedCloud; queuedCloud = null; receiveCloud(cloud); }
         if (!tabBlocked && !conflict && records.some(r => r.dirty)) schedule();
       }
     })();
@@ -105,23 +149,46 @@ window.SaveGame = (() => {
     d.addEventListener('close', () => d.remove(), { once: true }); return d;
   }
   function showConflict() {
-    if (!conflict || document.querySelector('#saveConflict')) return;
+    if (!conflict) return;
+    const existing = document.querySelector('#saveConflict');
+    if (existing) { existing.refreshSaveDetails?.(); return; }
     const d = dialog('พบเซฟจากอีกเครื่อง'); d.id = 'saveConflict';
-    node('p', 'เซฟออนไลน์เปลี่ยนไปตั้งแต่เปิดเกมนี้ เลือกโหลดเซฟออนไลน์ หรือแยกความคืบหน้าในเครื่องนี้เป็นอีกช่องเพื่อเก็บไว้ทั้งสองชุด', d);
+    node('p', 'อีกเครื่องมีเซฟใหม่ เลือกโหลดออนไลน์เพื่อเล่นต่อ หรือเก็บทั้งสองชุดหากต้องการรักษาความคืบหน้าเครื่องนี้', d);
+    const details = node('div', '', d);
+    const describe = (label, record) => {
+      const when = record.updatedAt ? new Date(record.updatedAt).toLocaleString('th-TH') : 'ไม่ทราบเวลา';
+      return `${label}: ${record.name} · อายุ ${record.age} ปี · รุ่นที่ ${record.generation} · ${when}`;
+    };
+    const renderDetails = () => {
+      details.replaceChildren();
+      node('p', describe('เครื่องนี้', conflict.local), details);
+      try { node('p', describe('ออนไลน์', fromCloud(conflict.remote)), details); }
+      catch (_) { node('p', 'เซฟออนไลน์ใช้เกมคนละเวอร์ชัน กรุณาติดต่อผู้ดูแล', details); }
+    };
+    renderDetails();
+    d.refreshSaveDetails = renderDetails;
     button('โหลดเซฟออนไลน์', d, () => {
       try {
         const remote = fromCloud(conflict.remote), at = records.indexOf(conflict.local);
-        records[at] = remote; persist(); sessionStorage.setItem('o65m_open', remote.id); location.reload();
+        records[at] = remote;
+        if (!persist()) { records[at] = conflict.local; return; }
+        stopWatching?.(); tabBlocked = true; clearTimeout(timer);
+        sessionStorage.setItem('o65m_open', remote.id); location.reload();
       } catch (e) { alert(e.message); }
     });
     button('เก็บทั้งสองชุด', d, () => {
       try {
         const old = conflict.local, remote = fromCloud(conflict.remote);
+        const previous = { id: old.id, cloudRevision: old.cloudRevision, dirty: old.dirty };
         old.id = id(); old.cloudRevision = 0; old.dirty = true;
-        records.push(remote); conflict = null; persist(); d.close(); sync(); menuRefresh?.();
+        records.push(remote);
+        if (!persist()) { records.pop(); Object.assign(old, previous); return; }
+        conflict = null; d.close();
+        for (const resolve of conflictWaiters.splice(0)) resolve();
+        sync(); menuRefresh?.();
       } catch (e) { alert(e.message); }
     });
-    button('ตัดสินใจภายหลัง', d, () => d.close()); d.showModal();
+    button('เล่นต่อในเครื่องนี้ก่อน', d, () => d.close()); d.showModal();
   }
   function openRecord(record) {
     if (record.game.deleted) throw new Error('ตัวละครนี้ถูกลบแล้ว');
@@ -181,19 +248,25 @@ window.SaveGame = (() => {
     }
     menuRefresh?.(); sync();
   }
-  function library(initial = false) {
+  async function library(initial = false) {
     if (bucket === 'guest') {
       if (initial) return Promise.resolve(guestRecord());
       const control = document.querySelector('#charactersBtn');
       return loginWithGoogle(control);
     }
-    if (!initial) sync();
+    await sync();
+    if (conflict) {
+      await new Promise(resolve => conflictWaiters.push(resolve));
+      return library(initial);
+    }
+    if (tabBlocked) return new Promise(() => {});
     return new Promise(resolve => {
       const d = dialog(records.some(r => !r.game.deleted) ? 'เล่นต่อจากชีวิตเดิม' : 'เริ่มชีวิตแรกของคุณ');
       node('p', `บัญชี ${CloudSave.user?.displayName || CloudSave.user?.email || ''}`, d);
       const list = node('div', '', d);
       const pick = record => {
         try {
+          if (conflict || tabBlocked) { showConflict(); return; }
           if (initial) { resolve(record); d.close(); }
           else if (!openRecord(record)) d.close();
         } catch (e) { alert(e.message); }
@@ -322,13 +395,7 @@ window.SaveGame = (() => {
       if (bucket !== 'guest') {
         try {
           const cloud = await Promise.race([CloudSave.list(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))]);
-          for (const remote of cloud) {
-            try {
-              const record = fromCloud(remote), local = records.find(r => r.id === record.id);
-              if (!local) records.push(record);
-              else if (!local.dirty && record.cloudRevision > local.cloudRevision) records[records.indexOf(local)] = record;
-            } catch (e) { console.warn('Skipped incompatible cloud save', e.message); }
-          }
+          mergeCloud(cloud);
           persist(); message('โหลดตัวละครแล้ว');
         } catch (e) { message('โหลดออนไลน์ไม่ได้ · ใช้เซฟในเครื่องได้'); }
       } else message(CloudSave.error ? 'เชื่อมต่อ Firebase ไม่ได้ · เล่นแบบผู้เยี่ยมชมได้' : 'เซฟในเครื่องพร้อมใช้งาน');
@@ -383,20 +450,36 @@ window.SaveGame = (() => {
         }
       }
       if(migrated)persist();
-      document.querySelector('#syncBtn').hidden = true;
-      document.querySelector('#syncBtn').onclick = () => sync();
+      document.querySelector('#syncBtn').hidden = bucket === 'guest';
+      document.querySelector('#syncBtn').onclick = async event => {
+        const control = event.currentTarget; control.disabled = true;
+        message('กำลังตรวจสอบและบันทึกออนไลน์…');
+        try {
+          // Drain decisions made during an in-flight upload before confirming a handoff.
+          do { await sync(); } while (!tabBlocked && !conflict && CloudSave.user?.uid === bucket && records.some(r => r.dirty) && lastSyncSucceeded);
+          if (!tabBlocked && !conflict && CloudSave.user?.uid === bucket && lastSyncSucceeded && !records.some(r => r.dirty)) message('บันทึกออนไลน์แล้ว ✓ เปิดอีกเครื่องด้วยบัญชีเดิมได้');
+        } finally { control.disabled = false; }
+      };
       document.querySelector('#charactersBtn').disabled = false;
       document.querySelector('#charactersBtn').textContent = bucket === 'guest' ? 'เข้าสู่ระบบด้วย Google' : 'ตัวละครของฉัน';
       document.querySelector('#charactersBtn').onclick = () => library();
       bar.hidden = true;
-      if (bucket !== 'guest' && records.some(r => r.dirty)) schedule();
+      if (bucket !== 'guest') {
+        if (records.some(r => r.dirty)) schedule();
+        stopWatching?.();
+        stopWatching = CloudSave.watch(receiveCloud, e => {
+          console.warn('Cloud updates unavailable', e.code || e.message);
+          message('รับเซฟจากอีกเครื่องไม่ได้ · กดบันทึกก่อนย้ายเครื่องเพื่อลองใหม่');
+        });
+      }
       const requested = sessionStorage.getItem('o65m_open'); sessionStorage.removeItem('o65m_open');
       return records.find(r => r.id === requested && !r.game.deleted) || null;
     },
     library,
     start(record) {
       if (!validGame(record.game)) throw new Error('เซฟไม่ถูกต้อง');
-      active = record; cursor = 0; bar.hidden = false; restartInFlight = false;
+      active = record; lastCheckpoint = JSON.stringify(record.game); reachedLivePrompt = false; cursor = 0; bar.hidden = false; restartInFlight = false;
+      if (record.dirty) schedule();
       const restart = document.querySelector('#restartBtn'); restart.hidden = false; restart.disabled = true;
       message(record.game.events.length ? 'กำลังกลับไปจุดที่เล่นค้างไว้…' : 'เริ่มชีวิตใหม่');
       return record.game.seed;
@@ -405,7 +488,7 @@ window.SaveGame = (() => {
   };
   document.querySelector('#restartBtn').addEventListener('click', restartGame);
   addEventListener('online', () => { if (bucket !== 'guest') sync(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) sync(); });
+  document.addEventListener('visibilitychange', () => { if (bucket !== 'guest') sync({ pull: !document.hidden }); });
   addEventListener('storage', e => {
     if (e.key !== key()) return;
     if (!active) {
