@@ -22,8 +22,19 @@ window.CloudSave = (() => {
     async logout() { if (auth) await sdk.signOut(auth); },
     async list() {
       if (!api.user) return [];
-      const result = await sdk.getDocs(sdk.collection(db, 'users', api.user.uid, 'characters'));
+      const uid = api.user.uid;
+      const result = await sdk.getDocsFromServer(sdk.collection(db, 'users', uid, 'characters'));
+      if (api.user?.uid !== uid) throw new Error('บัญชีเปลี่ยนระหว่างโหลดเซฟ');
       return result.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    },
+    watch(next, fail) {
+      if (!api.user) return () => {};
+      const uid = api.user.uid;
+      return sdk.onSnapshot(sdk.collection(db, 'users', uid, 'characters'),
+        { includeMetadataChanges: true }, snapshot => {
+          if (api.user?.uid !== uid || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+          next(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }, fail);
     },
     async write(record) {
       if (!api.user) throw new Error('กรุณาเข้าสู่ระบบก่อน');
