@@ -206,10 +206,14 @@ window.SaveGame = (() => {
   }
   async function loginWithGoogle(control, errorBox) {
     control.disabled = true;
-    try { await CloudSave.login(); location.reload(); }
+    const reloadAfterLogin = () => {
+      try { sessionStorage.setItem('o65m_skip_update', '1'); } catch (_) {}
+      location.reload();
+    };
+    try { await CloudSave.login(); reloadAfterLogin(); }
     catch (e) {
       // Auth can finish in another tab while this popup is closing.
-      if (CloudSave.user) { location.reload(); return; }
+      if (CloudSave.user) { reloadAfterLogin(); return; }
       console.warn('Google sign-in failed', e.code || e.message);
       const reasons = {
         'auth/popup-closed-by-user': 'หน้าต่าง Google ถูกปิดก่อนเข้าสู่ระบบเสร็จ กรุณากดเข้าสู่ระบบอีกครั้ง',

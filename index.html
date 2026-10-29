@@ -20,6 +20,9 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://1-in-65-million-song.pages.dev/og.png">
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Silkscreen&display=swap">
@@ -9390,6 +9393,8 @@ let updateAnnouncementShown=false;
 function showLatestUpdate(){
   if(updateAnnouncementShown)return;
   updateAnnouncementShown=true;
+  // Skip the announcement on the reload that follows a Google sign-in.
+  try{if(sessionStorage.getItem('o65m_skip_update')){sessionStorage.removeItem('o65m_skip_update');return;}}catch(_){}
   return new Promise(resolve=>{
   const dialog=document.createElement('dialog');dialog.id='latestUpdate';
   dialog.setAttribute('aria-labelledby','latestUpdateTitle');
